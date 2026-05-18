@@ -1,0 +1,68 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# pre-commit hook configuration
+# https://pre-commit.com
+#
+# Install:  uv run pre-commit install
+# Run all:  uv run pre-commit run --all-files
+# ─────────────────────────────────────────────────────────────────────────────
+
+default_language_version:
+  python: python3.11
+
+repos:
+  # ── General file hygiene ──────────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+      - id: detect-private-key       # Block accidental key commits
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+      - id: no-commit-to-branch      # Prevent direct commits to main
+        args: ["--branch", "main"]
+
+  # ── Ruff: lint + format (replaces black, flake8, isort) ──────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.8
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # ── Mypy: static type checking ────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
+    hooks:
+      - id: mypy
+        additional_dependencies:
+          - pydantic>=2.7
+          - pydantic-settings>=2.3
+        args: [--ignore-missing-imports]
+
+  # ── Conventional commits enforcement ─────────────────────────────────────
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.2.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert]
+
+  # ── Security: scan for leaked secrets ────────────────────────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+
+  # ── YAML lint ─────────────────────────────────────────────────────────────
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [--strict, -d, "{extends: default, rules: {line-length: {max: 120}}}"]
