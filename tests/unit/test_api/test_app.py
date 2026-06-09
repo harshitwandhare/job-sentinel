@@ -100,6 +100,19 @@ def test_build_rejects_empty_profile(tmp_path: Path) -> None:
     assert resp.status_code == 400
 
 
+def test_cover_rejects_empty_profile(tmp_path: Path) -> None:
+    assert _client(tmp_path).post("/api/resume/cover", json={}).status_code == 400
+
+
+def test_cover_with_profile_returns_pdf_or_503(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    client.put("/api/profile", json={"basics": {"name": "Ada", "summary": "Engineer."}})
+    resp = client.post("/api/resume/cover", json={"role": "RA", "company": "UTD"})
+    assert resp.status_code in (200, 503)
+    if resp.status_code == 200:
+        assert resp.headers["content-type"] == "application/pdf"
+
+
 def test_build_with_profile_returns_pdf_or_503(tmp_path: Path) -> None:
     client = _client(tmp_path)
     client.put(

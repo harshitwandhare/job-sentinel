@@ -419,6 +419,56 @@ def resume_doctor(
     console.print('[green]✓ Ready[/] — use [bold]resume build --ai --job-text "…"[/].')
 
 
+@resume_app.command("cover")
+def resume_cover(
+    out: Path = typer.Option(  # noqa: B008 — typer reads the default at decoration time
+        Path("data/cover_letter.pdf"), "--out", "-o", help="Output PDF path"
+    ),
+    job_text: str = typer.Option("", "--job-text", "-j", help="Job description to target"),
+    role: str = typer.Option("", "--role", help="Role title (for the opening line)"),
+    company: str = typer.Option("", "--company", help="Company/department name"),
+    ai: bool = typer.Option(False, "--ai", help="Polish with a local LLM (needs Ollama)"),
+) -> None:
+    """Generate a tailored cover letter PDF from your profile."""
+    from datetime import date
+
+    from job_sentinel.documents import RenderError, build_cover_letter_pdf, cover_letter_paragraphs
+    from job_sentinel.profile import load_profile
+
+    profile = load_profile()
+    if profile.is_empty():
+        console.print("[yellow]Profile is empty.[/] Run [bold]resume init[/] first.")
+        raise typer.Exit(code=1)
+
+    client = None
+    if ai:
+        from job_sentinel.config.settings import LLMSettings
+        from job_sentinel.documents.llm import OllamaClient
+
+        cfg = LLMSettings()
+        client = OllamaClient(cfg.base_url, cfg.model)
+        if not (client.available() and client.has_model()):
+            console.print("[yellow]Local model unavailable — writing the deterministic draft.[/]")
+            client = None
+
+    paragraphs = cover_letter_paragraphs(
+        profile, role=role, company=company, job_description=job_text, client=client
+    )
+    try:
+        pdf = build_cover_letter_pdf(
+            profile,
+            paragraphs,
+            out,
+            role=role,
+            company=company,
+            today=date.today().strftime("%B %d, %Y"),
+        )
+    except RenderError as exc:
+        console.print(f"[red]Could not build the PDF.[/]\n{exc}")
+        raise typer.Exit(code=1) from exc
+    console.print(f"[green]✓ Cover letter built[/] → [cyan]{pdf}[/]")
+
+
 def _load_job_description(posting_id: str) -> str:
     """Fetch a stored posting and flatten it into a description for tailoring."""
     from job_sentinel.db.repository import JobRepository
