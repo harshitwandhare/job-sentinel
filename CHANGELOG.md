@@ -52,6 +52,10 @@ Versions follow [Semantic Versioning](https://semver.org):
 - Integration test for the full scrape cycle, plus bot-handler, notifier,
   browser, and adapter-base coverage (suite at ~75%)
 
+- **Email notifier** (optional SMTP, stdlib-only): a second alert channel that fans out
+  alongside Telegram when `EMAIL_ENABLED=true`; degrades to a no-op otherwise.
+- **Deadline-aware tracking**: free-form deadline parsing (`core/deadlines.py`) and a
+  `/deadlines` Telegram command listing postings closing within `DEADLINE_ALERT_DAYS`.
 - Web API mutations: `PUT /api/profile` (validated write-back), `POST /api/jobs/{id}/status`,
   and `POST /api/resume/build` (returns a tailored PDF, or 503 with an install hint if the
   LaTeX engine is absent). `create_app` takes injectable profile/DB paths for test isolation.

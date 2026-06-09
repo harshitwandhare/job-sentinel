@@ -32,6 +32,7 @@ from telegram import BotCommand, Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 from job_sentinel.adapters.registry import list_adapters
+from job_sentinel.core.deadlines import days_until
 from job_sentinel.core.models import ApplicationStatus
 from job_sentinel.notifiers.telegram import TelegramNotifier, escape
 
@@ -39,6 +40,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
 
     from job_sentinel.config.settings import Settings
+    from job_sentinel.core.models import JobPosting
     from job_sentinel.core.scheduler import Scheduler
     from job_sentinel.db.repository import JobRepository
 
@@ -92,6 +94,7 @@ def build_application(
                 BotCommand("ignore", "Dismiss posting: /ignore <id>"),
                 BotCommand("status", "Job details: /status <id>"),
                 BotCommand("stats", "Counts by status"),
+                BotCommand("deadlines", "Postings closing soon"),
                 BotCommand("filters", "Active keyword filters"),
                 BotCommand("adapters", "Available site adapters"),
                 BotCommand("ping", "Health check"),
@@ -132,6 +135,7 @@ def _make_handlers(
             "/ignore `<id>` — Dismiss a posting\n"
             "/status `<id>` — Full details of a posting\n"
             "/stats — Summary counts by status\n"
+            "/deadlines — Postings closing soon\n"
             "/filters — Your active keyword filters\n"
             "/adapters — Available site adapters\n"
             "/ping — Health check\n"
@@ -253,6 +257,28 @@ def _make_handlers(
             kw_list = "\n".join(f"  • `{escape(k)}`" for k in kws)
             await _reply(update, f"🏷 *Active keyword filters:*\n{kw_list}")
 
+    async def deadlines_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        days = settings.deadline_alert_days
+        open_jobs = repo.get_by_status(ApplicationStatus.NEW) + repo.get_by_status(
+            ApplicationStatus.SEEN
+        )
+        soon: list[tuple[int, JobPosting]] = []
+        for job in open_jobs:
+            n = days_until(job.deadline)
+            if n is not None and 0 <= n <= days:
+                soon.append((n, job))
+        soon.sort(key=lambda t: t[0])
+
+        if not soon:
+            await _reply(update, f"✅ Nothing closing in the next {days} days\\.")
+            return
+
+        lines = [f"⏰ *Closing within {days} days:*", ""]
+        for n, job in soon:
+            when = "today" if n == 0 else ("tomorrow" if n == 1 else f"in {n} days")
+            lines.append(f"• *{escape(job.title)}* — {escape(when)} \\(`{escape(job.deadline)}`\\)")
+        await _reply(update, "\n".join(lines))
+
     async def adapters_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         ids = list_adapters()
         active = settings.site_adapter
@@ -273,6 +299,7 @@ def _make_handlers(
         "ignore": ignore,
         "status": status_cmd,
         "stats": stats,
+        "deadlines": deadlines_cmd,
         "filters": filters_cmd,
         "adapters": adapters_cmd,
     }
