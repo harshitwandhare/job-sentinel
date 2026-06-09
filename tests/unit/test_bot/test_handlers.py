@@ -150,3 +150,27 @@ async def test_recent_empty(settings: Settings, repo: JobRepository) -> None:
     await handlers["recent"](update, _context())
     assert "No jobs" in reply.await_args.args[0]
     notifier.send_jobs_list.assert_not_called()
+
+
+async def test_deadlines_lists_closing_soon(settings: Settings, repo: JobRepository) -> None:
+    from datetime import date, timedelta
+
+    soon = (date.today() + timedelta(days=2)).strftime("%m/%d/%Y")
+    repo.save_job(JobPosting(posting_id="d1", title="Closing Soon Role", deadline=soon))
+    repo.save_job(
+        JobPosting(posting_id="d2", title="No Deadline Role", deadline="Apply Immediately")
+    )
+    handlers, _, _ = _handlers(settings, repo)
+    update, reply = _update()
+    await handlers["deadlines"](update, _context())
+    text = reply.await_args.args[0]
+    assert "Closing Soon Role" in text
+    assert "No Deadline Role" not in text
+
+
+async def test_deadlines_none_soon(settings: Settings, repo: JobRepository) -> None:
+    repo.save_job(JobPosting(posting_id="d3", title="Far Off", deadline="12/31/2099"))
+    handlers, _, _ = _handlers(settings, repo)
+    update, reply = _update()
+    await handlers["deadlines"](update, _context())
+    assert "Nothing closing" in reply.await_args.args[0]

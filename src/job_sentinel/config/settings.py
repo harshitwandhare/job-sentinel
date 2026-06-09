@@ -120,6 +120,27 @@ class LLMSettings(BaseSettings):
     model: str = Field(default="llama3.1:8b", description="Local model tag to use (OLLAMA_MODEL)")
 
 
+class EmailSettings(BaseSettings):
+    """Optional SMTP email notifier (a second alert channel alongside Telegram)."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="EMAIL_", extra="ignore", env_file=_ENV_FILE, env_file_encoding="utf-8"
+    )
+
+    enabled: bool = Field(default=False, description="Turn the email channel on")
+    smtp_host: str = Field(default="", description="SMTP server host")
+    smtp_port: int = Field(default=587, description="SMTP port (587 STARTTLS, 465 SSL)")
+    username: str = Field(default="", description="SMTP username")
+    password: str = Field(default="", description="SMTP password / app password")
+    sender: str = Field(default="", description="From address (defaults to username)")
+    recipient: str = Field(default="", description="Where alerts are sent")
+    use_tls: bool = Field(default=True, description="STARTTLS (True) vs implicit SSL (False)")
+
+    @property
+    def configured(self) -> bool:
+        return self.enabled and bool(self.smtp_host and self.recipient)
+
+
 class LogSettings(BaseSettings):
     """Logging configuration."""
 
@@ -171,6 +192,7 @@ class Settings(BaseSettings):
     portal: PortalSettings = Field(default_factory=PortalSettings)
     scraper: ScraperSettings = Field(default_factory=ScraperSettings)
     filters: FilterSettings = Field(default_factory=FilterSettings)
+    email: EmailSettings = Field(default_factory=EmailSettings)
     logging: LogSettings = Field(default_factory=LogSettings)
 
     # ── Top-level ─────────────────────────────────────────────────────────
@@ -193,6 +215,9 @@ class Settings(BaseSettings):
     dry_run: bool = Field(
         default=False,
         description="Scrape but do not send Telegram messages",
+    )
+    deadline_alert_days: int = Field(
+        default=5, ge=1, description="Flag postings whose deadline is within this many days"
     )
     env: str = Field(default="development", description="development | staging | production")
 
