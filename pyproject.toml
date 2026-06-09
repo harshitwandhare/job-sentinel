@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 # ─────────────────────────────────────────────────────────────────────────────
 [project]
 name            = "job-sentinel"
-version         = "0.1.0"
+version         = "0.2.0"
 description     = "Site-agnostic job-portal monitor with pluggable adapters and Telegram alerts"
 readme          = "README.md"
 license         = { text = "MIT" }

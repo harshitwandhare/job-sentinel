@@ -14,6 +14,31 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-06-10
+
+### Added
+- **Local web stack**: a FastAPI layer (`job-sentinel serve`) and a Next.js 15 web UI
+  (TypeScript, Tailwind, framer-motion, a three.js hero) — pages for the landing, profile
+  view, **profile editor**, **résumé studio** (tailor → ATS coverage → download PDF, with a
+  local-LLM toggle), and tracked jobs.
+- **Web API**: `GET`/`PUT /api/profile`, `/api/profile/summary`, `/api/jobs`,
+  `POST /api/jobs/{id}/status`, `POST /api/resume/tailor`, and `POST /api/resume/build`
+  (streams a tailored PDF; 503 with an install hint if Tectonic is absent).
+- **Email notifier** (optional, stdlib SMTP): a second alert channel alongside Telegram,
+  fanned out in `run()`; no-op unless `EMAIL_ENABLED=true`.
+- **Deadline-aware tracking**: free-form deadline parsing + a `/deadlines` command listing
+  postings closing within `DEADLINE_ALERT_DAYS`.
+- **Supply-chain CI**: `pip-audit` vulnerability scan + a license-compliance gate (blocks
+  GPL/AGPL), plus a web type-check/build job.
+- **Docker**: `Dockerfile` + `docker-compose.yml` for always-on operation with
+  host-mounted, restart-safe data.
+- Project docs: North-Star vision, competitive analysis, `SECURITY.md`, `CODEOWNERS`,
+  `AGENTS.md`.
+
+### Changed
+- Next.js pinned to 15.5.19 (clears the 15.1.x advisories); `create_app` takes injectable
+  profile/DB paths for test isolation. Test suite at ~82% coverage.
+
 ## [0.1.0] — 2026-06-09
 
 ### Added
@@ -52,14 +77,6 @@ Versions follow [Semantic Versioning](https://semver.org):
 - Integration test for the full scrape cycle, plus bot-handler, notifier,
   browser, and adapter-base coverage (suite at ~75%)
 
-- **Email notifier** (optional SMTP, stdlib-only): a second alert channel that fans out
-  alongside Telegram when `EMAIL_ENABLED=true`; degrades to a no-op otherwise.
-- **Deadline-aware tracking**: free-form deadline parsing (`core/deadlines.py`) and a
-  `/deadlines` Telegram command listing postings closing within `DEADLINE_ALERT_DAYS`.
-- Web API mutations: `PUT /api/profile` (validated write-back), `POST /api/jobs/{id}/status`,
-  and `POST /api/resume/build` (returns a tailored PDF, or 503 with an install hint if the
-  LaTeX engine is absent). `create_app` takes injectable profile/DB paths for test isolation.
-
 ### Fixed
 - `KEYWORD_FILTERS` is now parsed as CSV from the environment without tripping
   pydantic-settings' JSON decoder (previously crashed at startup)
@@ -76,5 +93,6 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ---
 
-[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/harshitwandhare/job-sentinel/releases/tag/v0.1.0
