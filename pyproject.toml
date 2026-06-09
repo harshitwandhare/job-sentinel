@@ -83,6 +83,9 @@ dev = [
   "mypy>=1.10",
   # Pre-commit
   "pre-commit>=3.7",
+  # Supply-chain: vulnerability + license auditing
+  "pip-audit>=2.7",
+  "pip-licenses>=4.4",
   # Stubs
   "types-PyYAML",
 ]
@@ -122,6 +125,8 @@ dev-dependencies = [
   "ruff>=0.4",
   "mypy>=1.10",
   "pre-commit>=3.7",
+  "pip-audit>=2.7",
+  "pip-licenses>=4.4",
   "types-PyYAML",
 ]
 
