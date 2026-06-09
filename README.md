@@ -174,6 +174,11 @@ uv run job-sentinel resume init        # writes data/profile.yaml
 # 3. Build an ATS-friendly PDF (also writes the .tex next to it)
 uv run job-sentinel resume build -o data/resume.pdf
 uv run job-sentinel resume show        # summarise your profile
+
+# 4. Tailor to a specific posting — reorders content by relevance and
+#    reports ATS keyword coverage (matched vs missing terms)
+uv run job-sentinel resume build --job-text "paste a job description here"
+uv run job-sentinel resume build --job-id <posting_id>   # a posting already scraped
 ```
 
 PDF rendering uses **[Tectonic](https://tectonic-typesetting.github.io)** (a
@@ -189,8 +194,8 @@ If Tectonic isn't installed, `resume build` still writes the `.tex` so you can
 compile it on Overleaf. The template is single-column with standard fonts and
 real selectable text, so it parses cleanly through ATS.
 
-> Roadmap: per-posting tailoring (select & order profile content against a job
-> description), optional AI rephrasing, and deadline-aware document tracking.
+> Roadmap: an optional **local** LLM layer (open-source, self-hosted) to rephrase
+> bullets toward a posting, and deadline-aware document tracking.
 
 ---
 

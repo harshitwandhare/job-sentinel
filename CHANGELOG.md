@@ -36,6 +36,10 @@ Versions follow [Semantic Versioning](https://semver.org):
   rendered to an ATS-friendly PDF via a single-column LaTeX template compiled
   with Tectonic. New `resume init | show | build` CLI commands; works standalone
   without the bot configured.
+- **Per-posting résumé tailoring**: `resume build --job-text <jd>` / `--job-id <id>`
+  reorders profile content by keyword relevance and reports ATS keyword coverage
+  (matched vs missing terms), behind a pluggable `Tailor` interface so a local-LLM
+  backend can slot in later.
 - Out-of-tree adapter loading via `CUSTOM_ADAPTER_PATH` (no fork needed)
 - `job-sentinel login` captures a browser session so the scraper can reuse it
   past portal bot-checks (e.g. Cloudflare) without re-authenticating each run

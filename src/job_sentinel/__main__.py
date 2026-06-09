@@ -270,9 +270,17 @@ def resume_build(
     out: Path = typer.Option(  # noqa: B008 — typer reads the default at decoration time
         Path("data/resume.pdf"), "--out", "-o", help="Output PDF path"
     ),
+    job_text: str = typer.Option("", "--job-text", "-j", help="Tailor to this job description"),
+    job_id: str = typer.Option("", "--job-id", help="Tailor to a stored posting (by id)"),
 ) -> None:
-    """Render the profile to an ATS-friendly PDF (and matching .tex)."""
-    from job_sentinel.documents import RenderError, build_resume_pdf
+    """
+    Render the profile to an ATS-friendly PDF (and matching .tex).
+
+    With ``--job-text`` (paste a description) or ``--job-id`` (a posting already
+    in the DB), the résumé is tailored: relevant content is reordered to lead
+    and an ATS keyword-coverage score is reported.
+    """
+    from job_sentinel.documents import KeywordTailor, RenderError, build_resume_pdf
     from job_sentinel.profile import load_profile
 
     profile = load_profile()
@@ -280,12 +288,40 @@ def resume_build(
         console.print("[yellow]Profile is empty.[/] Run [bold]resume init[/] first.")
         raise typer.Exit(code=1)
 
+    description = job_text or (_load_job_description(job_id) if job_id else "")
+    if description:
+        result = KeywordTailor().tailor(profile, description)
+        profile = result.profile
+        console.print(f"[bold]ATS keyword coverage:[/] [cyan]{result.score_pct}%[/]")
+        if result.missing_keywords:
+            preview = ", ".join(result.missing_keywords[:12])
+            console.print(f"[yellow]Missing from résumé:[/] {preview}")
+
     try:
         pdf = build_resume_pdf(profile, out)
     except RenderError as exc:
         console.print(f"[red]Could not build the PDF.[/]\n{exc}")
         raise typer.Exit(code=1) from exc
     console.print(f"[green]✓ Resume built[/] → [cyan]{pdf}[/]")
+
+
+def _load_job_description(posting_id: str) -> str:
+    """Fetch a stored posting and flatten it into a description for tailoring."""
+    from job_sentinel.db.repository import JobRepository
+
+    db_path = Path(__file__).resolve().parents[2] / "data" / "jobs.db"
+    if not db_path.is_file():
+        console.print(f"[yellow]No database yet[/] at {db_path}; run a scrape first.")
+        return ""
+    repo = JobRepository(db_path)
+    try:
+        job = repo.get_job(posting_id)
+    finally:
+        repo.close()
+    if job is None:
+        console.print(f"[yellow]Posting {posting_id} not found in the DB.[/]")
+        return ""
+    return " ".join([job.title, job.employer, job.job_type, job.description_snippet])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
