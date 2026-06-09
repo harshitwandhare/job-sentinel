@@ -1,0 +1,28 @@
+# Always-on Job Sentinel with durable, restart-safe state.
+#
+#   docker compose up -d --build      # start in the background
+#   docker compose logs -f            # follow logs
+#   docker compose run --rm job-sentinel scrape   # one-off
+#
+# Data persistence: ./data and ./logs are bind-mounted from the host, so the
+# SQLite DB, captured login session, and profile survive container restarts,
+# rebuilds, and machine reboots — nothing lives only inside the container.
+#
+# Note on 12twenty: its login is Cloudflare-gated, so capture a session first
+# on the host with `job-sentinel login` (writes data/session.json, which is
+# mounted in). The container reuses it; re-run login on the host if it expires.
+services:
+  job-sentinel:
+    build: .
+    image: job-sentinel:local
+    container_name: job-sentinel
+    env_file: .env
+    environment:
+      # Containers must run Chromium headless.
+      HEADLESS: "true"
+      LOG_DIR: /app/logs
+      DB_PATH: /app/data/jobs.db
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped

@@ -245,6 +245,34 @@ uv run pre-commit run --all-files
 
 ---
 
+## 🐳 Deployment (always-on) & data persistence
+
+Run it continuously with Docker — the image is based on the official Playwright
+image (Chromium + system libs included):
+
+```bash
+docker compose up -d --build     # start detached
+docker compose logs -f           # follow
+```
+
+**Your data never vanishes on restart.** `./data` and `./logs` are bind-mounted
+from the host, so the SQLite database, captured login session, and your profile
+live on disk — surviving container restarts, rebuilds, and reboots.
+
+> 12twenty's login is Cloudflare-gated, so capture a session on the host first
+> with `job-sentinel login` (it writes `data/session.json`, which the container
+> mounts and reuses). Re-run `login` if the session expires.
+
+**Backups.** Everything important is in `data/`. Back it up while the bot is
+idle — e.g. a WAL-safe SQLite copy:
+
+```bash
+sqlite3 data/jobs.db ".backup data/jobs.backup.db"
+cp data/profile.yaml data/profile.backup.yaml
+```
+
+---
+
 ## 📁 Project Structure
 
 ```
