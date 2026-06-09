@@ -27,15 +27,16 @@ setup later points at internships or full-time listings by switching that URL.
 | Feature | Details |
 |---|---|
 | **Pluggable adapters** | One Python file per portal — no core changes needed |
-| **Telegram bot** | Rich alerts + interactive commands (`/jobs`, `/applied`, `/stats`) |
-| **Keyword filtering** | Only alert on postings matching your filters |
-| **Status tracking** | Track NEW → SEEN → APPLIED / IGNORED / CLOSED per posting |
-| **SQLite persistence** | Zero external services — `sqlite-utils` backed |
-| **Auto-pagination** | Follows "Next page" across all results |
+| **Telegram bot** | Rich alerts + commands (`/jobs`, `/applied`, `/stats`, `/deadlines`, …) |
+| **Résumé engine** | Universal profile → ATS-friendly LaTeX/PDF, tailored per posting |
+| **Local-LLM tailoring** | Optional Ollama rephrasing — no API key, nothing leaves your machine |
+| **Web UI** | Next.js + Tailwind app: profile editor, résumé studio, jobs board |
+| **Local API** | FastAPI layer (`job-sentinel serve`) the UI consumes — one source of truth |
+| **Email + Telegram alerts** | Two notifier channels; email is optional SMTP |
+| **Deadline awareness** | `/deadlines` flags postings closing within a configurable window |
+| **Status tracking** | NEW → SEEN → APPLIED / IGNORED / CLOSED, persisted in SQLite |
 | **Closed detection** | Marks postings that disappear from the portal |
-| **On-demand scrape** | `/jobs` command triggers an immediate refresh |
-| **WSL2 ready** | Chrome flags preconfigured for Windows Subsystem for Linux |
-| **Production logging** | `loguru` — coloured console + rotating file + optional JSON |
+| **Production-grade** | `mypy --strict`, ~82% tests, CI (lint/types/tests/secret/supply-chain), Docker |
 
 ---
 
@@ -153,6 +154,7 @@ See [`.env.example`](.env.example) for the full reference.
 | `/ignore <id>` | Dismiss a posting |
 | `/status <id>` | Full details of a specific posting |
 | `/stats` | Counts by status (new / seen / applied / ignored / closed) |
+| `/deadlines` | Postings closing within `DEADLINE_ALERT_DAYS` |
 | `/filters` | Show active keyword filters |
 | `/adapters` | List available site adapters |
 | `/ping` | Health check |
@@ -206,7 +208,25 @@ job-sentinel resume doctor --pull      # checks Ollama + pulls the model
 job-sentinel resume build --ai --job-text "paste a job description"
 ```
 
-> Roadmap: deadline-aware document tracking, and an email notifier.
+---
+
+## 🖥 Web UI
+
+Prefer a UI? Job Sentinel ships a local web app (Next.js + Tailwind) over a
+FastAPI layer — same engine, nicer surface. It's fully local: the API binds to
+localhost and the optional LLM stays on your machine.
+
+```bash
+# 1. Start the local API (needs the 'web' extra: uv sync --extra web)
+job-sentinel serve                 # http://127.0.0.1:8000  (Swagger at /docs)
+
+# 2. Start the web app
+cd web && npm install && npm run dev   # http://localhost:3000
+```
+
+Pages: an animated landing, a **profile editor**, a **résumé studio** (paste a
+JD → live ATS coverage → download a tailored PDF, with a local-LLM toggle), and
+a **jobs board** with statuses and deadlines.
 
 ---
 
@@ -316,13 +336,17 @@ job-sentinel/
 
 ## 📋 Roadmap
 
-- [ ] Email notifier adapter
+- [x] Résumé engine (universal profile → ATS LaTeX/PDF) with per-posting tailoring
+- [x] Local-LLM rephrasing via Ollama (no API key)
+- [x] Web UI (Next.js) + local FastAPI layer
+- [x] Email notifier (optional SMTP) alongside Telegram
+- [x] Deadline-aware tracking (`/deadlines`)
+- [x] Docker / docker-compose with persistent data
+- [ ] Cover-letter generation (local LLM)
+- [ ] Semantic relevance ranking (local embeddings)
+- [ ] More portal adapters (Greenhouse, Workday, public boards via JobSpy)
 - [ ] Discord webhook notifier
-- [ ] Web dashboard (FastAPI + htmx)
-- [ ] Docker / docker-compose setup
-- [ ] GitHub Actions cron for always-on (no local PC needed)
-- [ ] More portal adapters (Greenhouse, Workday, LinkedIn Easy Apply)
-- [ ] AI-based relevance scoring (LLM description matching)
+- [ ] Packaged installers + PyPI publish
 
 ---
 
