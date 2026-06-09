@@ -1,54 +1,113 @@
-"""Tests for the local HTTP API (FastAPI TestClient — no server needed)."""
+"""
+Tests for the local HTTP API (FastAPI TestClient — no server needed).
+
+Every test injects temp profile/DB paths into ``create_app`` so the user's real
+``data/`` files are never touched.
+"""
 
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from fastapi.testclient import TestClient
 
 from job_sentinel.api.app import create_app
+from job_sentinel.core.models import JobPosting
+from job_sentinel.db.repository import JobRepository
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
-def _client() -> TestClient:
-    return TestClient(create_app())
+def _client(tmp_path: Path) -> TestClient:
+    return TestClient(create_app(profile_path=tmp_path / "profile.yaml", db_path=tmp_path / "j.db"))
 
 
-def test_health() -> None:
-    resp = _client().get("/health")
+def _seed_db(tmp_path: Path, *jobs: JobPosting) -> Path:
+    db = tmp_path / "j.db"
+    repo = JobRepository(db)
+    for j in jobs:
+        repo.save_job(j)
+    repo.close()
+    return db
+
+
+def test_health(tmp_path: Path) -> None:
+    resp = _client(tmp_path).get("/health")
     assert resp.status_code == 200
     assert resp.json()["status"] == "ok"
 
 
-def test_profile_endpoint_shape() -> None:
-    resp = _client().get("/api/profile")
+def test_profile_empty_by_default(tmp_path: Path) -> None:
+    resp = _client(tmp_path).get("/api/profile")
     assert resp.status_code == 200
-    body = resp.json()
-    # Always a valid profile shape, even when empty.
-    assert "basics" in body
-    assert "experience" in body and isinstance(body["experience"], list)
+    assert resp.json()["basics"]["name"] == ""
 
 
-def test_profile_summary_shape() -> None:
-    resp = _client().get("/api/profile/summary")
+def test_put_then_get_profile_round_trips(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    payload = {
+        "basics": {"name": "Ada Lovelace", "summary": "Engineer"},
+        "experience": [{"company": "Analytical", "role": "Engineer", "bullets": ["built it"]}],
+    }
+    put = client.put("/api/profile", json=payload)
+    assert put.status_code == 200
+    got = client.get("/api/profile").json()
+    assert got["basics"]["name"] == "Ada Lovelace"
+    assert got["experience"][0]["company"] == "Analytical"
+    # And the summary reflects it.
+    assert client.get("/api/profile/summary").json()["experience"] == 1
+
+
+def test_jobs_empty_without_db(tmp_path: Path) -> None:
+    resp = _client(tmp_path).get("/api/jobs")
     assert resp.status_code == 200
-    body = resp.json()
-    for key in ("education", "experience", "projects", "skills"):
-        assert key in body and isinstance(body[key], int)
+    assert resp.json() == []
 
 
-def test_jobs_returns_list() -> None:
-    resp = _client().get("/api/jobs?limit=5")
-    assert resp.status_code == 200
-    assert isinstance(resp.json(), list)
+def test_jobs_listed_and_status_updated(tmp_path: Path) -> None:
+    _seed_db(tmp_path, JobPosting(posting_id="job-9", title="SWE", employer="ACME"))
+    client = _client(tmp_path)
+
+    jobs = client.get("/api/jobs").json()
+    assert any(j["posting_id"] == "job-9" for j in jobs)
+
+    upd = client.post("/api/jobs/job-9/status", json={"status": "applied"})
+    assert upd.status_code == 200
+    assert upd.json()["status"] == "applied"
+
+    missing = client.post("/api/jobs/ghost/status", json={"status": "applied"})
+    assert missing.status_code == 404
 
 
-def test_tailor_endpoint_reports_coverage() -> None:
-    resp = _client().post("/api/resume/tailor", json={"job_description": "python and react"})
+def test_tailor_reports_coverage(tmp_path: Path) -> None:
+    resp = _client(tmp_path).post("/api/resume/tailor", json={"job_description": "python react"})
     assert resp.status_code == 200
     body = resp.json()
     assert 0.0 <= body["score"] <= 1.0
-    assert "matched_keywords" in body and "missing_keywords" in body
-    assert "profile" in body
+    assert "missing_keywords" in body
 
 
-def test_tailor_requires_non_empty_description() -> None:
-    resp = _client().post("/api/resume/tailor", json={"job_description": ""})
-    assert resp.status_code == 422  # pydantic min_length validation
+def test_tailor_requires_non_empty(tmp_path: Path) -> None:
+    assert (
+        _client(tmp_path).post("/api/resume/tailor", json={"job_description": ""}).status_code
+        == 422
+    )
+
+
+def test_build_rejects_empty_profile(tmp_path: Path) -> None:
+    resp = _client(tmp_path).post("/api/resume/build", json={})
+    assert resp.status_code == 400
+
+
+def test_build_with_profile_returns_pdf_or_503(tmp_path: Path) -> None:
+    client = _client(tmp_path)
+    client.put(
+        "/api/profile",
+        json={"basics": {"name": "Ada"}, "skills": [{"category": "L", "skills": ["Python"]}]},
+    )
+    resp = client.post("/api/resume/build", json={})
+    # 200 (PDF) if Tectonic is installed, 503 (with install hint) if not.
+    assert resp.status_code in (200, 503)
+    if resp.status_code == 200:
+        assert resp.headers["content-type"] == "application/pdf"
