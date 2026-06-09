@@ -47,6 +47,11 @@ data/*.db-wal
 data/*.db-shm
 data/*.json
 data/session*.json
+# Personal profile + generated documents
+data/*.yaml
+data/*.yml
+data/*.pdf
+data/*.tex
 logs/*
 !logs/.gitkeep
 !data/.gitkeep

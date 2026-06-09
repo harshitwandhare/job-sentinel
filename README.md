@@ -159,6 +159,41 @@ See [`.env.example`](.env.example) for the full reference.
 
 ---
 
+## 📄 Résumé Generator
+
+Job Sentinel keeps a **universal profile** — your master CV data in one
+hand-editable YAML file — and renders ATS-friendly PDFs from it. It's
+standalone: you don't need the Telegram bot configured to use it.
+
+```bash
+# 1. Scaffold a profile you can edit like an Overleaf source
+uv run job-sentinel resume init        # writes data/profile.yaml
+
+# 2. Edit data/profile.yaml — add education, experience, projects, skills…
+
+# 3. Build an ATS-friendly PDF (also writes the .tex next to it)
+uv run job-sentinel resume build -o data/resume.pdf
+uv run job-sentinel resume show        # summarise your profile
+```
+
+PDF rendering uses **[Tectonic](https://tectonic-typesetting.github.io)** (a
+self-contained LaTeX engine — no full TeX install needed). Install it once:
+
+```bash
+winget install TectonicProject.Tectonic   # Windows
+brew install tectonic                      # macOS
+cargo install tectonic                     # Linux (or your package manager)
+```
+
+If Tectonic isn't installed, `resume build` still writes the `.tex` so you can
+compile it on Overleaf. The template is single-column with standard fonts and
+real selectable text, so it parses cleanly through ATS.
+
+> Roadmap: per-posting tailoring (select & order profile content against a job
+> description), optional AI rephrasing, and deadline-aware document tracking.
+
+---
+
 ## 🔌 Adding a New Portal
 
 1. Create `src/job_sentinel/adapters/sites/my_portal.py`

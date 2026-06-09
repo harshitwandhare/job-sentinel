@@ -1,0 +1,117 @@
+<# ATS-friendly single-column resume. Rendered by documents/latex.py with
+   Jinja delimiters << >> (vars) and <% %> (blocks). Keep it parser-safe:
+   one column, standard fonts, real text, no images/!content! tables. #>
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[margin=0.6in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{charter}            % clean, widely-available serif; ATS-safe
+\usepackage{microtype}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+% Compact, parser-friendly lists.
+\setlist[itemize]{leftmargin=1.2em,itemsep=1pt,topsep=2pt,parsep=0pt}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+
+% Section headings: plain text + a thin rule. No fancy glyphs.
+\titleformat{\section}{\large\bfseries\scshape}{}{0em}{}[\titlerule]
+\titlespacing{\section}{0pt}{10pt}{4pt}
+
+\begin{document}
+
+<# ── Header ─────────────────────────────────────────────────────────── #>
+\begin{center}
+  {\LARGE\bfseries << p.basics.name | e >>}\\[2pt]
+<% if p.basics.headline %>
+  {\itshape << p.basics.headline | e >>}\\[2pt]
+<% endif %>
+<% set contact = [] %>
+<% if p.basics.location %><% set _ = contact.append(p.basics.location | e) %><% endif %>
+<% if p.basics.phone %><% set _ = contact.append(p.basics.phone | e) %><% endif %>
+<% if p.basics.email %><% set _ = contact.append('\\href{mailto:' ~ p.basics.email ~ '}{' ~ (p.basics.email | e) ~ '}') %><% endif %>
+<% for link in p.basics.links %><% set _ = contact.append('\\href{' ~ link.url ~ '}{' ~ (link.label | e) ~ '}') %><% endfor %>
+  << contact | join(' $\\cdot$ ') >>
+\end{center}
+
+<% if p.basics.summary %>
+\section{Summary}
+<< p.basics.summary | e >>
+<% endif %>
+
+<% if p.experience %>
+\section{Experience}
+<% for x in p.experience %>
+\textbf{<< x.role | e >>}<% if x.company %>, << x.company | e >><% endif %>\hfill << x.start | e >><% if x.end %> -- << x.end | e >><% endif %>\\
+<% if x.location %>{\itshape << x.location | e >>}\\<% endif %>
+<% if x.bullets %>
+\begin{itemize}
+<% for b in x.bullets %>  \item << b | e >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+<% endfor %>
+<% endif %>
+
+<% if p.education %>
+\section{Education}
+<% for ed in p.education %>
+\textbf{<< ed.institution | e >>}\hfill << ed.start | e >><% if ed.end %> -- << ed.end | e >><% endif %>\\
+<% if ed.degree %><< ed.degree | e >><% if ed.gpa %> \hfill GPA: << ed.gpa | e >><% endif %>\\<% endif %>
+<% if ed.highlights %>
+\begin{itemize}
+<% for h in ed.highlights %>  \item << h | e >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+<% endfor %>
+<% endif %>
+
+<% if p.projects %>
+\section{Projects}
+<% for pr in p.projects %>
+\textbf{<< pr.name | e >>}<% if pr.url %> \hfill \href{<< pr.url >>}{<< pr.url | e >>}<% endif %>\\
+<% if pr.description %><< pr.description | e >>\\<% endif %>
+<% if pr.bullets %>
+\begin{itemize}
+<% for b in pr.bullets %>  \item << b | e >>
+<% endfor %>
+\end{itemize}
+<% endif %>
+<% endfor %>
+<% endif %>
+
+<% if p.skills %>
+\section{Skills}
+<% for grp in p.skills %>
+\textbf{<< grp.category | e >>:} << grp.skills | map('e') | join(', ') >>\\
+<% endfor %>
+<% endif %>
+
+<% if p.certifications %>
+\section{Certifications}
+\begin{itemize}
+<% for c in p.certifications %>  \item << c.name | e >><% if c.issuer %>, << c.issuer | e >><% endif %><% if c.date %> (<< c.date | e >>)<% endif %>
+<% endfor %>
+\end{itemize}
+<% endif %>
+
+<% if p.awards %>
+\section{Awards}
+\begin{itemize}
+<% for a in p.awards %>  \item << a.title | e >><% if a.issuer %>, << a.issuer | e >><% endif %><% if a.date %> (<< a.date | e >>)<% endif %>
+<% endfor %>
+\end{itemize}
+<% endif %>
+
+<% if p.publications %>
+\section{Publications}
+\begin{itemize}
+<% for pub in p.publications %>  \item << pub.title | e >><% if pub.venue %>, {\itshape << pub.venue | e >>}<% endif %><% if pub.date %> (<< pub.date | e >>)<% endif %>
+<% endfor %>
+\end{itemize}
+<% endif %>
+
+\end{document}

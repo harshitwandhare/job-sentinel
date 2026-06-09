@@ -31,7 +31,14 @@ Versions follow [Semantic Versioning](https://semver.org):
 - Architecture Decision Records (ADRs) 001–004
 - High-Level Design (HLD) and Low-Level Design (LLD) documents
 - Adapter authoring guide
+- **Universal profile + résumé generator**: a hand-editable `data/profile.yaml`
+  (education, experience, projects, skills, certifications, awards, publications)
+  rendered to an ATS-friendly PDF via a single-column LaTeX template compiled
+  with Tectonic. New `resume init | show | build` CLI commands; works standalone
+  without the bot configured.
 - Out-of-tree adapter loading via `CUSTOM_ADAPTER_PATH` (no fork needed)
+- `job-sentinel login` captures a browser session so the scraper can reuse it
+  past portal bot-checks (e.g. Cloudflare) without re-authenticating each run
 - Integration test for the full scrape cycle, plus bot-handler, notifier,
   browser, and adapter-base coverage (suite at ~75%)
 

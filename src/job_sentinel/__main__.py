@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import contextlib
 import sys
+from pathlib import Path
 
 import typer
 from rich.console import Console
@@ -44,6 +45,8 @@ app = typer.Typer(
 )
 db_app = typer.Typer(help="Database inspection commands.")
 app.add_typer(db_app, name="db")
+resume_app = typer.Typer(help="Universal profile + resume generation.")
+app.add_typer(resume_app, name="resume")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -214,6 +217,75 @@ def login(
         ctx.storage_state(path=str(settings.session_path))
 
     console.print(f"[green]✓ Session saved[/] → [cyan]{settings.session_path}[/]")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# resume — universal profile + PDF generation (works without the bot configured)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@resume_app.command("init")
+def resume_init(
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing profile.yaml"),
+) -> None:
+    """Create a starter profile.yaml you can edit like an Overleaf source."""
+    from job_sentinel.profile import DEFAULT_PROFILE_PATH, example_profile, save_profile
+
+    if DEFAULT_PROFILE_PATH.exists() and not force:
+        console.print(
+            f"[yellow]Profile already exists[/] at [cyan]{DEFAULT_PROFILE_PATH}[/]. "
+            "Use [bold]--force[/] to overwrite."
+        )
+        return
+    path = save_profile(example_profile(), DEFAULT_PROFILE_PATH)
+    console.print(f"[green]✓ Wrote starter profile[/] → [cyan]{path}[/]")
+    console.print("Edit it, then run [bold]resume build[/].")
+
+
+@resume_app.command("show")
+def resume_show() -> None:
+    """Summarise the current profile (section counts)."""
+    from job_sentinel.profile import load_profile
+
+    profile = load_profile()
+    if profile.is_empty():
+        console.print("[yellow]Profile is empty.[/] Run [bold]resume init[/] to start.")
+        return
+
+    table = Table(title=f"Profile — {profile.basics.name or 'unnamed'}")
+    table.add_column("Section", style="cyan")
+    table.add_column("Entries", justify="right")
+    table.add_row("Education", str(len(profile.education)))
+    table.add_row("Experience", str(len(profile.experience)))
+    table.add_row("Projects", str(len(profile.projects)))
+    table.add_row("Skill groups", str(len(profile.skills)))
+    table.add_row("Certifications", str(len(profile.certifications)))
+    table.add_row("Awards", str(len(profile.awards)))
+    table.add_row("Publications", str(len(profile.publications)))
+    console.print(table)
+
+
+@resume_app.command("build")
+def resume_build(
+    out: Path = typer.Option(  # noqa: B008 — typer reads the default at decoration time
+        Path("data/resume.pdf"), "--out", "-o", help="Output PDF path"
+    ),
+) -> None:
+    """Render the profile to an ATS-friendly PDF (and matching .tex)."""
+    from job_sentinel.documents import RenderError, build_resume_pdf
+    from job_sentinel.profile import load_profile
+
+    profile = load_profile()
+    if profile.is_empty():
+        console.print("[yellow]Profile is empty.[/] Run [bold]resume init[/] first.")
+        raise typer.Exit(code=1)
+
+    try:
+        pdf = build_resume_pdf(profile, out)
+    except RenderError as exc:
+        console.print(f"[red]Could not build the PDF.[/]\n{exc}")
+        raise typer.Exit(code=1) from exc
+    console.print(f"[green]✓ Resume built[/] → [cyan]{pdf}[/]")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
