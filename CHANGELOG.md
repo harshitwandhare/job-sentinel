@@ -14,6 +14,12 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+### Added
+- **Cover-letter generation**: `resume cover --job-text <jd> [--role --company --ai]` and
+  `POST /api/resume/cover` produce a tailored cover-letter PDF — a truthful deterministic
+  draft (profile summary + most-relevant experience + top skills), optionally polished by
+  the local LLM with the same no-fabrication guards.
+
 ## [0.2.0] — 2026-06-10
 
 ### Added

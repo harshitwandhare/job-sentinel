@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from job_sentinel.documents.latex import render_resume_tex
+from job_sentinel.documents.latex import render_resume_tex, render_template
 
 if TYPE_CHECKING:
     from job_sentinel.profile.models import Profile
@@ -62,9 +62,41 @@ def build_resume_pdf(
     RenderError
         If Tectonic is unavailable or the compile fails.
     """
+    return compile_tex_to_pdf(render_resume_tex(profile), out_path, keep_tex=keep_tex)
+
+
+def build_cover_letter_pdf(
+    profile: Profile,
+    paragraphs: list[str],
+    out_path: Path,
+    *,
+    role: str = "",
+    company: str = "",
+    today: str = "",
+    keep_tex: bool = True,
+) -> Path:
+    """Render a cover letter (profile letterhead + body paragraphs) to a PDF."""
+    tex = render_template(
+        "coverletter.tex.j2",
+        p=profile,
+        paragraphs=paragraphs,
+        role=role,
+        company=company,
+        date=today,
+    )
+    return compile_tex_to_pdf(tex, out_path, keep_tex=keep_tex)
+
+
+def compile_tex_to_pdf(tex_source: str, out_path: Path, *, keep_tex: bool = True) -> Path:
+    """
+    Compile a LaTeX source string to a PDF at ``out_path`` with Tectonic.
+
+    Writes the ``.tex`` next to the PDF when ``keep_tex`` is set (portable /
+    Overleaf-friendly). Raises :class:`RenderError` if Tectonic is missing or the
+    compile fails.
+    """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    tex_source = render_resume_tex(profile)
 
     if keep_tex:
         tex_path = out_path.with_suffix(".tex")
@@ -77,9 +109,9 @@ def build_resume_pdf(
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
-        (tmp_dir / "resume.tex").write_text(tex_source, encoding="utf-8")
-        cmd = [tectonic, "resume.tex", "--outdir", str(tmp_dir), "--chatter", "minimal"]
-        logger.info("Compiling resume with Tectonic")
+        (tmp_dir / "doc.tex").write_text(tex_source, encoding="utf-8")
+        cmd = [tectonic, "doc.tex", "--outdir", str(tmp_dir), "--chatter", "minimal"]
+        logger.info("Compiling PDF with Tectonic | out={}", out_path.name)
         result = subprocess.run(  # noqa: S603 — fixed argv, executable resolved via PATH
             cmd, cwd=tmp_dir, capture_output=True, text=True, check=False
         )
@@ -87,10 +119,10 @@ def build_resume_pdf(
             msg = f"Tectonic failed (exit {result.returncode}):\n{result.stderr[-1500:]}"
             raise RenderError(msg)
 
-        produced = tmp_dir / "resume.pdf"
+        produced = tmp_dir / "doc.pdf"
         if not produced.is_file():
             raise RenderError("Tectonic reported success but produced no PDF.")
         shutil.copyfile(produced, out_path)
 
-    logger.info("Resume PDF written | path={}", out_path)
+    logger.info("PDF written | path={}", out_path)
     return out_path

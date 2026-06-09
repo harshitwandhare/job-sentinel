@@ -68,7 +68,11 @@ def _build_env() -> Environment:
     return env
 
 
+def render_template(template: str, **context: object) -> str:
+    """Render any LaTeX Jinja template in ``templates/`` with the given context."""
+    return _build_env().get_template(template).render(**context)
+
+
 def render_resume_tex(profile: Profile, template: str = _RESUME_TEMPLATE) -> str:
     """Render ``profile`` to a LaTeX source string using the named template."""
-    env = _build_env()
-    return env.get_template(template).render(p=profile)
+    return render_template(template, p=profile)

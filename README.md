@@ -181,6 +181,9 @@ uv run job-sentinel resume show        # summarise your profile
 #    reports ATS keyword coverage (matched vs missing terms)
 uv run job-sentinel resume build --job-text "paste a job description here"
 uv run job-sentinel resume build --job-id <posting_id>   # a posting already scraped
+
+# 5. Generate a tailored cover letter (deterministic, or --ai to polish locally)
+uv run job-sentinel resume cover --job-text "…" --role "Student Assistant" --company "UTD"
 ```
 
 PDF rendering uses **[Tectonic](https://tectonic-typesetting.github.io)** (a

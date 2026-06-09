@@ -29,6 +29,7 @@ from job_sentinel.documents.tailor import KeywordTailor, TailorResult
 from job_sentinel.profile import DEFAULT_PROFILE_PATH, Profile, load_profile, save_profile
 
 if TYPE_CHECKING:
+    from job_sentinel.documents.llm import OllamaClient
     from job_sentinel.documents.tailor import Tailor
 
 # data/ lives at the repo root (src/job_sentinel/api/app.py -> parents[3]).
@@ -69,6 +70,13 @@ class BuildRequest(BaseModel):
 
 class StatusRequest(BaseModel):
     status: ApplicationStatus
+
+
+class CoverRequest(BaseModel):
+    job_description: str = Field(default="", description="Optional JD to target")
+    role: str = Field(default="", description="Role title for the opening line")
+    company: str = Field(default="", description="Company / department name")
+    ai: bool = Field(default=False, description="Polish with the local LLM (if available)")
 
 
 def _summary(p: Profile) -> ProfileSummary:
@@ -175,7 +183,54 @@ def create_app(
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return FileResponse(pdf, media_type="application/pdf", filename="resume.pdf")
 
+    @app.post("/api/resume/cover")
+    def build_cover(req: CoverRequest) -> FileResponse:
+        """Render a cover-letter PDF. 503 if the LaTeX engine isn't installed."""
+        from datetime import date
+
+        from job_sentinel.documents import (
+            RenderError,
+            build_cover_letter_pdf,
+            cover_letter_paragraphs,
+        )
+
+        profile = load_profile(profile_path)
+        if profile.is_empty():
+            raise HTTPException(status_code=400, detail="Profile is empty; create one first.")
+
+        client = _resolve_ollama() if req.ai else None
+        paragraphs = cover_letter_paragraphs(
+            profile,
+            role=req.role,
+            company=req.company,
+            job_description=req.job_description,
+            client=client,
+        )
+        out = _DATA_DIR / "cover_api.pdf"
+        try:
+            pdf = build_cover_letter_pdf(
+                profile,
+                paragraphs,
+                out,
+                role=req.role,
+                company=req.company,
+                today=date.today().strftime("%B %d, %Y"),
+            )
+        except RenderError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return FileResponse(pdf, media_type="application/pdf", filename="cover_letter.pdf")
+
     return app
+
+
+def _resolve_ollama() -> OllamaClient | None:
+    """Return a ready OllamaClient if reachable with the model pulled, else None."""
+    from job_sentinel.config.settings import LLMSettings
+    from job_sentinel.documents.llm import OllamaClient
+
+    cfg = LLMSettings()
+    client = OllamaClient(cfg.base_url, cfg.model)
+    return client if (client.available() and client.has_model()) else None
 
 
 def _resolve_tailor(*, use_ai: bool) -> Tailor:

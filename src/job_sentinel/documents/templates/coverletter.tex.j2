@@ -1,0 +1,39 @@
+<# ATS-friendly business cover letter. Rendered by documents/coverletter via
+   render_template with Jinja delimiters << >> (vars) and <% %> (blocks). #>
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{charter}
+\usepackage{microtype}
+\usepackage[hidelinks]{hyperref}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.8em}
+
+\begin{document}
+
+<# ── Sender letterhead ─────────────────────────────────────────────── #>
+{\large\bfseries << p.basics.name | e >>}\\
+<% set contact = [] %>
+<% if p.basics.location %><% set _ = contact.append(p.basics.location | e) %><% endif %>
+<% if p.basics.email %><% set _ = contact.append(p.basics.email | e) %><% endif %>
+<% if p.basics.phone %><% set _ = contact.append(p.basics.phone | e) %><% endif %>
+<% if contact %>{\small << contact | join(' $\\cdot$ ') >>}\\<% endif %>
+
+<% if date %><< date | e >>\\<% endif %>
+
+<% if company %>Hiring Team\\
+<< company | e >>\\<% endif %>
+
+Dear Hiring Team,
+
+<% for para in paragraphs %>
+<< para | e >>
+
+<% endfor %>
+Sincerely,\\
+<< p.basics.name | e >>
+
+\end{document}
