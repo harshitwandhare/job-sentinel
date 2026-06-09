@@ -44,6 +44,10 @@ Versions follow [Semantic Versioning](https://semver.org):
 ### Changed
 - `ApplicationStatus` uses `enum.StrEnum` (Python 3.11+)
 - Codebase passes `ruff check`, `ruff format --check`, and `mypy --strict`
+- 12twenty adapter selectors rewritten against the live UTD Student Employment
+  DOM (it's an AngularJS table of `tr.job-posting` rows, not the placeholder
+  card markup), with infinite-scroll row loading and content-based parsing of
+  location / type / posted-date / deadline
 
 ---
 
