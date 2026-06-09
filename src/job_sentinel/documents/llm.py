@@ -86,6 +86,11 @@ class OllamaClient:
             "model": self._model,
             "stream": False,
             "format": "json",
+            # Disable chain-of-thought for "thinking" models (Qwen3, etc.):
+            # bullet rephrasing doesn't need reasoning traces, and leaving it on
+            # makes a 30B-class model spend minutes per call. Ignored by models
+            # that don't support it.
+            "think": False,
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
