@@ -1,13 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
+// WebGL must run client-side only; load it lazily so it never blocks SSR/paint.
+const Hero3D = dynamic(() => import("@/components/Hero3D"), { ssr: false });
+
 export function Hero() {
   return (
-    <section className="mx-auto max-w-5xl px-5 py-24 text-center">
+    <section className="relative mx-auto max-w-5xl overflow-hidden px-5 py-24 text-center">
+      <Hero3D />
       <motion.h1
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
