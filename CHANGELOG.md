@@ -52,6 +52,10 @@ Versions follow [Semantic Versioning](https://semver.org):
 - Integration test for the full scrape cycle, plus bot-handler, notifier,
   browser, and adapter-base coverage (suite at ~75%)
 
+- Web API mutations: `PUT /api/profile` (validated write-back), `POST /api/jobs/{id}/status`,
+  and `POST /api/resume/build` (returns a tailored PDF, or 503 with an install hint if the
+  LaTeX engine is absent). `create_app` takes injectable profile/DB paths for test isolation.
+
 ### Fixed
 - `KEYWORD_FILTERS` is now parsed as CSV from the environment without tripping
   pydantic-settings' JSON decoder (previously crashed at startup)
