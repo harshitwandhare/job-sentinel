@@ -123,7 +123,9 @@ class Scheduler:
         try:
             adapter = get_adapter(adapter_id, self._settings.scraper)
 
-            with browser_context(self._settings.scraper) as ctx:
+            with browser_context(
+                self._settings.scraper, storage_state=self._settings.session_path
+            ) as ctx:
                 all_jobs = adapter.scrape(ctx)
 
             result.total_scraped = len(all_jobs)

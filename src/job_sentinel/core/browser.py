@@ -17,6 +17,7 @@ Design
 from __future__ import annotations
 
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from loguru import logger
@@ -51,13 +52,16 @@ _USER_AGENT = (
 
 
 @contextmanager
-def browser_context(settings: ScraperSettings) -> Generator[BrowserContext, None, None]:
+def browser_context(
+    settings: ScraperSettings,
+    storage_state: str | Path | None = None,
+) -> Generator[BrowserContext, None, None]:
     """
     Context manager that yields a ready-to-use :class:`BrowserContext`.
 
     Usage::
 
-        with browser_context(settings) as ctx:
+        with browser_context(settings, storage_state="data/session.json") as ctx:
             adapter.scrape(ctx)
 
     The browser and context are fully torn down on exit, even if an
@@ -67,12 +71,24 @@ def browser_context(settings: ScraperSettings) -> Generator[BrowserContext, None
     ----------
     settings : ScraperSettings
         Provides headless flag, slow-mo, and timeout values.
+    storage_state :
+        Optional path to a Playwright storage-state file (cookies + local
+        storage) saved by ``job-sentinel login``. When it exists, the context
+        starts already authenticated — which is how we get past Duo MFA without
+        re-logging-in every cycle. Ignored if the path is missing.
     """
     playwright: Playwright | None = None
     browser: Browser | None = None
 
+    state_path = Path(storage_state) if storage_state else None
+    use_state = str(state_path) if state_path and state_path.is_file() else None
+
     try:
-        logger.debug("Launching Chromium | headless={}", settings.headless)
+        logger.debug(
+            "Launching Chromium | headless={} session={}",
+            settings.headless,
+            "reused" if use_state else "fresh",
+        )
         playwright = sync_playwright().start()
 
         browser = playwright.chromium.launch(
@@ -87,6 +103,7 @@ def browser_context(settings: ScraperSettings) -> Generator[BrowserContext, None
             locale="en-US",
             timezone_id="America/Chicago",  # UTD is Central Time
             java_script_enabled=True,
+            storage_state=use_state,
             # Tell the site we accept cookies — avoids cookie-wall popups
             extra_http_headers={"Accept-Language": "en-US,en;q=0.9"},
         )

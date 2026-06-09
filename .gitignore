@@ -45,6 +45,8 @@ test-results/
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/*.json
+data/session*.json
 logs/*
 !logs/.gitkeep
 !data/.gitkeep

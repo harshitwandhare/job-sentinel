@@ -76,6 +76,10 @@ class SiteAdapter(ABC):
     #: Base URL of the portal (used for building absolute URLs)
     BASE_URL: str = ""
 
+    #: CSS selector that is only present once authenticated. ``job-sentinel
+    #: login`` waits for it to confirm a manual sign-in succeeded.
+    LOGGED_IN_SELECTOR: str = ""
+
     # ── Constructor ───────────────────────────────────────────────────────
 
     def __init__(self, scraper_settings: ScraperSettings) -> None:

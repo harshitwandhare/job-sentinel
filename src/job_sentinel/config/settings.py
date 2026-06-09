@@ -34,12 +34,19 @@ from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 # ─────────────────────────────────────────────────────────────────────────────
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
+_ENV_FILE = str(_REPO_ROOT / ".env")
+
+# Each nested BaseSettings loads its own sources, so every one of them must be
+# pointed at the .env file via env_file= — otherwise only the root Settings
+# reads it and the nested credentials silently fall back to "missing".
 
 
 class TelegramSettings(BaseSettings):
     """Telegram Bot API credentials."""
 
-    model_config = SettingsConfigDict(env_prefix="TELEGRAM_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="TELEGRAM_", extra="ignore", env_file=_ENV_FILE, env_file_encoding="utf-8"
+    )
 
     bot_token: str = Field(..., description="Bot token from @BotFather")
     chat_id: str = Field(..., description="Target chat / user ID for alerts")
@@ -48,7 +55,9 @@ class TelegramSettings(BaseSettings):
 class PortalSettings(BaseSettings):
     """Target portal credentials and URL."""
 
-    model_config = SettingsConfigDict(env_prefix="PORTAL_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="PORTAL_", extra="ignore", env_file=_ENV_FILE, env_file_encoding="utf-8"
+    )
 
     username: str = Field(..., description="Portal login username / email")
     password: str = Field(..., description="Portal login password")
@@ -61,7 +70,7 @@ class PortalSettings(BaseSettings):
 class ScraperSettings(BaseSettings):
     """Browser automation behaviour."""
 
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore", env_file=_ENV_FILE, env_file_encoding="utf-8")
 
     headless: bool = Field(default=True, description="Run browser headless?")
     browser_slowmo_ms: int = Field(default=0, ge=0, description="Playwright slow-mo (ms)")
@@ -75,7 +84,7 @@ class ScraperSettings(BaseSettings):
 class FilterSettings(BaseSettings):
     """Keyword-based post-scrape filtering."""
 
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(extra="ignore", env_file=_ENV_FILE, env_file_encoding="utf-8")
 
     # NoDecode stops pydantic-settings from JSON-decoding the env value first
     # (it would choke on a plain CSV like "software,engineer"); we parse it
@@ -101,7 +110,9 @@ class FilterSettings(BaseSettings):
 class LogSettings(BaseSettings):
     """Logging configuration."""
 
-    model_config = SettingsConfigDict(env_prefix="LOG_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="LOG_", extra="ignore", env_file=_ENV_FILE, env_file_encoding="utf-8"
+    )
 
     level: str = Field(default="INFO", description="Log level: DEBUG|INFO|WARNING|ERROR")
     dir: Path = Field(default=_REPO_ROOT / "logs", description="Rotating log file directory")
@@ -161,6 +172,10 @@ class Settings(BaseSettings):
     db_path: Path = Field(
         default=_REPO_ROOT / "data" / "jobs.db",
         description="SQLite database file path",
+    )
+    session_path: Path = Field(
+        default=_REPO_ROOT / "data" / "session.json",
+        description="Saved Playwright storage state (cookies) from `job-sentinel login`",
     )
     dry_run: bool = Field(
         default=False,

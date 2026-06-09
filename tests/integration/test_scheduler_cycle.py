@@ -49,7 +49,7 @@ class _FakeAdapter:
 
 def _patch_browser_and_adapter(monkeypatch: pytest.MonkeyPatch, jobs: list[JobPosting]) -> None:
     @contextmanager
-    def _fake_ctx(_scraper):
+    def _fake_ctx(_scraper, storage_state=None):
         yield object()
 
     monkeypatch.setattr(scheduler_mod, "browser_context", _fake_ctx)

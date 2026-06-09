@@ -46,11 +46,13 @@ if TYPE_CHECKING:
 # ─────────────────────────────────────────────────────────────────────────────
 
 PORTAL_BASE_URL = "https://utdallas.12twenty.com"
-CAS_LOGIN_DOMAIN = "login.utdallas.edu"
 
-# ── CAS login (standard CAS field ids; unverified against the live IdP) ──────
-SEL_USERNAME = "input#username"
-SEL_PASSWORD = "input#password"  # noqa: S105 — CSS selector, not a credential
+# ── Login form (12twenty's own email/password form — no SSO) ─────────────────
+# The live login page sits behind a Cloudflare Turnstile challenge, so the
+# reliable path is to reuse a session captured by `job-sentinel login`. These
+# selectors are a best-effort fallback for when the form is reachable directly.
+SEL_EMAIL = "input[type='email'], input[name='email'], input#email"
+SEL_PASSWORD = "input[type='password'], input#password"  # noqa: S105 — selector, not a secret
 SEL_LOGIN_BTN = "button[type='submit'], input[type='submit']"
 
 # ── Listing (verified against the live 12twenty Student Employment DOM) ──────
@@ -82,6 +84,7 @@ class TwelveTwentyAdapter(SiteAdapter):
     ADAPTER_ID = "12twenty"
     ADAPTER_NAME = "12twenty Portal"
     BASE_URL = PORTAL_BASE_URL
+    LOGGED_IN_SELECTOR = SEL_JOB_CARD
 
     def __init__(self, scraper_settings: ScraperSettings) -> None:
         super().__init__(scraper_settings)
@@ -91,40 +94,48 @@ class TwelveTwentyAdapter(SiteAdapter):
 
     def login(self, page: Page) -> None:
         """
-        Navigate to the portal and complete CAS SSO authentication.
+        Reach the authenticated job-listings view.
 
-        After this method returns, ``page`` is on the job-listings tab
-        with the SPA fully hydrated.
+        Preferred path: a session saved by ``job-sentinel login`` is already
+        loaded into the browser context, so navigating straight to the jobs URL
+        renders the listing. If we land on the login form instead (session
+        expired), we attempt a direct email/password submit — but note the live
+        login page is Cloudflare-gated, so that fallback often won't get
+        through; the user should re-run ``job-sentinel login`` in that case.
         """
         from job_sentinel.config.settings import get_settings  # lazy import
 
         settings = get_settings()
         self._jobs_url = settings.portal.jobs_url
-        username = settings.portal.username
-        password = settings.portal.password
+        timeout = self._settings.page_timeout_ms
 
         logger.info("Navigating to portal | url={}", self._jobs_url)
         page.goto(self._jobs_url, wait_until="domcontentloaded")
 
-        # CAS redirect check
-        if CAS_LOGIN_DOMAIN in page.url:
-            logger.info("CAS login page detected — submitting credentials")
-            page.fill(SEL_USERNAME, username)
-            page.fill(SEL_PASSWORD, password)
-            page.click(SEL_LOGIN_BTN)
-            # Wait for redirect back to 12twenty after successful auth
-            page.wait_for_url(f"*{PORTAL_BASE_URL}*", timeout=60_000)
-            logger.info("CAS authentication successful")
+        # Already authenticated via a reused session? The listing renders.
+        try:
+            page.wait_for_selector(self.LOGGED_IN_SELECTOR, timeout=8_000)
+            logger.debug("Session active — listing rendered")
+            return
+        except PlaywrightTimeoutError:
+            logger.debug("Listing not visible yet — checking for a login form")
+
+        email = page.query_selector(SEL_EMAIL)
+        pwd = page.query_selector(SEL_PASSWORD)
+        if email and pwd:
+            logger.info("Login form detected — submitting credentials")
+            email.fill(settings.portal.username)
+            pwd.fill(settings.portal.password)
+            btn = page.query_selector(SEL_LOGIN_BTN)
+            (btn or pwd).click() if btn else pwd.press("Enter")
+            page.wait_for_selector(self.LOGGED_IN_SELECTOR, timeout=timeout)
         else:
-            logger.debug("No CAS redirect — session already active")
-
-        # Let the SPA finish rendering
-        page.wait_for_load_state("networkidle", timeout=self._settings.page_timeout_ms)
-
-        # Ensure we're on the studentEmployment tab
-        if "studentEmployment" not in page.url:
-            logger.debug("Navigating to studentEmployment tab")
-            page.goto(self._jobs_url, wait_until="networkidle")
+            msg = (
+                "Not authenticated and no login form is reachable (the 12twenty "
+                "login is behind a Cloudflare challenge). Run `job-sentinel login` "
+                "to sign in once and save the session."
+            )
+            raise RuntimeError(msg)
 
     # ── Page scraping ──────────────────────────────────────────────────────
 

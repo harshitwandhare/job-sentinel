@@ -20,9 +20,20 @@ Usage
 
 from __future__ import annotations
 
+import contextlib
+import sys
+
 import typer
 from rich.console import Console
 from rich.table import Table
+
+# Windows terminals default to cp1252, which raises UnicodeEncodeError on the
+# ✓/emoji glyphs we print. Force UTF-8 on the standard streams when possible.
+for _stream in (sys.stdout, sys.stderr):
+    _reconfigure = getattr(_stream, "reconfigure", None)
+    if _reconfigure is not None:
+        with contextlib.suppress(Exception):
+            _reconfigure(encoding="utf-8")
 
 console = Console()
 app = typer.Typer(
@@ -141,6 +152,68 @@ def scrape(
     new_count = scheduler.trigger_now()
     console.print(f"[green]✓ Done[/] | new jobs found: [bold]{new_count}[/]")
     repo.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# login — capture an authenticated session (one-time, interactive)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@app.command()
+def login(
+    timeout: int = typer.Option(300, help="Seconds to wait for you to finish signing in"),
+) -> None:
+    """
+    Open a visible browser so you can sign in once, then save the session.
+
+    Portals like 12twenty sit behind a Cloudflare challenge, so the bot can't
+    log in headlessly. Sign in here as a human (clear the challenge + enter your
+    email/password); the resulting cookies are saved to ``session_path`` and
+    reused by ``run``/``scrape`` so they stay logged in.
+    """
+    from job_sentinel.adapters.registry import get_adapter
+    from job_sentinel.config.logging import configure_logging
+    from job_sentinel.config.settings import get_settings
+    from job_sentinel.core.browser import browser_context
+
+    settings = get_settings()
+    configure_logging(settings.logging)
+
+    if settings.custom_adapter_path:
+        from job_sentinel.adapters.registry import load_custom_adapter
+
+        load_custom_adapter(settings.custom_adapter_path)
+
+    # Force a visible browser so the user can complete the login + challenge.
+    scraper = settings.scraper.model_copy(update={"headless": False})
+    adapter = get_adapter(settings.site_adapter, scraper)
+    ready = adapter.LOGGED_IN_SELECTOR
+
+    console.print(
+        "[bold]A browser window will open.[/] Sign in to the portal "
+        "(clear any challenge and enter your email/password).\n"
+        "The session saves automatically once your listings appear."
+    )
+
+    with browser_context(scraper) as ctx:
+        page = ctx.new_page()
+        page.goto(settings.portal.jobs_url, wait_until="domcontentloaded")
+        if ready:
+            try:
+                page.wait_for_selector(ready, timeout=timeout * 1000)
+            except Exception:
+                console.print(
+                    "[red]Didn't detect a signed-in page in time.[/] "
+                    "Re-run [bold]job-sentinel login[/] and finish signing in."
+                )
+                return
+        else:
+            page.wait_for_timeout(timeout * 1000)
+
+        settings.session_path.parent.mkdir(parents=True, exist_ok=True)
+        ctx.storage_state(path=str(settings.session_path))
+
+    console.print(f"[green]✓ Session saved[/] → [cyan]{settings.session_path}[/]")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
