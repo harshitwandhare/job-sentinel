@@ -56,6 +56,21 @@ class TestFormatNewJob:
         msg = _format_new_job(self._job())
         assert "software" in msg
 
+    def test_flags_soon_closing_deadline(self) -> None:
+        from datetime import date, timedelta
+
+        soon = (date.today() + timedelta(days=2)).strftime("%m/%d/%Y")
+        msg = _format_new_job(JobPosting(posting_id="x", title="Role", deadline=soon))
+        assert "Closes" in msg and "in 2 days" in msg
+
+    def test_no_flag_for_far_or_unparseable_deadline(self) -> None:
+        assert "Closes" not in _format_new_job(
+            JobPosting(posting_id="x", title="Role", deadline="Apply Immediately")
+        )
+        assert "Closes" not in _format_new_job(
+            JobPosting(posting_id="x", title="Role", deadline="12/31/2099")
+        )
+
 
 class TestFormatListItem:
     def test_contains_status_emoji(self) -> None:

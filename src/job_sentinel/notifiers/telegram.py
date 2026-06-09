@@ -34,6 +34,7 @@ from tenacity import (
     wait_exponential,
 )
 
+from job_sentinel.core.deadlines import days_until
 from job_sentinel.core.models import ApplicationStatus, JobPosting
 
 _TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
@@ -158,6 +159,18 @@ _STATUS_EMOJI: dict[str, str] = {
 }
 
 
+_SOON_THRESHOLD_DAYS = 7
+
+
+def _deadline_urgency(deadline: str) -> str:
+    """A '⏰ Closes …' line if the deadline parses and is within a week, else ''."""
+    n = days_until(deadline)
+    if n is None or not (0 <= n <= _SOON_THRESHOLD_DAYS):
+        return ""
+    when = "today" if n == 0 else ("tomorrow" if n == 1 else f"in {n} days")
+    return f"⏰ *Closes {escape(when)}*"
+
+
 def _format_new_job(job: JobPosting) -> str:
     """
     Full-detail alert message for a newly discovered job.
@@ -189,6 +202,10 @@ def _format_new_job(job: JobPosting) -> str:
         if job.deadline:
             date_line += f"  •  ⏳ Deadline: {escape(job.deadline)}"
         lines.append(date_line.strip(" •"))
+
+    urgency = _deadline_urgency(job.deadline)
+    if urgency:
+        lines.append(urgency)
 
     if job.description_snippet:
         snippet = job.description_snippet[:200]
