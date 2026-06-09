@@ -16,6 +16,10 @@ title, employer, location, deadline, keyword tags, and a direct link.
 It ships with adapters for **UTD 12twenty** and **Handshake**.
 Adding a new portal takes one file and ~50 lines of Python.
 
+Out of the box it watches UTD 12twenty's **on-campus Student Employment** tab.
+The tab is chosen by the `tab=` parameter in `PORTAL_JOBS_URL`, so the same
+setup later points at internships or full-time listings by switching that URL.
+
 ---
 
 ## ✨ Features
