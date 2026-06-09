@@ -89,6 +89,11 @@ dev = [
   # Stubs
   "types-PyYAML",
 ]
+web = [
+  # Local HTTP API the web UI consumes (kept optional so the core CLI stays lean)
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+]
 docs = [
   "mkdocs>=1.6",
   "mkdocs-material>=9.5",

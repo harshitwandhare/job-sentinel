@@ -162,6 +162,31 @@ def scrape(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# serve — local HTTP API (backend for the web UI)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", help="Bind address (localhost by default)"),
+    port: int = typer.Option(8000, help="Port"),
+    reload: bool = typer.Option(False, "--reload", help="Auto-reload on code changes (dev)"),
+) -> None:
+    """Run the local HTTP API (needs the 'web' extra: pip install -e '.[web]')."""
+    try:
+        import uvicorn
+    except ImportError as exc:
+        console.print(
+            "[red]The API needs the 'web' extra.[/] Install it: "
+            "[bold]uv sync --extra web[/] (or pip install -e '.[web]')."
+        )
+        raise typer.Exit(code=1) from exc
+
+    console.print(f"[bold green]✓ Job Sentinel API[/] → http://{host}:{port}  (docs at /docs)")
+    uvicorn.run("job_sentinel.api.app:app", host=host, port=port, reload=reload)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # login — capture an authenticated session (one-time, interactive)
 # ─────────────────────────────────────────────────────────────────────────────
 
