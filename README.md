@@ -194,8 +194,19 @@ If Tectonic isn't installed, `resume build` still writes the `.tex` so you can
 compile it on Overleaf. The template is single-column with standard fonts and
 real selectable text, so it parses cleanly through ATS.
 
-> Roadmap: an optional **local** LLM layer (open-source, self-hosted) to rephrase
-> bullets toward a posting, and deadline-aware document tracking.
+### Optional: local-LLM rephrasing (no API key)
+
+Add `--ai` to rephrase your bullets toward a posting using a **local** model via
+[Ollama](https://ollama.com) — fully offline, no API key, your data never leaves
+your machine. It only *rephrases* content already in your profile (it can't
+invent facts), and falls back to keyword tailoring if the model isn't available.
+
+```bash
+job-sentinel resume doctor --pull      # checks Ollama + pulls the model
+job-sentinel resume build --ai --job-text "paste a job description"
+```
+
+> Roadmap: deadline-aware document tracking, and an email notifier.
 
 ---
 

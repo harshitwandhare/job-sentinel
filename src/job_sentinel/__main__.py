@@ -23,10 +23,14 @@ from __future__ import annotations
 import contextlib
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
 from rich.table import Table
+
+if TYPE_CHECKING:
+    from job_sentinel.documents.tailor import Tailor
 
 # Windows terminals default to cp1252, which raises UnicodeEncodeError on the
 # ✓/emoji glyphs we print. Force UTF-8 on the standard streams when possible.
@@ -272,15 +276,17 @@ def resume_build(
     ),
     job_text: str = typer.Option("", "--job-text", "-j", help="Tailor to this job description"),
     job_id: str = typer.Option("", "--job-id", help="Tailor to a stored posting (by id)"),
+    ai: bool = typer.Option(False, "--ai", help="Rephrase bullets with a local LLM (needs Ollama)"),
 ) -> None:
     """
     Render the profile to an ATS-friendly PDF (and matching .tex).
 
     With ``--job-text`` (paste a description) or ``--job-id`` (a posting already
     in the DB), the résumé is tailored: relevant content is reordered to lead
-    and an ATS keyword-coverage score is reported.
+    and an ATS keyword-coverage score is reported. Add ``--ai`` to also rephrase
+    bullets with a local model (falls back to keyword tailoring if unavailable).
     """
-    from job_sentinel.documents import KeywordTailor, RenderError, build_resume_pdf
+    from job_sentinel.documents import RenderError, build_resume_pdf
     from job_sentinel.profile import load_profile
 
     profile = load_profile()
@@ -290,12 +296,15 @@ def resume_build(
 
     description = job_text or (_load_job_description(job_id) if job_id else "")
     if description:
-        result = KeywordTailor().tailor(profile, description)
+        tailor = _build_tailor(use_ai=ai)
+        result = tailor.tailor(profile, description)
         profile = result.profile
         console.print(f"[bold]ATS keyword coverage:[/] [cyan]{result.score_pct}%[/]")
         if result.missing_keywords:
             preview = ", ".join(result.missing_keywords[:12])
             console.print(f"[yellow]Missing from résumé:[/] {preview}")
+    elif ai:
+        console.print("[yellow]--ai needs a job to tailor toward; pass --job-text or --job-id.[/]")
 
     try:
         pdf = build_resume_pdf(profile, out)
@@ -303,6 +312,75 @@ def resume_build(
         console.print(f"[red]Could not build the PDF.[/]\n{exc}")
         raise typer.Exit(code=1) from exc
     console.print(f"[green]✓ Resume built[/] → [cyan]{pdf}[/]")
+
+
+def _build_tailor(*, use_ai: bool) -> Tailor:
+    """Return a Tailor — the local-LLM one if requested (and reachable), else keyword."""
+    from job_sentinel.documents import KeywordTailor
+
+    if not use_ai:
+        return KeywordTailor()
+
+    from job_sentinel.config.settings import LLMSettings
+    from job_sentinel.documents.llm import LLMTailor, OllamaClient
+
+    cfg = LLMSettings()
+    client = OllamaClient(cfg.base_url, cfg.model)
+    if not client.available():
+        console.print(
+            "[yellow]Ollama not reachable[/] — using keyword tailoring. "
+            "Run [bold]job-sentinel resume doctor[/] to set it up."
+        )
+        return KeywordTailor()
+    if not client.has_model():
+        console.print(
+            f"[yellow]Model '{cfg.model}' not pulled[/] — using keyword tailoring. "
+            f"Run [bold]job-sentinel resume doctor --pull[/]."
+        )
+        return KeywordTailor()
+    console.print(f"[green]Using local model[/] [cyan]{cfg.model}[/] for rephrasing.")
+    return LLMTailor(client)
+
+
+@resume_app.command("doctor")
+def resume_doctor(
+    pull: bool = typer.Option(False, "--pull", help="Pull the configured model if missing"),
+) -> None:
+    """Check the local-LLM setup (Ollama) and optionally pull the model."""
+    import shutil
+    import subprocess
+
+    from job_sentinel.config.settings import LLMSettings
+    from job_sentinel.documents.llm import OllamaClient
+
+    cfg = LLMSettings()
+    client = OllamaClient(cfg.base_url, cfg.model)
+    ollama_bin = shutil.which("ollama")
+
+    table = Table(title="Résumé AI — local model status")
+    table.add_column("Check", style="cyan")
+    table.add_column("Result")
+    table.add_row("ollama installed", "✓" if ollama_bin else "✗  (https://ollama.com/download)")
+    reachable = client.available()
+    table.add_row("server reachable", f"✓  {cfg.base_url}" if reachable else f"✗  {cfg.base_url}")
+    has_model = reachable and client.has_model()
+    table.add_row(f"model '{cfg.model}'", "✓ pulled" if has_model else "✗ not pulled")
+    console.print(table)
+
+    if not ollama_bin:
+        console.print("Install Ollama, then run [bold]ollama serve[/] and re-check.")
+        return
+    if not reachable:
+        console.print("Start the server with [bold]ollama serve[/], then re-check.")
+        return
+    if not has_model:
+        if pull:
+            console.print(f"Pulling [cyan]{cfg.model}[/] (multi-GB; one-time)…")
+            subprocess.run([ollama_bin, "pull", cfg.model], check=False)  # noqa: S603 — fixed argv, PATH-resolved
+        else:
+            console.print(f"Pull it with [bold]ollama pull {cfg.model}[/] or rerun with --pull.")
+        return
+    console.print('[green]✓ Ready[/] — use [bold]resume build --ai --job-text "…"[/].')
 
 
 def _load_job_description(posting_id: str) -> str:

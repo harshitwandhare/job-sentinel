@@ -38,8 +38,12 @@ Versions follow [Semantic Versioning](https://semver.org):
   without the bot configured.
 - **Per-posting résumé tailoring**: `resume build --job-text <jd>` / `--job-id <id>`
   reorders profile content by keyword relevance and reports ATS keyword coverage
-  (matched vs missing terms), behind a pluggable `Tailor` interface so a local-LLM
-  backend can slot in later.
+  (matched vs missing terms), behind a pluggable `Tailor` interface.
+- **Optional local-LLM rephrasing** (`resume build --ai`): an `LLMTailor` backed
+  by a self-hosted Ollama model rewrites bullets toward a posting — no API key, no
+  data leaving the machine, with no-fabrication guards and JSON-validated output.
+  Falls back to keyword tailoring when unavailable. `resume doctor` checks/sets up
+  the local model.
 - Out-of-tree adapter loading via `CUSTOM_ADAPTER_PATH` (no fork needed)
 - `job-sentinel login` captures a browser session so the scraper can reuse it
   past portal bot-checks (e.g. Cloudflare) without re-authenticating each run

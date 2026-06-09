@@ -107,6 +107,19 @@ class FilterSettings(BaseSettings):
         return []
 
 
+class LLMSettings(BaseSettings):
+    """Local LLM (Ollama) config for the optional résumé-tailoring layer."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="OLLAMA_", extra="ignore", env_file=_ENV_FILE, env_file_encoding="utf-8"
+    )
+
+    base_url: str = Field(
+        default="http://localhost:11434", description="Ollama HTTP endpoint (OLLAMA_BASE_URL)"
+    )
+    model: str = Field(default="llama3.1:8b", description="Local model tag to use (OLLAMA_MODEL)")
+
+
 class LogSettings(BaseSettings):
     """Logging configuration."""
 
