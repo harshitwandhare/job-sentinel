@@ -106,3 +106,41 @@ export async function tailorResume(jobDescription: string): Promise<TailorResult
     return null;
   }
 }
+
+/** Persist the full profile. Returns true on success. */
+export async function putProfile(profile: Profile): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/profile`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profile),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export interface BuildResult {
+  ok: boolean;
+  blob?: Blob;
+  detail?: string;
+}
+
+/** Build a (optionally tailored / LLM) résumé PDF and return the bytes. */
+export async function buildResume(jobDescription = "", ai = false): Promise<BuildResult> {
+  try {
+    const res = await fetch(`${API_BASE}/api/resume/build`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_description: jobDescription, ai }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { detail?: string };
+      return { ok: false, detail: body.detail ?? `Build failed (${res.status})` };
+    }
+    return { ok: true, blob: await res.blob() };
+  } catch (e) {
+    return { ok: false, detail: String(e) };
+  }
+}
