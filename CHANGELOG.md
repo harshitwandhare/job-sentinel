@@ -15,6 +15,8 @@ Versions follow [Semantic Versioning](https://semver.org):
 ## [Unreleased]
 
 ### Added
+- Telegram new-job alerts now show a "⏰ Closes in N days" line when a posting's
+  deadline parses and falls within a week.
 - **Cover-letter generation**: `resume cover --job-text <jd> [--role --company --ai]` and
   `POST /api/resume/cover` produce a tailored cover-letter PDF — a truthful deterministic
   draft (profile summary + most-relevant experience + top skills), optionally polished by
