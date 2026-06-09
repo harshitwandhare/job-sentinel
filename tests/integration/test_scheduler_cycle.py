@@ -32,8 +32,9 @@ def settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Settings:
     monkeypatch.setenv("PORTAL_PASSWORD", "p")
     monkeypatch.setenv("PORTAL_JOBS_URL", "https://example.com")
     monkeypatch.setenv("KEYWORD_FILTERS", "")
-    s = Settings(db_path=tmp_path / "jobs.db")
-    return s
+    # Pin dry_run explicitly so the test doesn't inherit DRY_RUN from the
+    # ambient environment (CI exports DRY_RUN=true for the unit-test job).
+    return Settings(db_path=tmp_path / "jobs.db", dry_run=False)
 
 
 class _FakeAdapter:

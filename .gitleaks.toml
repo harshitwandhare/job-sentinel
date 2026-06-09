@@ -1,0 +1,13 @@
+# gitleaks configuration — extends the bundled default ruleset.
+# https://github.com/gitleaks/gitleaks
+title = "job-sentinel gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Docs and tests use obviously-fake example/placeholder tokens"
+paths = [
+  '''docs/api/telegram-setup\.md''',  # BotFather walkthrough shows a sample token
+  '''tests/.*''',                     # unit/integration fixtures use dummy creds
+]
