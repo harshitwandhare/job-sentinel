@@ -44,7 +44,7 @@ export default function ProfileEditPage() {
   }, []);
 
   if (!profile) {
-    return <div className="mx-auto max-w-3xl px-5 py-16 text-neutral-400">Loading…</div>;
+    return <div className="mx-auto max-w-3xl px-5 py-16 text-muted">Loading…</div>;
   }
 
   const setBasics = (k: keyof Profile["basics"], v: string) =>
@@ -71,9 +71,9 @@ export default function ProfileEditPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-5 py-12">
       <header className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-neutral-100">Edit profile</h1>
+        <h1 className="text-3xl font-bold text-ink">Edit profile</h1>
         <div className="flex items-center gap-3">
-          {status && <span className="text-sm text-neutral-400">{status}</span>}
+          {status && <span className="text-sm text-muted">{status}</span>}
           <Button onClick={onSave}>Save</Button>
         </div>
       </header>

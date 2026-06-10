@@ -5,11 +5,11 @@ import { useState } from "react";
 import { setJobStatus } from "@/lib/api";
 
 const STATUS_STYLES: Record<string, string> = {
-  new: "bg-emerald-900/60 text-emerald-300",
-  seen: "bg-sky-900/60 text-sky-300",
-  applied: "bg-violet-900/60 text-violet-300",
-  ignored: "bg-neutral-800 text-neutral-400",
-  closed: "bg-neutral-800 text-neutral-500",
+  new: "bg-emerald-100 text-emerald-700",
+  seen: "bg-sky-100 text-sky-700",
+  applied: "bg-violet-100 text-violet-700",
+  ignored: "bg-stone-200 text-muted",
+  closed: "bg-stone-200 text-muted",
 };
 
 export function JobActions({ postingId, status }: { postingId: string; status: string }) {
@@ -30,7 +30,7 @@ export function JobActions({ postingId, status }: { postingId: string; status: s
     <div className="flex flex-col items-end gap-2">
       <span
         className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-          STATUS_STYLES[current] ?? "bg-neutral-800 text-neutral-400"
+          STATUS_STYLES[current] ?? "bg-stone-200 text-muted"
         }`}
       >
         {current}
@@ -39,19 +39,19 @@ export function JobActions({ postingId, status }: { postingId: string; status: s
         <button
           onClick={() => update("applied")}
           disabled={busy || current === "applied"}
-          className="rounded border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
+          className="rounded border border-line px-2 py-0.5 text-xs text-muted hover:bg-stone-100 disabled:opacity-40"
         >
           Applied
         </button>
         <button
           onClick={() => update("ignored")}
           disabled={busy || current === "ignored"}
-          className="rounded border border-neutral-700 px-2 py-0.5 text-xs text-neutral-300 hover:bg-neutral-800 disabled:opacity-40"
+          className="rounded border border-line px-2 py-0.5 text-xs text-muted hover:bg-stone-100 disabled:opacity-40"
         >
           Ignore
         </button>
       </div>
-      {failed && <span className="text-xs text-amber-400">Update failed</span>}
+      {failed && <span className="text-xs text-amber-600">Update failed</span>}
     </div>
   );
 }
