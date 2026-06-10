@@ -15,6 +15,9 @@ Versions follow [Semantic Versioning](https://semver.org):
 ## [Unreleased]
 
 ### Added
+- `resume doctor` now checks **both** the chat model (`--ai`) and the embedding model
+  (`--semantic`), and `--pull` fetches whichever is missing; it reports "Ready" whenever the
+  server is reachable with both models, even if the `ollama` CLI isn't on PATH.
 - Web UI hardening: route-level `error`, `not-found` (404), and `loading` boundaries; a
   WebGL-safe error boundary around the three.js hero (an unsupported GPU can't crash the
   page); and **status actions on the jobs board** (mark applied/ignored, via

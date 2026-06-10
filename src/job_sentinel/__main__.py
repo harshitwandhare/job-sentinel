@@ -409,36 +409,51 @@ def resume_doctor(
     import subprocess
 
     from job_sentinel.config.settings import LLMSettings
+    from job_sentinel.documents.embeddings import OllamaEmbedder
     from job_sentinel.documents.llm import OllamaClient
 
     cfg = LLMSettings()
     client = OllamaClient(cfg.base_url, cfg.model)
+    embedder = OllamaEmbedder(cfg.base_url, cfg.embed_model)
     ollama_bin = shutil.which("ollama")
+
+    reachable = client.available()
+    has_chat = reachable and client.has_model()
+    has_embed = reachable and embedder.available()
 
     table = Table(title="Résumé AI — local model status")
     table.add_column("Check", style="cyan")
     table.add_column("Result")
     table.add_row("ollama installed", "✓" if ollama_bin else "✗  (https://ollama.com/download)")
-    reachable = client.available()
     table.add_row("server reachable", f"✓  {cfg.base_url}" if reachable else f"✗  {cfg.base_url}")
-    has_model = reachable and client.has_model()
-    table.add_row(f"model '{cfg.model}'", "✓ pulled" if has_model else "✗ not pulled")
+    table.add_row(f"chat model '{cfg.model}'", "✓ pulled" if has_chat else "✗ not pulled  (--ai)")
+    table.add_row(
+        f"embed model '{cfg.embed_model}'",
+        "✓ pulled" if has_embed else "✗ not pulled  (--semantic)",
+    )
     console.print(table)
 
-    if not ollama_bin:
-        console.print("Install Ollama, then run [bold]ollama serve[/] and re-check.")
-        return
     if not reachable:
-        console.print("Start the server with [bold]ollama serve[/], then re-check.")
-        return
-    if not has_model:
-        if pull:
-            console.print(f"Pulling [cyan]{cfg.model}[/] (multi-GB; one-time)…")
-            subprocess.run([ollama_bin, "pull", cfg.model], check=False)  # noqa: S603 — fixed argv, PATH-resolved
+        if not ollama_bin:
+            console.print(
+                "Install Ollama (https://ollama.com/download), run [bold]ollama serve[/]."
+            )
         else:
-            console.print(f"Pull it with [bold]ollama pull {cfg.model}[/] or rerun with --pull.")
+            console.print("Start the server with [bold]ollama serve[/], then re-check.")
         return
-    console.print('[green]✓ Ready[/] — use [bold]resume build --ai --job-text "…"[/].')
+
+    missing = [m for m, ok in ((cfg.model, has_chat), (cfg.embed_model, has_embed)) if not ok]
+    if missing:
+        if pull and ollama_bin:
+            for model in missing:
+                console.print(f"Pulling [cyan]{model}[/] (one-time)…")
+                subprocess.run([ollama_bin, "pull", model], check=False)  # noqa: S603 — fixed argv, PATH-resolved
+        else:
+            cmds = " ; ".join(f"ollama pull {m}" for m in missing)
+            hint = "" if ollama_bin else " (ollama isn't on PATH, so run these yourself)"
+            console.print(f"Pull the missing model(s): [bold]{cmds}[/]{hint}.")
+        return
+    console.print('[green]✓ Ready[/] — try [bold]resume build --ai --semantic --job-text "…"[/].')
 
 
 @resume_app.command("cover")
