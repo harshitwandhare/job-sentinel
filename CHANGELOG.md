@@ -14,6 +14,8 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-06-10
+
 ### Added
 - **Sentinel chat assistant**: a ChatGPT-style `/chat` page + `POST /api/chat`. Data
   questions (deadlines, recent jobs, pipeline stats, profile, pasted-JD ATS scoring) are
@@ -137,7 +139,8 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ---
 
-[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.2.0...v0.3.0
