@@ -313,14 +313,18 @@ def resume_build(
     job_text: str = typer.Option("", "--job-text", "-j", help="Tailor to this job description"),
     job_id: str = typer.Option("", "--job-id", help="Tailor to a stored posting (by id)"),
     ai: bool = typer.Option(False, "--ai", help="Rephrase bullets with a local LLM (needs Ollama)"),
+    semantic: bool = typer.Option(
+        False, "--semantic", help="Order content by local embedding similarity (needs Ollama)"
+    ),
 ) -> None:
     """
     Render the profile to an ATS-friendly PDF (and matching .tex).
 
     With ``--job-text`` (paste a description) or ``--job-id`` (a posting already
     in the DB), the résumé is tailored: relevant content is reordered to lead
-    and an ATS keyword-coverage score is reported. Add ``--ai`` to also rephrase
-    bullets with a local model (falls back to keyword tailoring if unavailable).
+    and an ATS keyword-coverage score is reported. ``--ai`` rephrases bullets with
+    a local model; ``--semantic`` orders content by embedding similarity. Both
+    fall back to keyword tailoring when the local model is unavailable.
     """
     from job_sentinel.documents import RenderError, build_resume_pdf
     from job_sentinel.profile import load_profile
@@ -332,15 +336,17 @@ def resume_build(
 
     description = job_text or (_load_job_description(job_id) if job_id else "")
     if description:
-        tailor = _build_tailor(use_ai=ai)
+        tailor = _build_tailor(use_ai=ai, use_semantic=semantic)
         result = tailor.tailor(profile, description)
         profile = result.profile
         console.print(f"[bold]ATS keyword coverage:[/] [cyan]{result.score_pct}%[/]")
         if result.missing_keywords:
             preview = ", ".join(result.missing_keywords[:12])
             console.print(f"[yellow]Missing from résumé:[/] {preview}")
-    elif ai:
-        console.print("[yellow]--ai needs a job to tailor toward; pass --job-text or --job-id.[/]")
+    elif ai or semantic:
+        console.print(
+            "[yellow]--ai/--semantic need a job to tailor toward; pass --job-text or --job-id.[/]"
+        )
 
     try:
         pdf = build_resume_pdf(profile, out)
@@ -350,32 +356,48 @@ def resume_build(
     console.print(f"[green]✓ Resume built[/] → [cyan]{pdf}[/]")
 
 
-def _build_tailor(*, use_ai: bool) -> Tailor:
-    """Return a Tailor — the local-LLM one if requested (and reachable), else keyword."""
+def _build_tailor(*, use_ai: bool, use_semantic: bool = False) -> Tailor:
+    """
+    Compose a Tailor: keyword by default; LLM rephrasing if ``--ai`` and reachable;
+    semantic (embedding) ordering layered on top if ``--semantic`` and reachable.
+    Each AI layer degrades to the simpler tailor when the local model is missing.
+    """
     from job_sentinel.documents import KeywordTailor
 
-    if not use_ai:
-        return KeywordTailor()
+    tailor: Tailor = KeywordTailor()
 
-    from job_sentinel.config.settings import LLMSettings
-    from job_sentinel.documents.llm import LLMTailor, OllamaClient
+    if use_ai:
+        from job_sentinel.config.settings import LLMSettings
+        from job_sentinel.documents.llm import LLMTailor, OllamaClient
 
-    cfg = LLMSettings()
-    client = OllamaClient(cfg.base_url, cfg.model)
-    if not client.available():
-        console.print(
-            "[yellow]Ollama not reachable[/] — using keyword tailoring. "
-            "Run [bold]job-sentinel resume doctor[/] to set it up."
-        )
-        return KeywordTailor()
-    if not client.has_model():
-        console.print(
-            f"[yellow]Model '{cfg.model}' not pulled[/] — using keyword tailoring. "
-            f"Run [bold]job-sentinel resume doctor --pull[/]."
-        )
-        return KeywordTailor()
-    console.print(f"[green]Using local model[/] [cyan]{cfg.model}[/] for rephrasing.")
-    return LLMTailor(client)
+        cfg = LLMSettings()
+        client = OllamaClient(cfg.base_url, cfg.model)
+        if client.available() and client.has_model():
+            console.print(f"[green]Using local model[/] [cyan]{cfg.model}[/] for rephrasing.")
+            tailor = LLMTailor(client, base=tailor)
+        else:
+            console.print(
+                "[yellow]LLM unavailable[/] — skipping rephrasing. "
+                "Run [bold]job-sentinel resume doctor --pull[/]."
+            )
+
+    if use_semantic:
+        from job_sentinel.config.settings import LLMSettings
+        from job_sentinel.documents.embeddings import OllamaEmbedder
+        from job_sentinel.documents.semantic import SemanticTailor
+
+        cfg = LLMSettings()
+        embedder = OllamaEmbedder(cfg.base_url, cfg.embed_model)
+        if embedder.available():
+            console.print(f"[green]Semantic ranking[/] via [cyan]{cfg.embed_model}[/].")
+            tailor = SemanticTailor(embedder, base=tailor)
+        else:
+            console.print(
+                f"[yellow]Embedding model '{cfg.embed_model}' unavailable[/] — "
+                f"keyword ordering. Pull it: [bold]ollama pull {cfg.embed_model}[/]."
+            )
+
+    return tailor
 
 
 @resume_app.command("doctor")
