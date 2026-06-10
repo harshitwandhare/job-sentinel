@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { SafeBoundary } from "@/components/SafeBoundary";
 
 // WebGL must run client-side only; load it lazily so it never blocks SSR/paint.
 const Hero3D = dynamic(() => import("@/components/Hero3D"), { ssr: false });
@@ -12,7 +13,10 @@ const Hero3D = dynamic(() => import("@/components/Hero3D"), { ssr: false });
 export function Hero() {
   return (
     <section className="relative mx-auto max-w-5xl overflow-hidden px-5 py-24 text-center">
-      <Hero3D />
+      {/* If WebGL is unavailable, the boundary renders nothing — the page is fine. */}
+      <SafeBoundary>
+        <Hero3D />
+      </SafeBoundary>
       <motion.h1
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
