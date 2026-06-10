@@ -9,7 +9,7 @@ export default async function JobsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-5 py-12">
-      <h1 className="text-3xl font-bold text-neutral-100">Tracked jobs</h1>
+      <h1 className="text-3xl font-bold text-ink">Tracked jobs</h1>
 
       {jobs.length === 0 ? (
         <Card>
@@ -28,7 +28,7 @@ export default async function JobsPage() {
                 {[j.employer, j.location, j.job_type].filter(Boolean).join(" · ")}
               </CardSub>
               {j.deadline && (
-                <CardSub className="mt-1 text-amber-400">Deadline: {j.deadline}</CardSub>
+                <CardSub className="mt-1 text-amber-600">Deadline: {j.deadline}</CardSub>
               )}
               {j.portal_url && (
                 <a

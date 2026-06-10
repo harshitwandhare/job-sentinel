@@ -44,8 +44,8 @@ export default function StudioPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-5 py-12">
       <header>
-        <h1 className="text-3xl font-bold text-neutral-100">Résumé studio</h1>
-        <p className="mt-1 text-neutral-400">
+        <h1 className="text-3xl font-bold text-ink">Résumé studio</h1>
+        <p className="mt-1 text-muted">
           Paste a job description, see how your profile matches, and download a tailored PDF.
         </p>
       </header>
@@ -64,18 +64,18 @@ export default function StudioPage() {
         <Button variant="outline" onClick={onDownload} disabled={busy !== null}>
           {busy === "build" ? "Building…" : "Download PDF"}
         </Button>
-        <label className="flex items-center gap-2 text-sm text-neutral-300">
+        <label className="flex items-center gap-2 text-sm text-muted">
           <input type="checkbox" checked={ai} onChange={(e) => setAi(e.target.checked)} />
           Rephrase with local LLM
         </label>
       </div>
 
-      {message && <p className="text-sm text-amber-400">{message}</p>}
+      {message && <p className="text-sm text-amber-600">{message}</p>}
 
       {result && (
         <Card>
           <CardTitle>ATS keyword coverage: {Math.round(result.score * 100)}%</CardTitle>
-          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-neutral-800">
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-stone-200">
             <div
               className="h-full bg-brand transition-all"
               style={{ width: `${Math.round(result.score * 100)}%` }}

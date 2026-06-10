@@ -25,9 +25,9 @@ export default async function ProfilePage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-5 py-12">
       <header>
-        <h1 className="text-3xl font-bold text-neutral-100">{basics.name}</h1>
-        {basics.headline && <p className="mt-1 text-neutral-400">{basics.headline}</p>}
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral-400">
+        <h1 className="text-3xl font-bold text-ink">{basics.name}</h1>
+        {basics.headline && <p className="mt-1 text-muted">{basics.headline}</p>}
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
           {basics.location && <span>{basics.location}</span>}
           {basics.email && <span>{basics.email}</span>}
           {basics.links.map((l) => (
@@ -36,12 +36,12 @@ export default async function ProfilePage() {
             </a>
           ))}
         </div>
-        {basics.summary && <p className="mt-4 text-neutral-300">{basics.summary}</p>}
+        {basics.summary && <p className="mt-4 text-muted">{basics.summary}</p>}
       </header>
 
       {experience.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-neutral-100">Experience</h2>
+          <h2 className="text-xl font-semibold text-ink">Experience</h2>
           {experience.map((x, i) => (
             <Card key={`${x.company}-${i}`}>
               <CardTitle>
@@ -51,7 +51,7 @@ export default async function ProfilePage() {
                 {x.start} – {x.end}
                 {x.location ? ` · ${x.location}` : ""}
               </CardSub>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-300">
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
                 {x.bullets.map((b, j) => (
                   <li key={j}>{b}</li>
                 ))}
@@ -63,12 +63,12 @@ export default async function ProfilePage() {
 
       {projects.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-neutral-100">Projects</h2>
+          <h2 className="text-xl font-semibold text-ink">Projects</h2>
           {projects.map((p, i) => (
             <Card key={`${p.name}-${i}`}>
               <CardTitle>{p.name}</CardTitle>
               {p.description && <CardSub>{p.description}</CardSub>}
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-300">
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
                 {p.bullets.map((b, j) => (
                   <li key={j}>{b}</li>
                 ))}
@@ -80,7 +80,7 @@ export default async function ProfilePage() {
 
       {education.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-neutral-100">Education</h2>
+          <h2 className="text-xl font-semibold text-ink">Education</h2>
           {education.map((e, i) => (
             <Card key={`${e.institution}-${i}`}>
               <CardTitle>{e.institution}</CardTitle>
@@ -95,11 +95,11 @@ export default async function ProfilePage() {
 
       {skills.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-neutral-100">Skills</h2>
+          <h2 className="text-xl font-semibold text-ink">Skills</h2>
           <div className="space-y-2">
             {skills.map((g, i) => (
-              <p key={`${g.category}-${i}`} className="text-sm text-neutral-300">
-                <span className="font-medium text-neutral-100">{g.category}:</span>{" "}
+              <p key={`${g.category}-${i}`} className="text-sm text-muted">
+                <span className="font-medium text-ink">{g.category}:</span>{" "}
                 {g.skills.join(", ")}
               </p>
             ))}

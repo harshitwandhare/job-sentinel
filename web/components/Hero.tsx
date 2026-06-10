@@ -1,55 +1,105 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import { SafeBoundary } from "@/components/SafeBoundary";
 
-// WebGL must run client-side only; load it lazily so it never blocks SSR/paint.
+// WebGL is client-only and lazy — it never blocks SSR or first paint.
 const Hero3D = dynamic(() => import("@/components/Hero3D"), { ssr: false });
 
+const stats = [
+  { value: "100%", label: "local & private" },
+  { value: "0", label: "API keys needed" },
+  { value: "185+", label: "tests, 83% coverage" },
+  { value: "7", label: "CI quality gates" },
+];
+
 export function Hero() {
+  const reduced = useReducedMotion();
+  const enter = (delay: number) =>
+    reduced
+      ? {}
+      : {
+          initial: { opacity: 0, y: 22 },
+          animate: { opacity: 1, y: 0 },
+          transition: { duration: 0.6, delay, ease: [0.21, 0.65, 0.36, 1] as const },
+        };
+
   return (
-    <section className="relative mx-auto max-w-5xl overflow-hidden px-5 py-24 text-center">
-      {/* If WebGL is unavailable, the boundary renders nothing — the page is fine. */}
-      <SafeBoundary>
-        <Hero3D />
-      </SafeBoundary>
-      <motion.h1
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="bg-gradient-to-br from-white to-neutral-400 bg-clip-text text-5xl font-bold tracking-tight text-transparent sm:text-6xl"
-      >
-        Your career, on autopilot — locally.
-      </motion.h1>
-      <motion.p
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.12 }}
-        className="mx-auto mt-6 max-w-2xl text-lg text-neutral-400"
-      >
-        Monitor job portals, track every posting, and generate ATS-ready résumés tailored to
-        each role — powered by a local LLM. Private by default; your data never leaves your
-        machine.
-      </motion.p>
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.24 }}
-        className="mt-10 flex items-center justify-center gap-4"
-      >
-        <Link href="/profile">
-          <Button size="lg">View profile</Button>
-        </Link>
-        <Link href="/jobs">
-          <Button size="lg" variant="outline">
-            Browse jobs
-          </Button>
-        </Link>
-      </motion.div>
+    <section className="relative overflow-hidden bg-night text-white">
+      <div className="bg-grid-dark absolute inset-0" aria-hidden="true" />
+      {/* Emerald glow behind the 3D core */}
+      <div
+        aria-hidden="true"
+        className="absolute right-[-10%] top-1/4 h-[420px] w-[420px] rounded-full bg-brand-500/20 blur-[120px]"
+      />
+      {!reduced && (
+        <SafeBoundary>
+          <Hero3D />
+        </SafeBoundary>
+      )}
+
+      <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-24 sm:py-32 lg:grid-cols-[1.1fr_0.9fr]">
+        <div>
+          <motion.p
+            {...enter(0)}
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium tracking-wide text-brand-400"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute h-full w-full animate-ping rounded-full bg-brand-400 opacity-60" />
+              <span className="h-2 w-2 rounded-full bg-brand-400" />
+            </span>
+            Open source · pip install job-sentinel
+          </motion.p>
+
+          <motion.h1
+            {...enter(0.08)}
+            className="mt-6 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
+          >
+            Your job hunt,
+            <br />
+            <span className="bg-gradient-to-r from-brand-400 to-emerald-200 bg-clip-text text-transparent">
+              engineered.
+            </span>
+          </motion.h1>
+
+          <motion.p {...enter(0.16)} className="mt-6 max-w-xl text-lg leading-relaxed text-stone-300">
+            Job Sentinel watches your portals, tracks every posting and deadline, and generates
+            ATS-ready résumés and cover letters tailored to each role by a{" "}
+            <strong className="font-semibold text-white">local LLM</strong>. No API keys. No data
+            leaving your machine.
+          </motion.p>
+
+          <motion.div {...enter(0.24)} className="mt-9 flex flex-wrap items-center gap-4">
+            <Link
+              href="/studio"
+              className="rounded-lg bg-brand px-6 py-3 font-medium text-white shadow-lg shadow-brand/25 transition-all hover:bg-brand-500 active:scale-[0.98]"
+            >
+              Open the résumé studio
+            </Link>
+            <Link
+              href="/jobs"
+              className="rounded-lg border border-white/20 px-6 py-3 font-medium text-white transition-colors hover:bg-white/10"
+            >
+              View tracked jobs
+            </Link>
+          </motion.div>
+
+          <motion.dl {...enter(0.34)} className="mt-12 grid max-w-lg grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
+            {stats.map((s) => (
+              <div key={s.label}>
+                <dt className="sr-only">{s.label}</dt>
+                <dd className="text-2xl font-bold text-white">{s.value}</dd>
+                <dd className="mt-0.5 text-xs text-stone-400">{s.label}</dd>
+              </div>
+            ))}
+          </motion.dl>
+        </div>
+        {/* Right column is breathing room for the 3D composition. */}
+        <div aria-hidden="true" className="hidden min-h-[320px] lg:block" />
+      </div>
     </section>
   );
 }
