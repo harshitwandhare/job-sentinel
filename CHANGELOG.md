@@ -14,17 +14,19 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-10
+
 ### Added
+- **Cover-letter generation**: `resume cover --job-text <jd> [--role --company --ai]` and
+  `POST /api/resume/cover` produce a tailored cover-letter PDF — a truthful deterministic
+  draft (profile summary + most-relevant experience + top skills), optionally polished by
+  the local LLM with the same no-fabrication guards.
 - **Semantic relevance ranking** (`resume build --semantic`): orders profile content by
   local-embedding cosine similarity to the job description (Ollama `nomic-embed-text`),
   catching matches that share meaning but not keywords. Pluggable `SemanticTailor` that
   layers over the keyword/LLM tailors and falls back when the model is absent.
 - Telegram new-job alerts now show a "⏰ Closes in N days" line when a posting's
   deadline parses and falls within a week.
-- **Cover-letter generation**: `resume cover --job-text <jd> [--role --company --ai]` and
-  `POST /api/resume/cover` produce a tailored cover-letter PDF — a truthful deterministic
-  draft (profile summary + most-relevant experience + top skills), optionally polished by
-  the local LLM with the same no-fabrication guards.
 
 ## [0.2.0] — 2026-06-10
 
@@ -105,6 +107,7 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ---
 
-[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/harshitwandhare/job-sentinel/releases/tag/v0.1.0
