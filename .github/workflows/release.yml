@@ -12,6 +12,10 @@ jobs:
   release:
     name: Build & publish release
     runs-on: ubuntu-latest
+    # Copy the secret to job env so it can be referenced in step `if:` conditions
+    # (the `secrets` context isn't allowed directly in `if`).
+    env:
+      PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
     steps:
       - uses: actions/checkout@v5
 
@@ -31,3 +35,11 @@ jobs:
           dist/*
           --title "${{ github.ref_name }}"
           --notes "Automated release for ${{ github.ref_name }}. See CHANGELOG.md for details."
+
+      # Publishes to PyPI only when the PYPI_API_TOKEN secret is configured;
+      # otherwise this step is skipped and the GitHub Release still succeeds.
+      - name: Publish to PyPI
+        if: ${{ env.PYPI_TOKEN != '' }}
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: uv publish
