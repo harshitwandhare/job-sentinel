@@ -80,6 +80,26 @@ class OllamaClient:
             name == self._model or name.split(":")[0] == base for name in self.installed_models()
         )
 
+    def chat(self, system: str, messages: list[dict[str, str]]) -> str:
+        """
+        Plain-text multi-turn chat (no JSON forcing) — used by the assistant.
+
+        ``messages`` are prior turns as ``{"role", "content"}`` dicts; the system
+        prompt is prepended. Thinking stays disabled so reasoning models answer
+        directly.
+        """
+        payload = {
+            "model": self._model,
+            "stream": False,
+            "think": False,
+            "messages": [{"role": "system", "content": system}, *messages],
+            "options": {"temperature": 0.4},
+        }
+        resp = httpx.post(f"{self._base}/api/chat", json=payload, timeout=self._timeout)
+        resp.raise_for_status()
+        content = resp.json().get("message", {}).get("content", "")
+        return str(content).strip()
+
     def chat_json(self, system: str, user: str) -> dict[str, Any]:
         """Single non-streaming chat turn constrained to JSON output."""
         payload = {

@@ -107,6 +107,30 @@ export async function tailorResume(jobDescription: string): Promise<TailorResult
   }
 }
 
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+export interface ChatReply {
+  reply: string;
+  source: "rules" | "llm";
+}
+
+/** Ask the Sentinel assistant. Returns null on any transport failure. */
+export async function sendChat(messages: ChatTurn[]): Promise<ChatReply | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as ChatReply;
+  } catch {
+    return null;
+  }
+}
+
 /** Update a posting's tracking status. Returns true on success. */
 export async function setJobStatus(postingId: string, status: string): Promise<boolean> {
   try {
