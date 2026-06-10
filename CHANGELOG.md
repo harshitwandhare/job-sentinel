@@ -14,6 +14,19 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+### Added
+- **Sentinel chat assistant**: a ChatGPT-style `/chat` page + `POST /api/chat`. Data
+  questions (deadlines, recent jobs, pipeline stats, profile, pasted-JD ATS scoring) are
+  answered deterministically from real local state; everything else goes to the local LLM
+  grounded with a context block — with graceful rules-only fallback when Ollama is off.
+  Suggested prompts, typing indicator, localStorage history, retry-on-failure, full
+  keyboard + screen-reader support.
+- **Full web UI redesign**: balanced light/dark system (stone + emerald, AA contrast,
+  Inter), richer three.js hero (distorted core, wireframe orbiters, particle halo, pointer
+  parallax), custom cursor, scroll progress, animated SVG pipeline, tilt-card bento,
+  quality marquee, engineering stats band — all reduced-motion safe with skip links and
+  focus rings; every app page restyled.
+
 ## [0.3.2] — 2026-06-10
 
 ### Added

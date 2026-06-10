@@ -24,6 +24,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from job_sentinel.api.chat import ChatMessage, ChatReply
+from job_sentinel.api.chat import answer as chat_answer
 from job_sentinel.core.models import ApplicationStatus, JobPosting
 from job_sentinel.documents.tailor import KeywordTailor, TailorResult
 from job_sentinel.profile import DEFAULT_PROFILE_PATH, Profile, load_profile, save_profile
@@ -70,6 +72,10 @@ class BuildRequest(BaseModel):
 
 class StatusRequest(BaseModel):
     status: ApplicationStatus
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(min_length=1, max_length=40)
 
 
 class CoverRequest(BaseModel):
@@ -182,6 +188,18 @@ def create_app(
         except RenderError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return FileResponse(pdf, media_type="application/pdf", filename="resume.pdf")
+
+    @app.post("/api/chat", response_model=ChatReply)
+    def chat(req: ChatRequest) -> ChatReply:
+        """The Sentinel assistant: data questions answered from real state, rest via local LLM."""
+        if req.messages[-1].role != "user":
+            raise HTTPException(status_code=422, detail="The last message must be from the user.")
+        return chat_answer(
+            req.messages,
+            profile_path=profile_path,
+            db_path=db_path,
+            client_factory=_resolve_ollama,
+        )
 
     @app.post("/api/resume/cover")
     def build_cover(req: CoverRequest) -> FileResponse:
