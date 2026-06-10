@@ -14,14 +14,16 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-06-10
+
 ### Added
-- `resume doctor` now checks **both** the chat model (`--ai`) and the embedding model
-  (`--semantic`), and `--pull` fetches whichever is missing; it reports "Ready" whenever the
-  server is reachable with both models, even if the `ollama` CLI isn't on PATH.
 - Web UI hardening: route-level `error`, `not-found` (404), and `loading` boundaries; a
   WebGL-safe error boundary around the three.js hero (an unsupported GPU can't crash the
   page); and **status actions on the jobs board** (mark applied/ignored, via
   `POST /api/jobs/{id}/status`).
+- `resume doctor` now checks **both** the chat model (`--ai`) and the embedding model
+  (`--semantic`), and `--pull` fetches whichever is missing; it reports "Ready" whenever the
+  server is reachable with both models, even if the `ollama` CLI isn't on PATH.
 
 ## [0.3.1] — 2026-06-10
 
@@ -122,7 +124,8 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ---
 
-[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.1.0...v0.2.0
