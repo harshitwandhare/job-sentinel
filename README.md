@@ -1,4 +1,8 @@
-# 🛡 Job Sentinel
+<p align="center">
+  <img src=".github/assets/sentinel.png" alt="Job Sentinel logo" width="140" />
+</p>
+
+# Job Sentinel
 
 > **Site-agnostic job-portal monitor with pluggable adapters and instant Telegram alerts.**
 
@@ -31,6 +35,7 @@ setup later points at internships or full-time listings by switching that URL.
 | **Résumé engine** | Universal profile → ATS-friendly LaTeX/PDF, tailored per posting |
 | **Local-LLM tailoring** | Optional Ollama rephrasing — no API key, nothing leaves your machine |
 | **Web UI** | Next.js + Tailwind app: profile editor, résumé studio, jobs board |
+| **One-command web app** | `job-sentinel web` starts FastAPI + Next.js together |
 | **Local API** | FastAPI layer (`job-sentinel serve`) the UI consumes — one source of truth |
 | **Email + Telegram alerts** | Two notifier channels; email is optional SMTP |
 | **Deadline awareness** | `/deadlines` flags postings closing within a configurable window |

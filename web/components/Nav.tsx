@@ -16,12 +16,12 @@ export function Nav() {
         className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3"
       >
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight text-ink">
-          <span
+          <img
+            src="/brand/sentinel.png"
+            alt=""
+            className="h-8 w-8 rounded-lg border border-white/10 bg-night object-cover shadow-sm"
             aria-hidden="true"
-            className="grid h-7 w-7 place-items-center rounded-lg bg-night text-sm text-brand-400"
-          >
-            ◈
-          </span>
+          />
           Job Sentinel
         </Link>
         <ul className="hidden items-center gap-6 text-sm text-muted sm:flex">
@@ -38,7 +38,7 @@ export function Nav() {
             href="https://github.com/harshitwandhare/job-sentinel"
             className="hidden rounded-lg border border-line px-3 py-1.5 text-sm text-ink transition-colors hover:border-ink/30 hover:bg-surface sm:block"
           >
-            GitHub ↗
+            GitHub
           </a>
           <Link
             href="/studio"

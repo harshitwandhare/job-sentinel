@@ -38,6 +38,104 @@ body {
   color: var(--ink);
 }
 
+.sentinel-loader {
+  position: relative;
+  height: 140px;
+  width: 140px;
+  perspective: 700px;
+}
+
+.sentinel-loader__tilt {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  animation: sentinel-tilt 3.8s ease-in-out infinite;
+}
+
+.sentinel-loader__mark {
+  position: absolute;
+  inset: 18px;
+  height: 104px;
+  width: 104px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--night);
+  box-shadow:
+    0 22px 60px rgba(12, 10, 9, 0.22),
+    0 0 42px rgba(5, 150, 105, 0.28);
+  object-fit: cover;
+}
+
+.sentinel-loader__orbit {
+  position: absolute;
+  inset: 35px 6px;
+  border: 2px solid transparent;
+  border-top-color: #38bdf8;
+  border-right-color: #f59e0b;
+  border-radius: 999px;
+  transform: rotateX(68deg) rotateZ(0deg);
+  animation: sentinel-orbit 1.8s linear infinite;
+}
+
+.sentinel-loader__orbit--two {
+  inset: 46px -2px;
+  border-top-color: rgba(16, 185, 129, 0.8);
+  border-right-color: rgba(167, 243, 208, 0.75);
+  animation-duration: 2.6s;
+  animation-direction: reverse;
+}
+
+.sentinel-loader__spark {
+  position: absolute;
+  height: 8px;
+  width: 8px;
+  border-radius: 999px;
+  background: #f59e0b;
+  box-shadow: 0 0 18px #f59e0b;
+}
+
+.sentinel-loader__spark--one {
+  right: 12px;
+  top: 58px;
+  animation: sentinel-pulse 1.4s ease-in-out infinite;
+}
+
+.sentinel-loader__spark--two {
+  bottom: 42px;
+  left: 10px;
+  background: #38bdf8;
+  box-shadow: 0 0 18px #38bdf8;
+  animation: sentinel-pulse 1.4s ease-in-out 0.4s infinite;
+}
+
+@keyframes sentinel-tilt {
+  0%,
+  100% {
+    transform: rotateX(0deg) rotateY(-8deg) translateZ(0);
+  }
+  50% {
+    transform: rotateX(8deg) rotateY(10deg) translateZ(18px);
+  }
+}
+
+@keyframes sentinel-orbit {
+  to {
+    transform: rotateX(68deg) rotateZ(360deg);
+  }
+}
+
+@keyframes sentinel-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
 /* Subtle blueprint grid texture for light sections */
 .bg-grid {
   background-image:
@@ -78,5 +176,9 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .sentinel-loader__tilt {
+    transform: none;
   }
 }

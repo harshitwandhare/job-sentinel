@@ -17,7 +17,7 @@ never touch the user's real ``data/`` files.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,6 +26,7 @@ from pydantic import BaseModel, Field
 
 from job_sentinel.api.chat import ChatMessage, ChatReply
 from job_sentinel.api.chat import answer as chat_answer
+from job_sentinel.api.ops import OpsConfigError, OpsConflictError, get_runner
 from job_sentinel.core.models import ApplicationStatus, JobPosting
 from job_sentinel.documents.tailor import KeywordTailor, TailorResult
 from job_sentinel.profile import DEFAULT_PROFILE_PATH, Profile, load_profile, save_profile
@@ -38,11 +39,9 @@ if TYPE_CHECKING:
 _DATA_DIR = Path(__file__).resolve().parents[3] / "data"
 
 # The local Next.js dev server (and a future packaged UI) call this API.
-_LOCAL_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-]
+# Next picks the next free port when 3000 is taken, so accept any localhost
+# port rather than a fixed list — the API still only binds to 127.0.0.1.
+_LOCAL_ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
 
 
 class HealthResponse(BaseModel):
@@ -76,6 +75,14 @@ class StatusRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1, max_length=40)
+
+
+class LoginRequest(BaseModel):
+    timeout: int = Field(default=300, ge=30, le=900, description="Seconds to wait for sign-in")
+
+
+class ScrapeRequest(BaseModel):
+    send: bool = Field(default=False, description="Send alerts (default: dry run)")
 
 
 class CoverRequest(BaseModel):
@@ -113,8 +120,8 @@ def create_app(
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_LOCAL_ORIGINS,
-        allow_methods=["GET", "POST", "PUT"],
+        allow_origin_regex=_LOCAL_ORIGIN_REGEX,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 
@@ -164,6 +171,85 @@ def create_app(
         if job is None:  # pragma: no cover - defensive
             raise HTTPException(status_code=404, detail=f"Posting {posting_id} not found")
         return job
+
+    @app.get("/api/stats")
+    def db_stats() -> dict[str, int]:
+        """Counts per tracking status — the UI twin of `job-sentinel db stats`."""
+        from job_sentinel.db.repository import JobRepository
+
+        if not db_path.is_file():
+            return {}
+        repo = JobRepository(db_path)
+        try:
+            return repo.get_stats()
+        finally:
+            repo.close()
+
+    @app.get("/api/ops/status")
+    def ops_status() -> dict[str, Any]:
+        """Session/login/scrape/watcher state in one snapshot (polled by the UI)."""
+        return get_runner().status()
+
+    @app.post("/api/ops/login")
+    def ops_login(req: LoginRequest) -> dict[str, bool]:
+        """Start the interactive portal login (opens a browser on this machine)."""
+        try:
+            get_runner().start_login(timeout=req.timeout)
+        except OpsConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except OpsConfigError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return {"started": True}
+
+    @app.post("/api/ops/scrape")
+    def ops_scrape(req: ScrapeRequest) -> dict[str, bool]:
+        """Run one scrape cycle in the background (dry-run unless `send`)."""
+        try:
+            get_runner().start_scrape(send=req.send)
+        except OpsConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except OpsConfigError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return {"started": True}
+
+    @app.post("/api/ops/watcher/start")
+    def ops_watcher_start() -> dict[str, bool]:
+        """Start continuous monitoring (the UI twin of `job-sentinel run`)."""
+        try:
+            get_runner().start_watcher()
+        except OpsConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except OpsConfigError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        return {"running": True}
+
+    @app.post("/api/ops/watcher/stop")
+    def ops_watcher_stop() -> dict[str, bool]:
+        """Stop continuous monitoring."""
+        try:
+            get_runner().stop_watcher()
+        except OpsConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {"running": False}
+
+    @app.get("/api/llm/status")
+    def llm_status() -> dict[str, Any]:
+        """Local-LLM health — the UI twin of `job-sentinel resume doctor`."""
+        from job_sentinel.config.settings import LLMSettings
+        from job_sentinel.documents.embeddings import OllamaEmbedder
+        from job_sentinel.documents.llm import OllamaClient
+
+        cfg = LLMSettings()
+        client = OllamaClient(cfg.base_url, cfg.model)
+        reachable = client.available()
+        return {
+            "base_url": cfg.base_url,
+            "reachable": reachable,
+            "chat_model": cfg.model,
+            "chat_ready": reachable and client.has_model(),
+            "embed_model": cfg.embed_model,
+            "embed_ready": reachable and OllamaEmbedder(cfg.base_url, cfg.embed_model).available(),
+        }
 
     @app.post("/api/resume/tailor", response_model=TailorResult)
     def tailor_resume(req: TailorRequest) -> TailorResult:

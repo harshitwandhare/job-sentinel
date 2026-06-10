@@ -100,8 +100,21 @@ class Scheduler:
         Returns the number of new jobs found.
         Used by the ``/jobs`` Telegram command for on-demand refresh.
         """
-        result = self._scrape_cycle()
-        return result.new_count
+        return self.run_cycle().new_count
+
+    def run_cycle(self) -> ScrapeResult:
+        """
+        Run one scrape cycle synchronously and return the full result.
+
+        Like :meth:`trigger_now` but keeps counts and errors, so callers
+        (e.g. the local API) can report what actually happened.
+        """
+        return self._scrape_cycle()
+
+    @property
+    def running(self) -> bool:
+        """Whether the background scheduler loop is active."""
+        return bool(self._scheduler.running)
 
     # ── Scrape cycle ───────────────────────────────────────────────────────
 

@@ -7,10 +7,11 @@ FastAPI backend — there's no business logic here, only views.
 ## Run it
 
 ```bash
-# 1. Start the API (from the repo root)
-job-sentinel serve            # http://127.0.0.1:8000
+# One command from the repo root
+job-sentinel web              # API + http://localhost:3000
 
-# 2. Start the web UI
+# Or run the two processes manually
+job-sentinel serve            # http://127.0.0.1:8000
 cd web
 cp .env.example .env.local    # points at the API
 npm install
