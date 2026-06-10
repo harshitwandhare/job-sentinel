@@ -14,6 +14,22 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-06-10
+
+### Added
+- **One-command local web stack**: `job-sentinel web` starts the FastAPI backend and
+  Next.js UI together, wires `NEXT_PUBLIC_API_BASE`, and automatically moves to the
+  next free API/UI ports when defaults are already in use.
+- **Scraper controls in the jobs UI**: login, one-shot scrape, dry-run/alert toggle,
+  and watcher start/stop controls backed by local API operations.
+- **Sentinel branding assets**: canonical logo placement, generated favicon/app icons,
+  web manifest, README/GitHub-facing asset copy, first-viewport brand treatment, and
+  a reusable themed route loader.
+
+### Fixed
+- 12twenty login/session detection no longer treats "no rows rendered yet" as a failed
+  login when the authenticated app shell is visible.
+
 ## [0.4.0] — 2026-06-10
 
 ### Added
@@ -139,7 +155,8 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ---
 
-[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.0...v0.3.1
