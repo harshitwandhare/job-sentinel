@@ -118,6 +118,10 @@ class LLMSettings(BaseSettings):
         default="http://localhost:11434", description="Ollama HTTP endpoint (OLLAMA_BASE_URL)"
     )
     model: str = Field(default="llama3.1:8b", description="Local model tag to use (OLLAMA_MODEL)")
+    embed_model: str = Field(
+        default="nomic-embed-text",
+        description="Local embedding model for semantic ranking (OLLAMA_EMBED_MODEL)",
+    )
 
 
 class EmailSettings(BaseSettings):

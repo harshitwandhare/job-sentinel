@@ -15,6 +15,10 @@ Versions follow [Semantic Versioning](https://semver.org):
 ## [Unreleased]
 
 ### Added
+- **Semantic relevance ranking** (`resume build --semantic`): orders profile content by
+  local-embedding cosine similarity to the job description (Ollama `nomic-embed-text`),
+  catching matches that share meaning but not keywords. Pluggable `SemanticTailor` that
+  layers over the keyword/LLM tailors and falls back when the model is absent.
 - Telegram new-job alerts now show a "⏰ Closes in N days" line when a posting's
   deadline parses and falls within a week.
 - **Cover-letter generation**: `resume cover --job-text <jd> [--role --company --ai]` and
