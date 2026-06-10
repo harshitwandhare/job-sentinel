@@ -14,6 +14,12 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+### Added
+- Web UI hardening: route-level `error`, `not-found` (404), and `loading` boundaries; a
+  WebGL-safe error boundary around the three.js hero (an unsupported GPU can't crash the
+  page); and **status actions on the jobs board** (mark applied/ignored, via
+  `POST /api/jobs/{id}/status`).
+
 ## [0.3.1] — 2026-06-10
 
 ### Changed

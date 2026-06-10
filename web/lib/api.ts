@@ -107,6 +107,20 @@ export async function tailorResume(jobDescription: string): Promise<TailorResult
   }
 }
 
+/** Update a posting's tracking status. Returns true on success. */
+export async function setJobStatus(postingId: string, status: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(postingId)}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Persist the full profile. Returns true on success. */
 export async function putProfile(profile: Profile): Promise<boolean> {
   try {

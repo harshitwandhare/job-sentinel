@@ -1,15 +1,8 @@
+import { JobActions } from "@/components/JobActions";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { getJobs } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
-
-const STATUS_STYLES: Record<string, string> = {
-  new: "bg-emerald-900/60 text-emerald-300",
-  seen: "bg-sky-900/60 text-sky-300",
-  applied: "bg-violet-900/60 text-violet-300",
-  ignored: "bg-neutral-800 text-neutral-400",
-  closed: "bg-neutral-800 text-neutral-500",
-};
 
 export default async function JobsPage() {
   const jobs = await getJobs(50);
@@ -46,13 +39,7 @@ export default async function JobsPage() {
                 </a>
               )}
             </div>
-            <span
-              className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                STATUS_STYLES[j.status] ?? "bg-neutral-800 text-neutral-400"
-              }`}
-            >
-              {j.status}
-            </span>
+            <JobActions postingId={j.posting_id} status={j.status} />
           </Card>
         ))
       )}
