@@ -57,6 +57,7 @@ SEL_LOGIN_BTN = "button[type='submit'], input[type='submit']"
 
 # ── Listing (verified against the live 12twenty Student Employment DOM) ──────
 SEL_JOB_CARD = "tr.job-posting"
+SEL_LISTING_READY = "tr.job-posting, a.job-title, table, [ng-view], [ui-view]"
 SEL_TITLE_LINK = "a.job-title"
 SEL_JOB_TITLE = "a.job-title .primary-item-text"
 # The employer is the one .sub-info block that holds bound text directly rather
@@ -84,7 +85,7 @@ class TwelveTwentyAdapter(SiteAdapter):
     ADAPTER_ID = "12twenty"
     ADAPTER_NAME = "12twenty Portal"
     BASE_URL = PORTAL_BASE_URL
-    LOGGED_IN_SELECTOR = SEL_JOB_CARD
+    LOGGED_IN_SELECTOR = SEL_LISTING_READY
 
     def __init__(self, scraper_settings: ScraperSettings) -> None:
         super().__init__(scraper_settings)
@@ -128,7 +129,16 @@ class TwelveTwentyAdapter(SiteAdapter):
             pwd.fill(settings.portal.password)
             btn = page.query_selector(SEL_LOGIN_BTN)
             (btn or pwd).click() if btn else pwd.press("Enter")
-            page.wait_for_selector(self.LOGGED_IN_SELECTOR, timeout=timeout)
+            try:
+                page.wait_for_selector(self.LOGGED_IN_SELECTOR, timeout=timeout)
+            except PlaywrightTimeoutError:
+                if not (page.query_selector(SEL_EMAIL) or page.query_selector(SEL_PASSWORD)):
+                    logger.warning(
+                        "Login form disappeared but listing rows did not render; "
+                        "continuing so scrape can report an empty or changed listing"
+                    )
+                    return
+                raise
         else:
             msg = (
                 "Not authenticated and no login form is reachable (the 12twenty "

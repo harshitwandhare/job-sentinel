@@ -197,6 +197,86 @@ def serve(
     uvicorn.run("job_sentinel.api.app:app", host=host, port=port, reload=reload)
 
 
+@app.command()
+def web(
+    api_host: str = typer.Option("127.0.0.1", help="API bind address"),
+    api_port: int = typer.Option(8000, help="API port"),
+    ui_port: int = typer.Option(3000, help="Next.js UI port"),
+) -> None:
+    """Run the local API and web UI together."""
+    import os
+    import shutil
+    import socket
+    import subprocess
+    import time
+
+    def next_free_port(host: str, preferred: int) -> int:
+        port = preferred
+        while True:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(0.2)
+                if sock.connect_ex((host, port)) != 0:
+                    return port
+            port += 1
+
+    repo_root = Path(__file__).resolve().parents[2]
+    web_dir = repo_root / "web"
+    npm = shutil.which("npm.cmd") or shutil.which("npm")
+    if npm is None:
+        console.print("[red]npm was not found.[/] Install Node.js, then run this again.")
+        raise typer.Exit(code=1)
+    if not web_dir.is_dir():
+        console.print(f"[red]Web UI directory not found:[/] {web_dir}")
+        raise typer.Exit(code=1)
+
+    api_port = next_free_port(api_host, api_port)
+    ui_port = next_free_port("127.0.0.1", ui_port)
+    api_url = f"http://{api_host}:{api_port}"
+    env = os.environ.copy()
+    env["NEXT_PUBLIC_API_BASE"] = api_url
+    env["PORT"] = str(ui_port)
+
+    api_cmd = [
+        sys.executable,
+        "-m",
+        "uvicorn",
+        "job_sentinel.api.app:app",
+        "--host",
+        api_host,
+        "--port",
+        str(api_port),
+    ]
+    ui_cmd = [npm, "run", "dev", "--", "-p", str(ui_port)]
+
+    console.print(f"[bold green]Job Sentinel web[/] -> http://localhost:{ui_port}/jobs")
+    console.print(f"API -> {api_url}  |  Press [bold]Ctrl+C[/] to stop both.")
+
+    api_proc = subprocess.Popen(api_cmd, cwd=repo_root, env=env)  # noqa: S603
+    ui_proc = subprocess.Popen(ui_cmd, cwd=web_dir, env=env)  # noqa: S603
+    try:
+        while True:
+            api_code = api_proc.poll()
+            ui_code = ui_proc.poll()
+            if api_code is not None:
+                console.print(f"[red]API stopped[/] with exit code {api_code}.")
+                raise typer.Exit(code=api_code)
+            if ui_code is not None:
+                console.print(f"[red]Web UI stopped[/] with exit code {ui_code}.")
+                raise typer.Exit(code=ui_code)
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Stopping web stack...[/]")
+    finally:
+        for proc in (ui_proc, api_proc):
+            if proc.poll() is None:
+                proc.terminate()
+        for proc in (ui_proc, api_proc):
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                proc.wait(timeout=8)
+            if proc.poll() is None:
+                proc.kill()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # login — capture an authenticated session (one-time, interactive)
 # ─────────────────────────────────────────────────────────────────────────────

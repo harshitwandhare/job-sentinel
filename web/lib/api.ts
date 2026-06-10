@@ -48,15 +48,35 @@ export interface SkillGroup {
   category: string;
   skills: string[];
 }
+export interface Certification {
+  name: string;
+  issuer: string;
+  date: string;
+  tags?: string[];
+}
+export interface Award {
+  title: string;
+  issuer: string;
+  date: string;
+  description: string;
+  tags?: string[];
+}
+export interface Publication {
+  title: string;
+  venue: string;
+  date: string;
+  url: string;
+  tags?: string[];
+}
 export interface Profile {
   basics: Basics;
   education: Education[];
   experience: Experience[];
   projects: Project[];
   skills: SkillGroup[];
-  certifications: { name: string; issuer: string; date: string }[];
-  awards: { title: string; issuer: string; date: string; description: string }[];
-  publications: unknown[];
+  certifications: Certification[];
+  awards: Award[];
+  publications: Publication[];
 }
 export interface JobPosting {
   posting_id: string;
@@ -145,18 +165,97 @@ export async function setJobStatus(postingId: string, status: string): Promise<b
   }
 }
 
-/** Persist the full profile. Returns true on success. */
-export async function putProfile(profile: Profile): Promise<boolean> {
+/** Persist the full profile. Returns the saved (validated) profile, or null. */
+export async function putProfile(profile: Profile): Promise<Profile | null> {
   try {
     const res = await fetch(`${API_BASE}/api/profile`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(profile),
     });
-    return res.ok;
+    if (!res.ok) return null;
+    return (await res.json()) as Profile;
   } catch {
-    return false;
+    return null;
   }
+}
+
+export interface OpStatus {
+  state: "idle" | "running" | "ok" | "error";
+  message: string;
+  started_at: string | null;
+  finished_at: string | null;
+  detail: Record<string, unknown>;
+}
+export interface OpsStatus {
+  config_ok: boolean;
+  config_error: string;
+  session: { exists: boolean; saved_at: string | null };
+  login: OpStatus;
+  scrape: OpStatus;
+  watcher: { running: boolean; interval_seconds: number | null };
+  adapter: string | null;
+  adapters: string[];
+}
+export interface LlmStatus {
+  base_url: string;
+  reachable: boolean;
+  chat_model: string;
+  chat_ready: boolean;
+  embed_model: string;
+  embed_ready: boolean;
+}
+export interface StartResult {
+  ok: boolean;
+  detail?: string;
+}
+
+/** Snapshot of session/login/scrape/watcher state. Null if the API is down. */
+export function getOpsStatus(): Promise<OpsStatus | null> {
+  return getJSON<OpsStatus | null>("/api/ops/status", null);
+}
+
+/** Counts per tracking status (db stats). */
+export function getStats(): Promise<Record<string, number>> {
+  return getJSON<Record<string, number>>("/api/stats", {});
+}
+
+/** Local-LLM health (resume doctor). */
+export function getLlmStatus(): Promise<LlmStatus | null> {
+  return getJSON<LlmStatus | null>("/api/llm/status", null);
+}
+
+async function postJSON(path: string, body: unknown): Promise<StartResult> {
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body ?? {}),
+    });
+    if (res.ok) return { ok: true };
+    const data = (await res.json().catch(() => ({}))) as { detail?: string };
+    return { ok: false, detail: data.detail ?? `Request failed (${res.status})` };
+  } catch {
+    return { ok: false, detail: "Could not reach the API. Is `job-sentinel serve` running?" };
+  }
+}
+
+/** Open the interactive portal login (a browser opens on the API machine). */
+export function startLogin(timeout = 300): Promise<StartResult> {
+  return postJSON("/api/ops/login", { timeout });
+}
+
+/** Run one scrape cycle. `send` actually sends alerts (default dry-run). */
+export function startScrape(send = false): Promise<StartResult> {
+  return postJSON("/api/ops/scrape", { send });
+}
+
+/** Start / stop the continuous watcher (scrape on an interval + alerts). */
+export function startWatcher(): Promise<StartResult> {
+  return postJSON("/api/ops/watcher/start", {});
+}
+export function stopWatcher(): Promise<StartResult> {
+  return postJSON("/api/ops/watcher/stop", {});
 }
 
 export interface BuildResult {
@@ -172,6 +271,29 @@ export async function buildResume(jobDescription = "", ai = false): Promise<Buil
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ job_description: jobDescription, ai }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { detail?: string };
+      return { ok: false, detail: body.detail ?? `Build failed (${res.status})` };
+    }
+    return { ok: true, blob: await res.blob() };
+  } catch (e) {
+    return { ok: false, detail: String(e) };
+  }
+}
+
+/** Build a cover-letter PDF and return the bytes. */
+export async function buildCover(
+  jobDescription = "",
+  role = "",
+  company = "",
+  ai = false,
+): Promise<BuildResult> {
+  try {
+    const res = await fetch(`${API_BASE}/api/resume/cover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_description: jobDescription, role, company, ai }),
     });
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { detail?: string };

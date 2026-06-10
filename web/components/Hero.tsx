@@ -43,8 +43,21 @@ export function Hero() {
 
       <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-24 sm:py-32 lg:grid-cols-[1.1fr_0.9fr]">
         <div>
+          <motion.div {...enter(0)} className="mb-7 flex items-center gap-4">
+            <img
+              src="/brand/sentinel.png"
+              alt="Job Sentinel"
+              className="h-16 w-16 rounded-2xl border border-white/15 bg-night object-cover shadow-2xl shadow-brand/20"
+            />
+            <div>
+              <p className="text-sm font-medium uppercase tracking-[0.18em] text-brand-400">
+                Job Sentinel
+              </p>
+              <p className="mt-1 text-sm text-stone-400">Local-first career automation</p>
+            </div>
+          </motion.div>
           <motion.p
-            {...enter(0)}
+            {...enter(0.04)}
             className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium tracking-wide text-brand-400"
           >
             <span className="relative flex h-2 w-2">
@@ -55,7 +68,7 @@ export function Hero() {
           </motion.p>
 
           <motion.h1
-            {...enter(0.08)}
+            {...enter(0.12)}
             className="mt-6 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
           >
             Your job hunt,
@@ -65,14 +78,14 @@ export function Hero() {
             </span>
           </motion.h1>
 
-          <motion.p {...enter(0.16)} className="mt-6 max-w-xl text-lg leading-relaxed text-stone-300">
+          <motion.p {...enter(0.2)} className="mt-6 max-w-xl text-lg leading-relaxed text-stone-300">
             Job Sentinel watches your portals, tracks every posting and deadline, and generates
             ATS-ready résumés and cover letters tailored to each role by a{" "}
             <strong className="font-semibold text-white">local LLM</strong>. No API keys. No data
             leaving your machine.
           </motion.p>
 
-          <motion.div {...enter(0.24)} className="mt-9 flex flex-wrap items-center gap-4">
+          <motion.div {...enter(0.28)} className="mt-9 flex flex-wrap items-center gap-4">
             <Link
               href="/studio"
               className="rounded-lg bg-brand px-6 py-3 font-medium text-white shadow-lg shadow-brand/25 transition-all hover:bg-brand-500 active:scale-[0.98]"
@@ -87,7 +100,7 @@ export function Hero() {
             </Link>
           </motion.div>
 
-          <motion.dl {...enter(0.34)} className="mt-12 grid max-w-lg grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
+          <motion.dl {...enter(0.38)} className="mt-12 grid max-w-lg grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
             {stats.map((s) => (
               <div key={s.label}>
                 <dt className="sr-only">{s.label}</dt>

@@ -1,4 +1,5 @@
 import { JobActions } from "@/components/JobActions";
+import { ScraperControls } from "@/components/ScraperControls";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { getJobs } from "@/lib/api";
 
@@ -11,12 +12,15 @@ export default async function JobsPage() {
     <div className="mx-auto max-w-3xl space-y-4 px-5 py-12">
       <h1 className="text-3xl font-bold text-ink">Tracked jobs</h1>
 
+      <ScraperControls />
+
       {jobs.length === 0 ? (
         <Card>
           <CardTitle>No jobs tracked yet</CardTitle>
           <CardSub className="mt-2">
-            Run <code>job-sentinel scrape</code> (after <code>job-sentinel login</code>) to
-            populate postings, then refresh.
+            Use <strong>Login</strong> above to sign in to the portal once, then{" "}
+            <strong>Run scraper</strong> to populate postings — the list refreshes
+            automatically when the scrape finishes.
           </CardSub>
         </Card>
       ) : (
