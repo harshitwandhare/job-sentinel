@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { OPEN_EVENT } from "@/components/CommandPalette";
 import { getAuthStatus, type AuthStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -118,6 +119,27 @@ export function Nav() {
         </ul>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent(OPEN_EVENT))}
+            aria-label="Open command palette"
+            className={cn(
+              "hidden items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors md:flex",
+              dark
+                ? "border-white/20 text-stone-300 hover:bg-white/10 hover:text-white"
+                : "border-line text-muted hover:border-ink/30 hover:text-ink",
+            )}
+          >
+            <span>Search</span>
+            <kbd
+              className={cn(
+                "rounded border px-1.5 font-mono text-[10px]",
+                dark ? "border-white/20" : "border-line",
+              )}
+            >
+              ⌘K
+            </kbd>
+          </button>
           <a
             href="https://github.com/harshitwandhare/job-sentinel"
             target="_blank"

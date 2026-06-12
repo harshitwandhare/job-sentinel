@@ -12,7 +12,16 @@ const STATUS_STYLES: Record<string, string> = {
   closed: "bg-stone-200 text-muted",
 };
 
-export function JobActions({ postingId, status }: { postingId: string; status: string }) {
+export function JobActions({
+  postingId,
+  status,
+  onChange,
+}: {
+  postingId: string;
+  status: string;
+  /** Notify the parent so list filters/counts can stay in sync. */
+  onChange?: (next: string) => void;
+}) {
   const [current, setCurrent] = useState(status);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -21,8 +30,12 @@ export function JobActions({ postingId, status }: { postingId: string; status: s
     setBusy(true);
     setFailed(false);
     const ok = await setJobStatus(postingId, next);
-    if (ok) setCurrent(next);
-    else setFailed(true);
+    if (ok) {
+      setCurrent(next);
+      onChange?.(next);
+    } else {
+      setFailed(true);
+    }
     setBusy(false);
   }
 
