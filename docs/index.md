@@ -1,5 +1,8 @@
 # Job Sentinel
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13183/badge)](https://www.bestpractices.dev/projects/13183)
+[![CI](https://github.com/harshitwandhare/job-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/harshitwandhare/job-sentinel/actions/workflows/ci.yml)
+
 **Local-first career automation, engineered like production software.**
 
 Job Sentinel watches your university job portals, tracks every posting and
@@ -37,4 +40,4 @@ Open <http://localhost:3000/jobs>.
 | **Tracking** | SQLite pipeline (new → seen → applied), deadline radar, keyword filters |
 | **Documents** | LaTeX → PDF résumés and cover letters, ATS keyword scoring, local-LLM tailoring, resume PDF import |
 | **Surfaces** | CLI, Telegram bot, FastAPI + Next.js web UI — full feature parity |
-| **Quality** | 277 tests (≥80% gate), mypy --strict, ruff, ESLint + vitest, gitleaks, pip-audit, OpenSSF Scorecard |
+| **Quality** | 280+ tests (≥80% gate), mypy --strict, ruff, ESLint + vitest, CodeQL, gitleaks, pip-audit, [OpenSSF Best Practices badge](https://www.bestpractices.dev/projects/13183) |

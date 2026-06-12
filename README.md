@@ -7,6 +7,7 @@
 > **Site-agnostic job-portal monitor with pluggable adapters and instant Telegram alerts.**
 
 [![CI](https://github.com/harshitwandhare/job-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/harshitwandhare/job-sentinel/actions/workflows/ci.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13183/badge)](https://www.bestpractices.dev/projects/13183)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/harshitwandhare/job-sentinel/badge)](https://securityscorecards.dev/viewer/?uri=github.com/harshitwandhare/job-sentinel)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
