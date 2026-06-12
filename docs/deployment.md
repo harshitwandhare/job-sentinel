@@ -82,10 +82,13 @@ Every push to `main` auto-deploys — that's the CD half, free.
 
 ## Docs on GitHub Pages (free)
 
-`mkdocs.yml` is already configured (`docs` extra). Publish with:
+`mkdocs.yml` is already configured (`docs` extra). The Docs workflow builds
+and publishes the site through the GitHub Pages artifact flow on every push
+to `main` that touches `docs/` — no `gh-pages` branch involved (a branch
+push would also trigger a doomed Vercel preview build). Preview locally with:
 
 ```bash
-uv run mkdocs gh-deploy --force
+uv run mkdocs serve
 ```
 
 ## CI/CD (GitHub Actions, free for public repos)

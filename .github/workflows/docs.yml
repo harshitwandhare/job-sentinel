@@ -1,6 +1,8 @@
 name: Docs
 
 # Build and publish the MkDocs site to GitHub Pages on every docs change.
+# Deploys via the Pages artifact flow — no gh-pages branch, so Vercel never
+# mistakes the docs output for an app preview.
 on:
   push:
     branches: [main]
@@ -18,11 +20,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Build & deploy site
+  build:
+    name: Build site
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # gh-deploy pushes to the gh-pages branch
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
@@ -39,5 +39,25 @@ jobs:
       - name: Install docs dependencies
         run: uv sync --locked --extra docs
 
-      - name: Deploy to GitHub Pages
-        run: uv run mkdocs gh-deploy --force
+      - name: Build site
+        run: uv run mkdocs build --strict
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write # deploy-pages publishes the artifact
+      id-token: write # deploy-pages verifies the deployment origin
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
