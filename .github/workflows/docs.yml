@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # gh-deploy pushes to the gh-pages branch
+  contents: read
 
 concurrency:
   group: docs-deploy
@@ -21,13 +21,15 @@ jobs:
   deploy:
     name: Build & deploy site
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # gh-deploy pushes to the gh-pages branch
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0 # git-revision-date plugin reads history
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           version: "latest"
 

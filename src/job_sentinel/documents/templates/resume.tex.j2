@@ -1,9 +1,12 @@
 <# ATS-friendly single-column resume. Rendered by documents/latex.py with
    Jinja delimiters << >> (vars) and <% %> (blocks). Keep it parser-safe:
    one column, standard fonts, real text, no images/!content! tables. #>
-\documentclass[11pt,letterpaper]{article}
+<# `compact` is the one-page rescue mode: smaller font, tighter margins and
+   spacing. The renderer retries with it when the normal layout exceeds one
+   page — recruiters and ATS parsers both strongly prefer a single page. #>
+\documentclass[<< '10pt' if compact else '11pt' >>,letterpaper]{article}
 
-\usepackage[margin=0.6in]{geometry}
+\usepackage[margin=<< '0.45in' if compact else '0.6in' >>]{geometry}
 \usepackage[T1]{fontenc}
 \usepackage{charter}            % clean, widely-available serif; ATS-safe
 \usepackage{microtype}
@@ -12,13 +15,14 @@
 \usepackage[hidelinks]{hyperref}
 
 % Compact, parser-friendly lists.
-\setlist[itemize]{leftmargin=1.2em,itemsep=1pt,topsep=2pt,parsep=0pt}
+\setlist[itemize]{leftmargin=1.2em,itemsep=<< '0pt' if compact else '1pt' >>,topsep=<< '1pt' if compact else '2pt' >>,parsep=0pt}
 \pagestyle{empty}
 \setlength{\parindent}{0pt}
+\raggedbottom
 
 % Section headings: plain text + a thin rule. No fancy glyphs.
 \titleformat{\section}{\large\bfseries\scshape}{}{0em}{}[\titlerule]
-\titlespacing{\section}{0pt}{10pt}{4pt}
+\titlespacing{\section}{0pt}{<< '6pt' if compact else '10pt' >>}{<< '2pt' if compact else '4pt' >>}
 
 \begin{document}
 

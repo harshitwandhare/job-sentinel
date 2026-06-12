@@ -73,6 +73,14 @@ def render_template(template: str, **context: object) -> str:
     return _build_env().get_template(template).render(**context)
 
 
-def render_resume_tex(profile: Profile, template: str = _RESUME_TEMPLATE) -> str:
-    """Render ``profile`` to a LaTeX source string using the named template."""
-    return render_template(template, p=profile)
+def render_resume_tex(
+    profile: Profile, template: str = _RESUME_TEMPLATE, *, compact: bool = False
+) -> str:
+    """
+    Render ``profile`` to a LaTeX source string using the named template.
+
+    ``compact`` switches the template to its one-page rescue mode (10pt font,
+    tighter margins/spacing) — used automatically when the normal layout
+    spills past a single page.
+    """
+    return render_template(template, p=profile, compact=compact)

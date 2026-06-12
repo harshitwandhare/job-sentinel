@@ -7,9 +7,11 @@ Job Sentinel is pre-1.0; security fixes land on `main`.
 ## Reporting a vulnerability
 
 Please **do not** open a public issue for security problems. Report privately
-via GitHub Security Advisories ("Report a vulnerability" on the repo's Security
-tab), or email the maintainer. You'll get an acknowledgement within a few days
-and a fix or mitigation plan as fast as is practical.
+via [GitHub Security Advisories](https://github.com/harshitwandhare/job-sentinel/security/advisories/new)
+("Report a vulnerability" on the repo's Security tab), or email the maintainer
+at <harshitwandhare45@gmail.com>. You'll get an acknowledgement within **72
+hours** and a fix or mitigation plan as fast as is practical (target: 14 days
+for high-severity issues).
 
 ## Security model & posture
 
