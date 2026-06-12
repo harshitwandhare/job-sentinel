@@ -14,9 +14,9 @@ function detailOf(job: JobPosting): JobDetail | undefined {
 function FactRow({ label, value }: { label: string; value?: string | number | null }) {
   if (value === undefined || value === null || value === "") return null;
   return (
-    <div className="flex gap-2 text-sm">
-      <span className="w-40 shrink-0 text-muted">{label}</span>
-      <span className="text-ink">{String(value)}</span>
+    <div className="flex flex-col text-sm sm:flex-row sm:gap-2">
+      <span className="shrink-0 text-muted sm:w-40">{label}</span>
+      <span className="min-w-0 break-words text-ink">{String(value)}</span>
     </div>
   );
 }
@@ -44,8 +44,8 @@ export default async function JobsPage() {
           const d = detailOf(j);
           return (
             <Card key={j.posting_id} className="space-y-2">
-              <div className="flex items-start justify-between gap-4">
-                <div>
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
                   <CardTitle>{j.title}</CardTitle>
                   <CardSub>
                     {[j.employer, j.location, j.job_type].filter(Boolean).join(" · ")}

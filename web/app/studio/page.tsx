@@ -44,7 +44,11 @@ export default function StudioPage() {
     setMessage("");
     const r = await tailorResume(jd);
     setResult(r);
-    if (!r) setMessage("Could not reach the API. Is `job-sentinel serve` running?");
+    if (!r)
+      setMessage(
+        "Could not reach the local engine — tailoring and PDF builds run on your machine. " +
+          "Run `job-sentinel web` locally (setup guide: github.com/harshitwandhare/job-sentinel).",
+      );
     setBusy(null);
   }
 

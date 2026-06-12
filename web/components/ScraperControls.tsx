@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { LocalSetupGuide } from "@/components/LocalSetupGuide";
 import { Button } from "@/components/ui/button";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import {
@@ -107,14 +108,7 @@ export function ScraperControls() {
   }
 
   if (!status) {
-    return (
-      <Card>
-        <CardTitle>API offline</CardTitle>
-        <CardSub className="mt-2">
-          Start the backend with <code>job-sentinel serve</code>, then refresh this page.
-        </CardSub>
-      </Card>
-    );
+    return <LocalSetupGuide context="Scraping the portal" />;
   }
 
   const { session, login, scrape, watcher } = status;

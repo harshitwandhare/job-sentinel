@@ -196,8 +196,17 @@ export default function ChatPage() {
 
         {failed && (
           <p className="text-center text-sm text-amber-600">
-            Couldn&apos;t reach the API — is <code className="font-mono">job-sentinel serve</code>{" "}
-            running? Your message was kept below; press Enter to retry.
+            Couldn&apos;t reach the local engine — the assistant runs on your machine. Start it
+            with <code className="font-mono">job-sentinel web</code>, or see the{" "}
+            <a
+              href="https://github.com/harshitwandhare/job-sentinel#-quick-start"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand underline-offset-2 hover:underline"
+            >
+              setup guide
+            </a>
+            . Your message was kept below; press Enter to retry.
           </p>
         )}
         <div ref={endRef} />

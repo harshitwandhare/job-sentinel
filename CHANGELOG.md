@@ -14,6 +14,37 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-06-12
+
+### Added
+- **Public demo is live** at <https://job-sentinel.vercel.app> (Vercel free
+  tier, auto-deployed from `main`), and the **docs site** at
+  <https://harshitwandhare.github.io/job-sentinel/> (MkDocs Material on GitHub
+  Pages, deployed on every docs change).
+- **OpenSSF Scorecard** workflow (weekly + on push) with the badge in the
+  README; `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1).
+- Web UI now has **ESLint** (eslint-config-next, zero warnings) and a
+  **vitest** suite, both gating CI alongside typecheck and the production
+  build.
+
+### Changed
+- **Test coverage 77% → 87%**, CI gate raised to 80%: new suites cover the
+  ops state machine (conflicts, worker outcomes, thread safety), the auth
+  middleware across all three modes, 12twenty login/scrape flows against a
+  fake browser page, and the Handshake adapter.
+- CI runs on Python 3.11/3.12/3.13 with `uv sync --locked` (reproducible) and
+  a least-privilege token; pre-commit hooks bumped (ruff 0.4→0.15, mypy
+  1.10→2.1); dev dependencies deduplicated into PEP 735 `[dependency-groups]`;
+  local `pytest` no longer pays the coverage tax (CI applies the gate).
+- Hero terminal animation now derives every frame from a progress counter —
+  garbled mid-typing frames are impossible.
+
+### Fixed
+- mypy strictness: removed the global `ignore_missing_imports` that masked
+  typo'd imports (per-module overrides retained).
+- Repaired UTF-8 mojibake a PowerShell round-trip introduced into workflow/
+  client/env comments; `.env.example` restored byte-perfect.
+
 ## [0.7.0] — 2026-06-12
 
 ### Fixed

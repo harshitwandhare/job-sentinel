@@ -82,10 +82,10 @@ export default function HomePage() {
 
       {/* How it works */}
       <section className="bg-grid border-b border-line">
-        <div className="mx-auto max-w-6xl px-6 py-24">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
           <Reveal>
             <p className="font-mono text-sm font-medium uppercase tracking-widest text-brand">How it works</p>
-            <h2 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+            <h2 className="mt-3 max-w-2xl text-2xl font-bold tracking-tight text-ink sm:text-4xl">
               From posting detected to PDF in hand — one pipeline.
             </h2>
           </Reveal>
@@ -97,10 +97,10 @@ export default function HomePage() {
 
       {/* Feature bento */}
       <section className="border-b border-line bg-bg">
-        <div className="mx-auto max-w-6xl px-6 py-24">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
           <Reveal>
             <p className="font-mono text-sm font-medium uppercase tracking-widest text-brand">Capabilities</p>
-            <h2 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+            <h2 className="mt-3 max-w-2xl text-2xl font-bold tracking-tight text-ink sm:text-4xl">
               Everything between &ldquo;new posting&rdquo; and &ldquo;submitted&rdquo;.
             </h2>
           </Reveal>
@@ -125,12 +125,12 @@ export default function HomePage() {
       {/* Engineering quality — the FAANG section. */}
       <section data-nav-theme="dark" className="relative overflow-hidden bg-night text-white">
         <div className="bg-grid-dark absolute inset-0" aria-hidden="true" />
-        <div className="relative mx-auto max-w-6xl px-6 py-24">
+        <div className="relative mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
           <Reveal>
             <p className="font-mono text-sm font-medium uppercase tracking-widest text-brand-400">
               Built like production software
             </p>
-            <h2 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
+            <h2 className="mt-3 max-w-2xl text-2xl font-bold tracking-tight sm:text-4xl">
               Because the codebase is part of the product.
             </h2>
             <p className="mt-4 max-w-2xl text-stone-400">
@@ -170,11 +170,11 @@ export default function HomePage() {
 
       {/* Privacy + final CTA */}
       <section className="bg-bg">
-        <div className="mx-auto max-w-6xl px-6 py-24">
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <Reveal>
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
+          <div className="grid items-center gap-8 sm:gap-10 lg:grid-cols-2">
+            <Reveal className="min-w-0">
               <p className="font-mono text-sm font-medium uppercase tracking-widest text-brand">Private by default</p>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-ink sm:text-4xl">
+              <h2 className="mt-3 text-2xl font-bold tracking-tight text-ink sm:text-4xl">
                 Your career data never leaves your machine.
               </h2>
               <p className="mt-4 leading-relaxed text-muted">
@@ -183,17 +183,17 @@ export default function HomePage() {
                 no API key — by architecture, not by promise.
               </p>
             </Reveal>
-            <Reveal delay={0.1}>
-              <div className="rounded-2xl border border-line bg-surface p-8 shadow-card">
+            <Reveal delay={0.1} className="min-w-0">
+              <div className="rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-8">
                 <h3 className="text-xl font-semibold tracking-tight text-ink">Start in two minutes</h3>
-                <pre className="mt-4 overflow-x-auto rounded-xl bg-night p-4 font-mono text-sm leading-7 text-stone-300">
+                <pre className="mt-4 overflow-x-auto rounded-xl bg-night p-3 font-mono text-xs leading-6 text-stone-300 sm:p-4 sm:text-sm sm:leading-7">
                   <code>{`pip install job-sentinel
 job-sentinel resume init   # your universal profile
-job-sentinel serve         # this web app`}</code>
+job-sentinel web           # this web app`}</code>
                 </pre>
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link
-                    href="/profile/edit"
+                    href="/profile"
                     className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-500"
                   >
                     Build your profile

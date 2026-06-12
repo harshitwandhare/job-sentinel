@@ -7,22 +7,51 @@
 > **Site-agnostic job-portal monitor with pluggable adapters and instant Telegram alerts.**
 
 [![CI](https://github.com/harshitwandhare/job-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/harshitwandhare/job-sentinel/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/harshitwandhare/job-sentinel/badge)](https://securityscorecards.dev/viewer/?uri=github.com/harshitwandhare/job-sentinel)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-yellow.svg)](https://conventionalcommits.org)
 
-Job Sentinel monitors job-listing portals on a configurable interval.
-The moment a new posting appears, you get a rich Telegram alert — with
-title, employer, location, deadline, keyword tags, and a direct link.
+<p align="center">
+  <a href="https://job-sentinel.vercel.app"><b>🌐 Live demo</b></a> ·
+  <a href="https://harshitwandhare.github.io/job-sentinel/"><b>📚 Docs</b></a> ·
+  <a href="https://github.com/harshitwandhare/job-sentinel/releases"><b>📦 Releases</b></a>
+</p>
 
-It ships with adapters for **UTD 12twenty** and **Handshake**.
-Adding a new portal takes one file and ~50 lines of Python.
+Job Sentinel watches your university job portals, alerts you on Telegram the
+moment a posting appears, and generates **ATS-ready résumés and cover letters
+tailored to each role by a local LLM** — no API keys, no data leaving your
+machine.
 
-Out of the box it watches UTD 12twenty's **on-campus Student Employment** tab.
-The tab is chosen by the `tab=` parameter in `PORTAL_JOBS_URL`, so the same
-setup later points at internships or full-time listings by switching that URL.
+It ships with adapters for **UTD 12twenty** and **Handshake**; adding a new
+portal takes one file and ~50 lines of Python.
+
+> **🌐 Hosted demo vs. running locally** — the
+> [live demo](https://job-sentinel.vercel.app) shows the interface, but the
+> engine (scraping, local AI, PDF builds) runs **on your machine by design**:
+> your portal credentials, your data, and the model never leave it. Follow the
+> [Quick Start](#-quick-start) below to run the real thing — about 5 minutes.
+
+<details>
+<summary><b>Table of contents</b></summary>
+
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Quick Start](#-quick-start)
+- [Configuration](#%EF%B8%8F-configuration)
+- [Bot Commands](#-bot-commands)
+- [Résumé Generator](#-résumé-generator)
+- [Web UI](#-web-ui)
+- [Adding a New Portal](#-adding-a-new-portal)
+- [Development](#-development)
+- [Deployment & data persistence](#-deployment-always-on--data-persistence)
+- [Project Structure](#-project-structure)
+- [Roadmap](#-roadmap)
+- [Contributing](#-contributing)
+
+</details>
 
 ---
 
@@ -41,7 +70,11 @@ setup later points at internships or full-time listings by switching that URL.
 | **Deadline awareness** | `/deadlines` flags postings closing within a configurable window |
 | **Status tracking** | NEW → SEEN → APPLIED / IGNORED / CLOSED, persisted in SQLite |
 | **Closed detection** | Marks postings that disappear from the portal |
-| **Production-grade** | `mypy --strict`, ~82% tests, CI (lint/types/tests/secret/supply-chain), Docker |
+| **Resume PDF import** | Upload an existing resume → structured profile draft (local-LLM or heuristic) |
+| **Session management** | `job-sentinel session` validity check; login prefills credentials from `.env` |
+| **Per-job documents** | One-click tailored résumé + cover letter PDFs from any tracked posting |
+| **Optional auth** | `AUTH_MODE=demo\|required`: PBKDF2 accounts, HMAC tokens, admin-managed invites |
+| **Production-grade** | `mypy --strict`, 280+ tests (80% gate), ESLint+vitest, OpenSSF Scorecard, reproducible `uv.lock` builds, Docker |
 
 ---
 
@@ -157,6 +190,8 @@ See [`.env.example`](.env.example) for the full reference.
 | `KEYWORD_FILTERS` | _(empty = all)_ | CSV: `software,engineer,research` |
 | `HEADLESS` | `true` | Run browser headless |
 | `DRY_RUN` | `false` | Scrape but don't send alerts |
+| `OLLAMA_MODEL` | `llama3.2:3b` | Local model for AI features (3B fits 4 GB GPUs) |
+| `AUTH_MODE` | `off` | `off` / `demo` (gate writes) / `required` (gate all) |
 | `LOG_LEVEL` | `INFO` | `DEBUG`/`INFO`/`WARNING`/`ERROR` |
 
 ---
@@ -237,16 +272,33 @@ FastAPI layer — same engine, nicer surface. It's fully local: the API binds to
 localhost and the optional LLM stays on your machine.
 
 ```bash
-# 1. Start the local API (needs the 'web' extra: uv sync --extra web)
-job-sentinel serve                 # http://127.0.0.1:8000  (Swagger at /docs)
+# One command for everything: API + UI + recurring scrape watcher
+uv run job-sentinel web --watch        # http://localhost:3000
 
-# 2. Start the web app
-cd web && npm install && npm run dev   # http://localhost:3000
+# Or piecemeal:
+job-sentinel serve                     # API only — Swagger at /docs
+cd web && npm install && npm run dev   # UI only
 ```
 
-Pages: an animated landing, a **profile editor**, a **résumé studio** (paste a
-JD → live ATS coverage → download a tailored PDF, with a local-LLM toggle), and
-a **jobs board** with statuses and deadlines.
+Pages: an animated landing (with a self-typing terminal replay of a real
+session), a **profile editor** with resume-PDF import, a **résumé studio**
+(paste a JD → live ATS coverage → tailored PDF, local-LLM toggle), a **jobs
+board** with per-posting résumé/cover-letter generation, scraper controls and
+session checks, and the **Sentinel chat assistant**.
+
+### Sharing your instance (optional auth)
+
+Want a public demo of *your* instance, or to invite a friend? Turn on
+authentication — stdlib-only, no services:
+
+```bash
+job-sentinel users add yourname --admin   # first account must be an admin
+AUTH_MODE=demo job-sentinel serve          # reads public, actions need login
+```
+
+`AUTH_MODE=demo` keeps browsing open but gates actions; `required` gates
+everything. Admins create further accounts (`users add`, or `POST
+/api/auth/users`). Details in [docs/deployment.md](docs/deployment.md).
 
 ---
 
@@ -318,38 +370,24 @@ cp data/profile.yaml data/profile.backup.yaml
 ```
 job-sentinel/
 ├── src/job_sentinel/
-│   ├── adapters/
-│   │   ├── base.py            # Abstract SiteAdapter interface
-│   │   ├── registry.py        # Plugin registry (dynamic loading)
-│   │   └── sites/
-│   │       ├── twelve_twenty.py   # UTD 12twenty adapter
-│   │       └── handshake.py       # Handshake adapter
-│   ├── bot/
-│   │   └── handlers.py        # Telegram command handlers
-│   ├── config/
-│   │   ├── settings.py        # pydantic-settings config
-│   │   └── logging.py         # loguru setup
-│   ├── core/
-│   │   ├── browser.py         # Playwright lifecycle manager
-│   │   ├── models.py          # JobPosting, ScrapeResult (Pydantic v2)
-│   │   └── scheduler.py       # APScheduler poll loop
-│   ├── db/
-│   │   └── repository.py      # sqlite-utils DB layer
-│   ├── notifiers/
-│   │   └── telegram.py        # MarkdownV2 formatting + delivery
+│   ├── adapters/              # Plugin system: base interface, registry,
+│   │   └── sites/             #   12twenty + Handshake adapters
+│   ├── api/                   # FastAPI layer: routes, ops runner, auth
+│   ├── bot/                   # Telegram command handlers
+│   ├── config/                # pydantic-settings config + loguru setup
+│   ├── core/                  # Browser, models, scheduler, session workflows
+│   ├── db/                    # sqlite-utils repository
+│   ├── documents/             # Resume engine: LaTeX, tailoring, LLM,
+│   │                          #   embeddings, cover letters, PDF import
+│   ├── notifiers/             # Telegram (MarkdownV2) + SMTP email
+│   ├── profile/               # Universal profile models + YAML store
 │   └── __main__.py            # Typer CLI entry-point
-├── tests/
-│   ├── unit/                  # Fast, no I/O
-│   ├── integration/           # Real DB, mocked network
-│   └── e2e/                   # Full stack (optional, requires .env)
-├── docs/
-│   ├── adr/                   # Architecture Decision Records
-│   └── design/                # HLD, LLD, adapter authoring guide
-├── scripts/                   # Dev helper scripts
-├── .github/workflows/         # CI/CD (GitHub Actions)
+├── web/                       # Next.js UI (App Router, Tailwind, vitest)
+├── tests/                     # unit/ · integration/ · e2e/ (280+ tests)
+├── docs/                      # MkDocs site: HLD, LLD, ADRs, deployment
+├── .github/workflows/         # CI · Release · Docs · Scorecard
 ├── pyproject.toml             # Single source of truth (uv + hatchling)
-├── .env.example               # Config template
-└── .pre-commit-config.yaml    # Ruff, mypy, gitleaks, conventional commits
+└── uv.lock                    # Reproducible builds (CI uses --locked)
 ```
 
 ---
@@ -358,14 +396,19 @@ job-sentinel/
 
 - [x] Résumé engine (universal profile → ATS LaTeX/PDF) with per-posting tailoring
 - [x] Local-LLM rephrasing via Ollama (no API key)
-- [x] Web UI (Next.js) + local FastAPI layer
+- [x] Web UI (Next.js) + local FastAPI layer — full CLI feature parity
 - [x] Email notifier (optional SMTP) alongside Telegram
 - [x] Deadline-aware tracking (`/deadlines`)
 - [x] Docker / docker-compose with persistent data
-- [ ] Cover-letter generation (local LLM)
-- [ ] Semantic relevance ranking (local embeddings)
+- [x] Cover-letter generation (deterministic + local-LLM polish)
+- [x] Semantic relevance ranking (local embeddings via Ollama)
+- [x] Resume PDF import → structured profile draft
+- [x] Session validity checks + credential-prefilled login
+- [x] Optional multi-user auth (demo/required modes, admin invites)
+- [x] Hosted demo (Vercel) + docs site (GitHub Pages) — both $0
 - [ ] More portal adapters (Greenhouse, Workday, public boards via JobSpy)
 - [ ] Discord webhook notifier
+- [ ] Playwright e2e suite against `job-sentinel web`
 - [ ] Packaged installers + PyPI publish
 
 ---

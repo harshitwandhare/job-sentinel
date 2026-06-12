@@ -42,7 +42,7 @@ export function Hero() {
         </SafeBoundary>
       )}
 
-      <div className="relative mx-auto grid max-w-6xl gap-10 px-6 py-24 sm:py-32 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="relative mx-auto grid max-w-6xl gap-10 px-5 py-16 sm:px-6 sm:py-32 lg:grid-cols-[1.1fr_0.9fr]">
         <div>
           <motion.div {...enter(0)} className="mb-7 flex items-center gap-4">
             <img
@@ -70,7 +70,7 @@ export function Hero() {
 
           <motion.h1
             {...enter(0.12)}
-            className="mt-6 text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
+            className="mt-6 text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
           >
             Your job hunt,
             <br />
@@ -112,8 +112,8 @@ export function Hero() {
           </motion.dl>
         </div>
         {/* Right column: a live-typed replay of a real session, floating over the 3D. */}
-        <motion.div {...enter(0.45)} className="hidden lg:flex lg:items-center">
-          <div className="w-full max-w-md">
+        <motion.div {...enter(0.45)} className="flex min-w-0 items-center">
+          <div className="w-full max-w-md lg:ml-auto">
             <TerminalDemo />
           </div>
         </motion.div>

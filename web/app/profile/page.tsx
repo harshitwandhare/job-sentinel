@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { LocalSetupGuide } from "@/components/LocalSetupGuide";
 import { SentinelLoader } from "@/components/SentinelLoader";
 import { Button } from "@/components/ui/button";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
@@ -143,12 +144,7 @@ export default function ProfilePage() {
   if (apiDown) {
     return (
       <div className="mx-auto max-w-3xl px-5 py-16">
-        <Card>
-          <CardTitle>API offline</CardTitle>
-          <CardSub className="mt-2">
-            Start the backend with <code>job-sentinel serve</code>, then refresh this page.
-          </CardSub>
-        </Card>
+        <LocalSetupGuide context="Your profile (and the résumé engine behind it)" />
       </div>
     );
   }
@@ -178,9 +174,11 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-5 py-12">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-ink">{editing ? "Edit profile" : "Profile"}</h1>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold text-ink sm:text-3xl">
+          {editing ? "Edit profile" : "Profile"}
+        </h1>
+        <div className="flex flex-wrap items-center gap-3">
           {status && <span className="text-sm text-muted">{status}</span>}
           {editing ? (
             <>

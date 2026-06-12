@@ -55,10 +55,15 @@ export function Nav() {
   const pathname = usePathname();
   const dark = useOverDarkSection(pathname);
   const [auth, setAuth] = useState<AuthStatus | null>(null);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     getAuthStatus().then(setAuth);
+    setOpen(false); // close the mobile menu on navigation
   }, [pathname]);
+
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const accountLabel = auth?.user ? auth.user.username : "Sign in";
 
   return (
     <header
@@ -69,7 +74,7 @@ export function Nav() {
     >
       <nav
         aria-label="Main"
-        className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3"
+        className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6"
       >
         <Link
           href="/"
@@ -86,52 +91,39 @@ export function Nav() {
           />
           Job Sentinel
         </Link>
+
+        {/* Desktop links */}
         <ul
           className={cn(
-            "hidden items-center gap-6 text-sm sm:flex",
+            "hidden items-center gap-6 text-sm md:flex",
             dark ? "text-stone-300" : "text-muted",
           )}
         >
-          {links.map((l) => {
-            const active = pathname === l.href || pathname.startsWith(`${l.href}/`);
-            return (
-              <li key={l.href}>
-                <Link
-                  href={l.href}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "transition-colors",
-                    dark ? "hover:text-white" : "hover:text-ink",
-                    active && (dark ? "font-semibold text-white" : "font-semibold text-ink"),
-                  )}
-                >
-                  {l.label}
-                </Link>
-              </li>
-            );
-          })}
-          <li>
-            <Link
-              href="/login"
-              aria-current={pathname === "/login" ? "page" : undefined}
-              className={cn(
-                "transition-colors",
-                dark ? "hover:text-white" : "hover:text-ink",
-                pathname === "/login" &&
-                  (dark ? "font-semibold text-white" : "font-semibold text-ink"),
-              )}
-            >
-              {auth?.user ? auth.user.username : "Sign in"}
-            </Link>
-          </li>
+          {[...links, { href: "/login", label: accountLabel }].map((l) => (
+            <li key={l.href}>
+              <Link
+                href={l.href}
+                aria-current={isActive(l.href) ? "page" : undefined}
+                className={cn(
+                  "transition-colors",
+                  dark ? "hover:text-white" : "hover:text-ink",
+                  isActive(l.href) &&
+                    (dark ? "font-semibold text-white" : "font-semibold text-ink"),
+                )}
+              >
+                {l.label}
+              </Link>
+            </li>
+          ))}
         </ul>
-        <div className="flex items-center gap-3">
+
+        <div className="flex items-center gap-2 sm:gap-3">
           <a
             href="https://github.com/harshitwandhare/job-sentinel"
             target="_blank"
             rel="noopener noreferrer"
             className={cn(
-              "hidden rounded-lg border px-3 py-1.5 text-sm transition-colors sm:block",
+              "hidden rounded-lg border px-3 py-1.5 text-sm transition-colors md:block",
               dark
                 ? "border-white/20 text-white hover:bg-white/10"
                 : "border-line text-ink hover:border-ink/30 hover:bg-surface",
@@ -142,7 +134,7 @@ export function Nav() {
           <Link
             href="/studio"
             className={cn(
-              "rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors",
+              "hidden rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors sm:block",
               dark
                 ? "bg-white text-night hover:bg-stone-200"
                 : "bg-ink text-white hover:bg-night",
@@ -150,8 +142,86 @@ export function Nav() {
           >
             Open studio
           </Link>
+
+          {/* Mobile menu toggle */}
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-controls="mobile-menu"
+            aria-label={open ? "Close menu" : "Open menu"}
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-lg border transition-colors md:hidden",
+              dark
+                ? "border-white/20 text-white hover:bg-white/10"
+                : "border-line text-ink hover:bg-surface",
+            )}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              className="h-5 w-5"
+              aria-hidden="true"
+            >
+              {open ? (
+                <path d="M6 6l12 12M18 6L6 18" />
+              ) : (
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              )}
+            </svg>
+          </button>
         </div>
       </nav>
+
+      {/* Mobile menu panel */}
+      {open && (
+        <div
+          id="mobile-menu"
+          className={cn(
+            "border-t md:hidden",
+            dark ? "border-white/10 bg-night/95" : "border-line bg-bg/95",
+          )}
+        >
+          <ul className="space-y-1 px-4 py-3">
+            {[...links, { href: "/login", label: accountLabel }].map((l) => (
+              <li key={l.href}>
+                <Link
+                  href={l.href}
+                  aria-current={isActive(l.href) ? "page" : undefined}
+                  className={cn(
+                    "block rounded-lg px-3 py-2.5 text-sm transition-colors",
+                    dark
+                      ? "text-stone-300 hover:bg-white/10 hover:text-white"
+                      : "text-muted hover:bg-surface hover:text-ink",
+                    isActive(l.href) &&
+                      (dark ? "font-semibold text-white" : "font-semibold text-ink"),
+                  )}
+                >
+                  {l.label}
+                </Link>
+              </li>
+            ))}
+            <li>
+              <a
+                href="https://github.com/harshitwandhare/job-sentinel"
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(
+                  "block rounded-lg px-3 py-2.5 text-sm transition-colors",
+                  dark
+                    ? "text-stone-300 hover:bg-white/10 hover:text-white"
+                    : "text-muted hover:bg-surface hover:text-ink",
+                )}
+              >
+                GitHub ↗
+              </a>
+            </li>
+          </ul>
+        </div>
+      )}
     </header>
   );
 }

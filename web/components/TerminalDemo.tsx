@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * A self-typing terminal that replays a real Job Sentinel session — actual
  * commands, actual output shapes. Pure CSS/JS (no deps), respects
  * prefers-reduced-motion by rendering the finished transcript instead.
+ *
+ * The visible text is derived purely from a (line, char) progress counter,
+ * so no frame can ever show partially-interleaved/garbled output.
  */
 
 interface Line {
@@ -37,64 +40,60 @@ const COLORS: Record<Line["kind"], string> = {
 const TYPE_MS = 28; // per character on command lines
 const OUT_MS = 220; // whole-line delay for output lines
 
+interface Progress {
+  line: number; // index into SCRIPT of the line being revealed
+  chars: number; // characters of that line currently shown (cmd lines only)
+}
+
+const DONE: Progress = { line: SCRIPT.length, chars: 0 };
+
 export function TerminalDemo() {
-  const [lines, setLines] = useState<{ text: string; kind: Line["kind"] }[]>([]);
+  const [progress, setProgress] = useState<Progress>({ line: 0, chars: 0 });
   const [reduced, setReduced] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    if (mq.matches) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setReduced(true);
-      setLines(SCRIPT.map(({ text, kind }) => ({ text, kind })));
+      setProgress(DONE);
       return;
     }
 
-    let lineIdx = 0;
-    let charIdx = 0;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
 
-    const tick = () => {
+    const step = (p: Progress) => {
       if (cancelled) return;
-      if (lineIdx >= SCRIPT.length) {
-        // loop: clear and restart after a beat
-        timer.current = setTimeout(() => {
-          if (cancelled) return;
-          setLines([]);
-          lineIdx = 0;
-          charIdx = 0;
-          tick();
-        }, 2500);
+      setProgress(p);
+
+      if (p.line >= SCRIPT.length) {
+        timer = setTimeout(() => step({ line: 0, chars: 0 }), 2500); // loop
         return;
       }
-      const line = SCRIPT[lineIdx];
-      if (line.kind === "cmd") {
-        charIdx += 1;
-        setLines((prev) => {
-          const next = prev.slice(0, lineIdx);
-          next[lineIdx] = { text: line.text.slice(0, charIdx), kind: line.kind };
-          return next;
-        });
-        if (charIdx < line.text.length) {
-          timer.current = setTimeout(tick, TYPE_MS);
-        } else {
-          lineIdx += 1;
-          charIdx = 0;
-          timer.current = setTimeout(tick, line.pause ?? 150);
-        }
+      const current = SCRIPT[p.line];
+      const isTypingCmd = current.kind === "cmd" && p.chars < current.text.length;
+      if (isTypingCmd) {
+        timer = setTimeout(() => step({ line: p.line, chars: p.chars + 1 }), TYPE_MS);
       } else {
-        setLines((prev) => [...prev.slice(0, lineIdx), { text: line.text, kind: line.kind }]);
-        lineIdx += 1;
-        timer.current = setTimeout(tick, line.pause ?? OUT_MS);
+        const delay = current.pause ?? (current.kind === "cmd" ? 150 : OUT_MS);
+        timer = setTimeout(() => step({ line: p.line + 1, chars: 0 }), delay);
       }
     };
 
-    timer.current = setTimeout(tick, 800);
+    timer = setTimeout(() => step({ line: 0, chars: 0 }), 800);
     return () => {
       cancelled = true;
-      if (timer.current) clearTimeout(timer.current);
+      clearTimeout(timer);
     };
   }, []);
+
+  // Pure derivation: everything before `progress.line` is fully shown; the
+  // current line is sliced to `progress.chars` if it's a typed command.
+  const visible = SCRIPT.slice(0, Math.min(progress.line + 1, SCRIPT.length)).map((line, i) => {
+    const isCurrent = i === progress.line;
+    const text =
+      isCurrent && line.kind === "cmd" ? line.text.slice(0, progress.chars) : line.text;
+    return { text, kind: line.kind };
+  });
 
   return (
     <div
@@ -108,10 +107,10 @@ export function TerminalDemo() {
         <span className="ml-3 font-mono text-[11px] text-stone-500">harshit@sentinel — pwsh</span>
       </div>
       <div className="h-[260px] overflow-hidden px-4 py-3 font-mono text-[12.5px] leading-6">
-        {lines.map((l, i) => (
+        {visible.map((l, i) => (
           <div key={i} className={COLORS[l.kind]}>
             {l.text}
-            {!reduced && i === lines.length - 1 && (
+            {!reduced && i === visible.length - 1 && (
               <span className="ml-0.5 inline-block h-3.5 w-[7px] animate-pulse bg-emerald-400 align-middle" />
             )}
           </div>
