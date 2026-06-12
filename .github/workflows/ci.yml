@@ -91,7 +91,7 @@ jobs:
       - name: Run unit + integration tests (coverage gate)
         run: >
           uv run pytest tests/unit/ tests/integration/ -v --tb=short
-          --cov=job_sentinel --cov-report=term-missing --cov-fail-under=70
+          --cov=job_sentinel --cov-report=term-missing --cov-fail-under=80
         env:
           # Provide dummy values so settings validation passes in tests
           TELEGRAM_BOT_TOKEN: "test:AAAAAAAAA"

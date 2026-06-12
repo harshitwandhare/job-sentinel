@@ -194,4 +194,4 @@ Open a PR with:
 - Tests in `tests/unit/test_adapters/test_<your_adapter>.py`
 - Short description in CHANGELOG.md under `[Unreleased]`
 
-See [CONTRIBUTING.md](../../CONTRIBUTING.md) for the full PR process.
+See [CONTRIBUTING.md](https://github.com/harshitwandhare/job-sentinel/blob/main/CONTRIBUTING.md) for the full PR process.

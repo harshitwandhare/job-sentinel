@@ -119,10 +119,12 @@ def _summary(p: Profile) -> ProfileSummary:
 def create_app(
     profile_path: Path | None = None,
     db_path: Path | None = None,
+    auth_dir: Path | None = None,
 ) -> FastAPI:
     """Build the FastAPI app. Paths are injectable so tests stay isolated."""
     profile_path = profile_path or DEFAULT_PROFILE_PATH
     db_path = db_path or (_DATA_DIR / "jobs.db")
+    auth_dir = auth_dir or _DATA_DIR
 
     app = FastAPI(
         title="Job Sentinel API",
@@ -144,8 +146,8 @@ def create_app(
     auth_mode = os.environ.get("AUTH_MODE", "off").strip().lower()
     if auth_mode not in ("off", "demo", "required"):
         auth_mode = "off"
-    user_store = UserStore(_DATA_DIR / "users.json")
-    token_issuer = TokenIssuer(_DATA_DIR / "auth_secret")
+    user_store = UserStore(auth_dir / "users.json")
+    token_issuer = TokenIssuer(auth_dir / "auth_secret")
 
     def _bearer_user(request: Request) -> User | None:
         header = request.headers.get("authorization", "")

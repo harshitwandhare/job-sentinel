@@ -1,0 +1,59 @@
+site_name: Job Sentinel
+site_description: Site-agnostic job-portal monitor with pluggable adapters, Telegram alerts, and an AI resume engine.
+site_url: https://harshitwandhare.github.io/job-sentinel/
+repo_url: https://github.com/harshitwandhare/job-sentinel
+repo_name: harshitwandhare/job-sentinel
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: green
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: green
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.action.edit
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - Deployment (all at $0): deployment.md
+      - Telegram setup: api/telegram-setup.md
+      - Releasing: RELEASING.md
+  - Design:
+      - North star: NORTH_STAR.md
+      - High-level design: design/HLD.md
+      - Low-level design: design/LLD.md
+      - Web UI: design/web-ui.md
+      - Writing an adapter: design/adapter-authoring.md
+  - Decisions (ADRs):
+      - "001 — uv package manager": adr/001-use-uv-package-manager.md
+      - "002–004 — design decisions": adr/002-004-design-decisions.md
+  - Research:
+      - Competitive analysis: research/competitive-analysis.md
+      - Quality audit (2026-06): audit/2026-06-12-quality-audit.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+plugins:
+  - search
