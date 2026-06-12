@@ -20,6 +20,10 @@
   <a href="https://github.com/harshitwandhare/job-sentinel/releases"><b>📦 Releases</b></a>
 </p>
 
+<p align="center">
+  <img src=".github/assets/demo-hero.gif" alt="Job Sentinel landing page with a live terminal replay of a real session: session check, scrape, AI resume build" width="800" />
+</p>
+
 Job Sentinel watches your university job portals, alerts you on Telegram the
 moment a posting appears, and generates **ATS-ready résumés and cover letters
 tailored to each role by a local LLM** — no API keys, no data leaving your
@@ -285,6 +289,10 @@ session), a **profile editor** with resume-PDF import, a **résumé studio**
 (paste a JD → live ATS coverage → tailored PDF, local-LLM toggle), a **jobs
 board** with per-posting résumé/cover-letter generation, scraper controls and
 session checks, and the **Sentinel chat assistant**.
+
+| Jobs board — real scraped postings, one-click tailored documents | Résumé studio — paste a JD, get ATS coverage + a one-page PDF |
+|---|---|
+| ![Jobs board with scraper controls, session status, and per-posting resume/cover-letter buttons](.github/assets/screen-jobs.png) | ![Resume studio with job-description input, ATS scoring, and local-AI toggle](.github/assets/screen-studio.png) |
 
 ### Sharing your instance (optional auth)
 
