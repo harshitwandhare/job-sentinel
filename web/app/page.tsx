@@ -122,7 +122,7 @@ export default function HomePage() {
       </section>
 
       {/* Engineering quality — the FAANG section. */}
-      <section className="relative overflow-hidden bg-night text-white">
+      <section data-nav-theme="dark" className="relative overflow-hidden bg-night text-white">
         <div className="bg-grid-dark absolute inset-0" aria-hidden="true" />
         <div className="relative mx-auto max-w-6xl px-6 py-24">
           <Reveal>

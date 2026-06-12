@@ -19,9 +19,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from fastapi import FastAPI, HTTPException, UploadFile
+from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from job_sentinel.api.chat import ChatMessage, ChatReply
@@ -138,9 +138,6 @@ def create_app(
 
     # ── Authentication (AUTH_MODE: off | demo | required) ─────────────────
     import os
-
-    from fastapi import Request
-    from fastapi.responses import JSONResponse
 
     from job_sentinel.api.auth import AuthError, TokenIssuer, User, UserStore
 

@@ -14,6 +14,38 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-06-12
+
+### Fixed
+- **Chat assistant timeouts.** The configured Ollama model was a 22 GB
+  36B-parameter tag that can't load on a 16 GB laptop; the default is now
+  `llama3.2:3b` (2 GB, fits common 4 GB GPUs, ~4 s warm replies, no
+  chain-of-thought rambling). Check yours with `job-sentinel resume doctor`.
+- **Auth endpoints 422'd in 0.6.0** — `from __future__ import annotations`
+  made FastAPI treat the locally-imported `Request` type as a query parameter.
+  All `/api/auth/*` routes now work; the full flow (anonymous demo reads,
+  gated writes, admin invite, member limits) is covered by live verification.
+
+### Added
+- **Per-job document generation**: every posting on the Jobs page has
+  "Tailored résumé" and "Cover letter" buttons that build PDFs against that
+  job's scraped description (local-AI polish when Ollama is running).
+- **One command for everything**: `job-sentinel web --watch` starts the API,
+  the web UI, and the recurring scrape watcher together.
+- **Adaptive nav bar**: light text/borders over dark sections (hero,
+  engineering), dark-on-light elsewhere — driven by `data-nav-theme="dark"`
+  markers, smooth transition. Plus a Sign in / username entry in the nav.
+- **Live terminal demo** in the hero: a self-typing replay of a real session
+  (`session` → `scrape` → `resume build --ai`), pure CSS/JS, respects
+  reduced-motion.
+
+### Infrastructure
+- Committed `uv.lock`; CI installs with `uv sync --locked` (reproducible
+  builds) under a least-privilege `contents: read` token.
+- Dependabot (uv + npm + GitHub Actions, weekly, grouped), PEP 561 `py.typed`
+  marker, issue/PR templates, dev deps deduplicated into PEP 735
+  `[dependency-groups]`.
+
 ## [0.6.0] — 2026-06-12
 
 ### Fixed

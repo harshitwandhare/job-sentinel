@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { SafeBoundary } from "@/components/SafeBoundary";
+import { TerminalDemo } from "@/components/TerminalDemo";
 
 // WebGL is client-only and lazy — it never blocks SSR or first paint.
 const Hero3D = dynamic(() => import("@/components/Hero3D"), { ssr: false });
@@ -28,7 +29,7 @@ export function Hero() {
         };
 
   return (
-    <section className="relative overflow-hidden bg-night text-white">
+    <section data-nav-theme="dark" className="relative overflow-hidden bg-night text-white">
       <div className="bg-grid-dark absolute inset-0" aria-hidden="true" />
       {/* Emerald glow behind the 3D core */}
       <div
@@ -110,8 +111,12 @@ export function Hero() {
             ))}
           </motion.dl>
         </div>
-        {/* Right column is breathing room for the 3D composition. */}
-        <div aria-hidden="true" className="hidden min-h-[320px] lg:block" />
+        {/* Right column: a live-typed replay of a real session, floating over the 3D. */}
+        <motion.div {...enter(0.45)} className="hidden lg:flex lg:items-center">
+          <div className="w-full max-w-md">
+            <TerminalDemo />
+          </div>
+        </motion.div>
       </div>
     </section>
   );

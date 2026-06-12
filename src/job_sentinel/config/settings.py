@@ -117,7 +117,9 @@ class LLMSettings(BaseSettings):
     base_url: str = Field(
         default="http://localhost:11434", description="Ollama HTTP endpoint (OLLAMA_BASE_URL)"
     )
-    model: str = Field(default="llama3.1:8b", description="Local model tag to use (OLLAMA_MODEL)")
+    # 3B-class instruct default: loads fully on common 4 GB laptop GPUs and
+    # answers directly (no chain-of-thought rambling like thinking-tuned tags).
+    model: str = Field(default="llama3.2:3b", description="Local model tag to use (OLLAMA_MODEL)")
     embed_model: str = Field(
         default="nomic-embed-text",
         description="Local embedding model for semantic ranking (OLLAMA_EMBED_MODEL)",

@@ -1,4 +1,5 @@
 import { JobActions } from "@/components/JobActions";
+import { JobDocs } from "@/components/JobDocs";
 import { ScraperControls } from "@/components/ScraperControls";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { getJobs, type JobDetail, type JobPosting } from "@/lib/api";
@@ -72,6 +73,21 @@ export default async function JobsPage() {
                 </div>
                 <JobActions postingId={j.posting_id} status={j.status} />
               </div>
+
+              <JobDocs
+                title={j.title}
+                employer={j.employer}
+                jobText={[
+                  j.title,
+                  j.employer,
+                  j.job_type,
+                  d?.job_function ?? "",
+                  d?.industry ?? "",
+                  d?.description || j.description_snippet,
+                ]
+                  .filter(Boolean)
+                  .join("\n")}
+              />
 
               {(d?.description || j.description_snippet) && (
                 <details className="group">

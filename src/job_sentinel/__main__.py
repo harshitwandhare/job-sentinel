@@ -204,8 +204,11 @@ def web(
     api_host: str = typer.Option("127.0.0.1", help="API bind address"),
     api_port: int = typer.Option(8000, help="API port"),
     ui_port: int = typer.Option(3000, help="Next.js UI port"),
+    watch: bool = typer.Option(
+        False, "--watch", help="Also start the recurring scrape watcher (alerts on new jobs)"
+    ),
 ) -> None:
-    """Run the local API and web UI together."""
+    """Run the whole stack: local API + web UI (+ watcher with --watch)."""
     import os
     import shutil
     import socket
@@ -255,6 +258,32 @@ def web(
 
     api_proc = subprocess.Popen(api_cmd, cwd=repo_root, env=env)  # noqa: S603
     ui_proc = subprocess.Popen(ui_cmd, cwd=web_dir, env=env)  # noqa: S603
+
+    if watch:
+        # Kick the recurring watcher through the API once it's up — same code
+        # path as the UI's "Start watcher" button, so state stays in one place.
+        import json as _json
+        import urllib.request
+
+        def start_watcher_when_ready() -> None:
+            deadline = time.monotonic() + 60
+            while time.monotonic() < deadline:
+                try:
+                    req = urllib.request.Request(  # noqa: S310 — fixed localhost URL
+                        f"{api_url}/api/ops/watcher/start", method="POST"
+                    )
+                    with urllib.request.urlopen(req, timeout=3) as resp:  # noqa: S310
+                        _json.loads(resp.read())
+                    console.print("[green]Watcher started[/] — scraping on the poll interval.")
+                    return
+                except Exception:
+                    time.sleep(1.5)
+            console.print("[yellow]Could not start the watcher automatically.[/]")
+
+        import threading
+
+        threading.Thread(target=start_watcher_when_ready, daemon=True).start()
+
     try:
         while True:
             api_code = api_proc.poll()
