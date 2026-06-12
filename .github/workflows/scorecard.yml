@@ -26,7 +26,7 @@ jobs:
       - name: Run analysis
         # scorecard-action publishes no floating major tag — pin the release
         # (Dependabot's github-actions ecosystem keeps this current).
-        uses: ossf/scorecard-action@v2.4.5
+        uses: ossf/scorecard-action@v2.4.3
         with:
           results_file: results.sarif
           results_format: sarif
