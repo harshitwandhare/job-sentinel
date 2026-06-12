@@ -25,6 +25,8 @@ const config: Config = {
       boxShadow: {
         card: "0 1px 2px rgba(28,25,23,0.04), 0 8px 24px -12px rgba(28,25,23,0.12)",
         lift: "0 2px 4px rgba(28,25,23,0.06), 0 16px 40px -16px rgba(28,25,23,0.2)",
+        paper:
+          "0 1px 1px rgba(0,0,0,0.18), 0 8px 16px -4px rgba(0,0,0,0.35), 0 32px 64px -16px rgba(0,0,0,0.55)",
       },
       animation: {
         marquee: "marquee 28s linear infinite",

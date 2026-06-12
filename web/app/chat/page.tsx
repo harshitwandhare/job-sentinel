@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,19 @@ function Rich({ text }: { text: string }) {
   );
 }
 
+function AssistantMark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="grid h-7 w-7 shrink-0 select-none place-items-center rounded-lg bg-night text-xs text-brand-400"
+    >
+      ◈
+    </span>
+  );
+}
+
 export default function ChatPage() {
+  const reduced = useReducedMotion();
   const [messages, setMessages] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -166,22 +179,33 @@ export default function ChatPage() {
         )}
 
         {messages.map((m, i) => (
-          <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+          <motion.div
+            key={i}
+            initial={reduced || i < messages.length - 1 ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: [0.21, 0.65, 0.36, 1] }}
+            className={cn(
+              "flex items-end gap-2.5",
+              m.role === "user" ? "justify-end" : "justify-start",
+            )}
+          >
+            {m.role === "assistant" && <AssistantMark />}
             <div
               className={cn(
                 "max-w-[85%] space-y-1 rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                 m.role === "user"
-                  ? "rounded-br-md bg-brand text-white"
+                  ? "rounded-br-md bg-brand text-white shadow-sm shadow-brand/20"
                   : "rounded-bl-md border border-line bg-bg text-ink",
               )}
             >
               {m.role === "assistant" ? <Rich text={m.content} /> : m.content}
             </div>
-          </div>
+          </motion.div>
         ))}
 
         {busy && (
-          <div className="flex justify-start" aria-label="Sentinel is thinking">
+          <div className="flex items-end gap-2.5" aria-label="Sentinel is thinking">
+            <AssistantMark />
             <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-line bg-bg px-4 py-3">
               {[0, 1, 2].map((i) => (
                 <span
@@ -213,7 +237,7 @@ export default function ChatPage() {
       </div>
 
       <form
-        className="mt-4 flex items-end gap-3"
+        className="mt-4 flex items-end gap-2 rounded-2xl border border-line bg-surface p-2 shadow-card transition-shadow focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/20"
         onSubmit={(e) => {
           e.preventDefault();
           void ask(input);
@@ -231,10 +255,26 @@ export default function ChatPage() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="Ask anything — or paste a job description for an ATS score…"
-          className="flex-1 resize-none rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink shadow-sm placeholder:text-muted/70 focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+          className="max-h-40 flex-1 resize-none bg-transparent px-2.5 py-2 text-sm text-ink outline-none placeholder:text-muted/70"
         />
-        <Button type="submit" disabled={busy || !input.trim()} aria-label="Send message">
-          Send
+        <Button
+          type="submit"
+          disabled={busy || !input.trim()}
+          aria-label="Send message"
+          className="h-10 w-10 rounded-xl p-0"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4"
+            aria-hidden="true"
+          >
+            <path d="M12 19V5M5 12l7-7 7 7" />
+          </svg>
         </Button>
       </form>
       <p className="mt-2 text-center text-xs text-muted/80">

@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState } from "react";
 
 import { LocalSetupGuide } from "@/components/LocalSetupGuide";
+import { PaperStage, ResumePaper } from "@/components/ResumePaper";
 import { SentinelLoader } from "@/components/SentinelLoader";
 import { Button } from "@/components/ui/button";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { externalUrl } from "@/lib/utils";
 import {
   type Award,
+  buildResume,
   type Certification,
   type Education,
   type Experience,
@@ -72,6 +73,7 @@ export default function ProfilePage() {
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -112,6 +114,24 @@ export default function ProfilePage() {
     } finally {
       setImporting(false);
       if (fileInput.current) fileInput.current.value = "";
+    }
+  }
+
+  async function onDownloadPdf() {
+    setDownloading(true);
+    setStatus("Building PDF…");
+    const res = await buildResume();
+    setDownloading(false);
+    if (res.ok && res.blob) {
+      const url = URL.createObjectURL(res.blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "resume.pdf";
+      a.click();
+      URL.revokeObjectURL(url);
+      setStatus("");
+    } else {
+      setStatus(res.detail ?? "PDF build failed — is LaTeX (Tectonic) installed?");
     }
   }
 
@@ -172,211 +192,62 @@ export default function ProfilePage() {
     );
   }
 
-  return (
-    <div className="mx-auto max-w-3xl space-y-6 px-5 py-12">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-ink sm:text-3xl">
-          {editing ? "Edit profile" : "Profile"}
-        </h1>
-        <div className="flex flex-wrap items-center gap-3">
-          {status && <span className="text-sm text-muted">{status}</span>}
-          {editing ? (
-            <>
-              <Button variant="outline" onClick={() => setDraft(null)} disabled={saving}>
-                Cancel
-              </Button>
-              <Button onClick={onSave} disabled={saving}>
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            </>
-          ) : (
-            <>
-              {uploadControl}
-              <Button onClick={() => setDraft(structuredClone(profile!))}>Edit</Button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {editing ? (
-        <Editor draft={draft!} setDraft={setDraft} />
-      ) : (
-        <Viewer profile={profile!} />
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// View mode — renders every section that has content
-// ─────────────────────────────────────────────────────────────────────────────
-
-function Viewer({ profile }: { profile: Profile }) {
-  const { basics, education, experience, projects, skills, certifications, awards, publications } =
-    profile;
-
-  return (
-    <div className="space-y-6">
-      <header>
-        <h2 className="text-2xl font-bold text-ink">{basics.name}</h2>
-        {basics.headline && <p className="mt-1 text-muted">{basics.headline}</p>}
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
-          {basics.location && <span>{basics.location}</span>}
-          {basics.email && <span>{basics.email}</span>}
-          {basics.phone && <span>{basics.phone}</span>}
-          {basics.links.map((l) => (
-            <a
-              key={l.url}
-              href={externalUrl(l.url)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-brand hover:underline"
-            >
-              {l.label || l.url}
-            </a>
-          ))}
-        </div>
-        {basics.summary && <p className="mt-4 text-muted">{basics.summary}</p>}
-      </header>
-
-      {experience.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-ink">Experience</h2>
-          {experience.map((x, i) => (
-            <Card key={`${x.company}-${i}`}>
-              <CardTitle>
-                {x.role}
-                {x.company ? ` · ${x.company}` : ""}
-              </CardTitle>
-              <CardSub>
-                {[x.start && x.end ? `${x.start} – ${x.end}` : x.start || x.end, x.location]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </CardSub>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-                {x.bullets.map((b, j) => (
-                  <li key={j}>{b}</li>
-                ))}
-              </ul>
-            </Card>
-          ))}
-        </section>
-      )}
-
-      {projects.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-ink">Projects</h2>
-          {projects.map((p, i) => (
-            <Card key={`${p.name}-${i}`}>
-              <CardTitle>
-                {p.name}
-                {p.url && (
-                  <a
-                    href={externalUrl(p.url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-2 text-sm font-normal text-brand hover:underline"
-                  >
-                    link ↗
-                  </a>
-                )}
-              </CardTitle>
-              {p.description && <CardSub>{p.description}</CardSub>}
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-                {p.bullets.map((b, j) => (
-                  <li key={j}>{b}</li>
-                ))}
-              </ul>
-            </Card>
-          ))}
-        </section>
-      )}
-
-      {education.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-ink">Education</h2>
-          {education.map((e, i) => (
-            <Card key={`${e.institution}-${i}`}>
-              <CardTitle>{e.institution}</CardTitle>
-              <CardSub>
-                {[e.degree, e.gpa ? `GPA ${e.gpa}` : "", e.start && e.end ? `${e.start} – ${e.end}` : ""]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </CardSub>
-              {e.highlights.length > 0 && (
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted">
-                  {e.highlights.map((h, j) => (
-                    <li key={j}>{h}</li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-          ))}
-        </section>
-      )}
-
-      {skills.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-ink">Skills</h2>
-          <div className="space-y-2">
-            {skills.map((g, i) => (
-              <p key={`${g.category}-${i}`} className="text-sm text-muted">
-                <span className="font-medium text-ink">{g.category}:</span> {g.skills.join(", ")}
-              </p>
-            ))}
+  if (editing) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6 px-5 py-12">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-ink sm:text-3xl">Edit profile</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            {status && <span className="text-sm text-muted">{status}</span>}
+            <Button variant="outline" onClick={() => setDraft(null)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={onSave} disabled={saving}>
+              {saving ? "Saving…" : "Save"}
+            </Button>
           </div>
-        </section>
-      )}
+        </div>
+        <Editor draft={draft!} setDraft={setDraft} />
+      </div>
+    );
+  }
 
-      {certifications.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-ink">Certifications</h2>
-          {certifications.map((c, i) => (
-            <p key={`${c.name}-${i}`} className="text-sm text-muted">
-              <span className="font-medium text-ink">{c.name}</span>
-              {[c.issuer, c.date].filter(Boolean).length > 0 &&
-                ` — ${[c.issuer, c.date].filter(Boolean).join(", ")}`}
+  // View mode: the profile rendered as the actual résumé sheet, on a desk.
+  return (
+    <div data-nav-theme="dark" className="relative min-h-screen overflow-hidden bg-night">
+      <div className="bg-grid-dark absolute inset-0" aria-hidden="true" />
+      <div
+        aria-hidden="true"
+        className="absolute left-1/2 top-0 h-[360px] w-[640px] -translate-x-1/2 rounded-full bg-brand-500/15 blur-[140px]"
+      />
+      <div className="relative mx-auto max-w-5xl px-5 py-10 sm:py-14">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="font-mono text-xs font-medium uppercase tracking-widest text-brand-400">
+              Your profile
             </p>
-          ))}
-        </section>
-      )}
+            <h1 className="mt-1 text-2xl font-bold text-white sm:text-3xl">
+              This page is your résumé.
+            </h1>
+            <p className="mt-1 max-w-xl text-sm text-stone-400">
+              Rendered live from <code className="font-mono text-xs">data/profile.yaml</code> — the
+              same single source of truth the PDF engine prints.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {status && <span className="text-sm text-stone-300">{status}</span>}
+            {uploadControl}
+            <Button variant="outline" onClick={onDownloadPdf} disabled={downloading || importing}>
+              {downloading ? "Building…" : "Download PDF"}
+            </Button>
+            <Button onClick={() => setDraft(structuredClone(profile!))}>Edit</Button>
+          </div>
+        </div>
 
-      {awards.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-ink">Awards</h2>
-          {awards.map((a, i) => (
-            <p key={`${a.title}-${i}`} className="text-sm text-muted">
-              <span className="font-medium text-ink">{a.title}</span>
-              {[a.issuer, a.date].filter(Boolean).length > 0 &&
-                ` — ${[a.issuer, a.date].filter(Boolean).join(", ")}`}
-              {a.description && <span className="block">{a.description}</span>}
-            </p>
-          ))}
-        </section>
-      )}
-
-      {publications.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold text-ink">Publications</h2>
-          {publications.map((p, i) => (
-            <p key={`${p.title}-${i}`} className="text-sm text-muted">
-              <span className="font-medium text-ink">{p.title}</span>
-              {[p.venue, p.date].filter(Boolean).length > 0 &&
-                ` — ${[p.venue, p.date].filter(Boolean).join(", ")}`}
-              {p.url && (
-                <a
-                  href={externalUrl(p.url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ml-2 text-brand hover:underline"
-                >
-                  link ↗
-                </a>
-              )}
-            </p>
-          ))}
-        </section>
-      )}
+        <PaperStage>
+          <ResumePaper profile={profile!} />
+        </PaperStage>
+      </div>
     </div>
   );
 }

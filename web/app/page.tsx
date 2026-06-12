@@ -51,12 +51,90 @@ const features: { title: string; body: string; span?: string; mono?: string }[] 
   },
 ];
 
+const problem = [
+  {
+    stat: "242",
+    label: "applications per opening",
+    body: "Triple the 2021 volume. Spray-and-pray is dead — the edge is applying early, with a résumé that actually matches.",
+    source: { href: "https://huntr.co/research/job-search-trends-q1-2026", name: "Huntr Q1 2026" },
+  },
+  {
+    stat: "93%",
+    label: "have applied to a ghost job",
+    body: "Listings that were never real cost ~9 hours each. Watching real portals you already trust beats scrolling aggregators.",
+    source: {
+      href: "https://www.cpapracticeadvisor.com/2026/04/30/ghost-jobs-still-haunting-67-of-job-seekers-report-finds/182536/",
+      name: "MyPerfectResume 2026",
+    },
+  },
+  {
+    stat: "66%",
+    label: "rejected by an AI, silently",
+    body: "Machines read your résumé before any human does. ATS-clean structure and keyword coverage aren't optional anymore.",
+    source: { href: "https://enhancv.com/blog/ai-hiring-statistics/", name: "Enhancv 2026" },
+  },
+];
+
+const comparison: {
+  name: string;
+  openSource: boolean;
+  local: boolean;
+  free: string;
+  monitoring: boolean;
+  note: string;
+}[] = [
+  {
+    name: "Job Sentinel",
+    openSource: true,
+    local: true,
+    free: "Free forever",
+    monitoring: true,
+    note: "One pipeline: watch → track → tailor → apply",
+  },
+  {
+    name: "Simplify / Teal / Huntr",
+    openSource: false,
+    local: false,
+    free: "Freemium",
+    monitoring: false,
+    note: "Cloud SaaS — your career data lives on their servers",
+  },
+  {
+    name: "AI auto-apply bots",
+    openSource: true,
+    local: false,
+    free: "Cloud API keys",
+    monitoring: false,
+    note: "Mass-submit on LinkedIn — ToS violations, account bans",
+  },
+  {
+    name: "Resume builders (OSS)",
+    openSource: true,
+    local: false,
+    free: "Free + API keys",
+    monitoring: false,
+    note: "Documents only — no portal watching, no tracking",
+  },
+];
+
 const engineering = [
   { k: "9", v: "CI gates on every PR", d: "lint · types · tests ×3 · secrets · supply chain · web lint+test+build · scorecard" },
   { k: "0", v: "known CVEs shipped", d: "pip-audit scans the dependency tree; strong-copyleft licenses are blocked" },
   { k: "100%", v: "strict-typed Python", d: "mypy --strict across the whole src tree, pydantic v2 at every boundary" },
   { k: "4", v: "releases on PyPI", d: "tag → build → GitHub Release → PyPI, fully automated and secret-gated" },
 ];
+
+function Mark({ ok }: { ok: boolean }) {
+  return ok ? (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">
+      ✓<span className="sr-only">Yes</span>
+    </span>
+  ) : (
+    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-stone-100 text-xs text-stone-400">
+      —<span className="sr-only">No</span>
+    </span>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -75,6 +153,39 @@ export default function HomePage() {
               >
                 {b}
               </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* The problem — why this exists */}
+      <section className="border-b border-line bg-surface">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
+          <Reveal>
+            <p className="font-mono text-sm font-medium uppercase tracking-widest text-brand">
+              The 2026 job market
+            </p>
+            <h2 className="mt-3 max-w-2xl text-2xl font-bold tracking-tight text-ink sm:text-4xl">
+              The job hunt broke. Tools should catch up.
+            </h2>
+          </Reveal>
+          <div className="mt-12 grid gap-5 sm:grid-cols-3">
+            {problem.map((p, i) => (
+              <Reveal key={p.label} delay={i * 0.08}>
+                <div className="h-full rounded-2xl border border-line bg-bg p-6">
+                  <p className="text-5xl font-bold tracking-tight text-ink">{p.stat}</p>
+                  <p className="mt-1.5 font-medium text-ink">{p.label}</p>
+                  <p className="mt-3 text-sm leading-relaxed text-muted">{p.body}</p>
+                  <a
+                    href={p.source.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-block text-xs text-muted/70 underline-offset-2 hover:text-brand hover:underline"
+                  >
+                    {p.source.name} ↗
+                  </a>
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -119,6 +230,73 @@ export default function HomePage() {
               </Reveal>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Honest comparison — why local-first wins */}
+      <section className="border-b border-line bg-surface">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
+          <Reveal>
+            <p className="font-mono text-sm font-medium uppercase tracking-widest text-brand">
+              The landscape
+            </p>
+            <h2 className="mt-3 max-w-2xl text-2xl font-bold tracking-tight text-ink sm:text-4xl">
+              Plenty of tools do one piece. None of them are yours.
+            </h2>
+            <p className="mt-4 max-w-2xl text-muted">
+              Trackers, builders, and auto-apply bots each solve a slice — in someone else&rsquo;s
+              cloud, with your career data as the price. Job Sentinel is the integrated loop,
+              running entirely on your machine.
+            </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="mt-10 overflow-x-auto rounded-2xl border border-line shadow-card">
+              <table className="w-full min-w-[680px] border-collapse bg-bg text-left text-sm">
+                <thead>
+                  <tr className="border-b border-line bg-surface text-xs uppercase tracking-wider text-muted">
+                    <th scope="col" className="px-5 py-3.5 font-medium">Tool</th>
+                    <th scope="col" className="px-4 py-3.5 font-medium">Open source</th>
+                    <th scope="col" className="px-4 py-3.5 font-medium">Data stays local</th>
+                    <th scope="col" className="px-4 py-3.5 font-medium">Cost</th>
+                    <th scope="col" className="px-4 py-3.5 font-medium">Portal monitoring</th>
+                    <th scope="col" className="px-5 py-3.5 font-medium">The catch</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparison.map((row, i) => (
+                    <tr
+                      key={row.name}
+                      className={
+                        i === 0
+                          ? "border-b border-line bg-brand/[0.04]"
+                          : "border-b border-line last:border-b-0"
+                      }
+                    >
+                      <th scope="row" className="px-5 py-4 font-semibold text-ink">
+                        {row.name}
+                        {i === 0 && (
+                          <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-white">
+                            this
+                          </span>
+                        )}
+                      </th>
+                      <td className="px-4 py-4">
+                        <Mark ok={row.openSource} />
+                      </td>
+                      <td className="px-4 py-4">
+                        <Mark ok={row.local} />
+                      </td>
+                      <td className="px-4 py-4 text-muted">{row.free}</td>
+                      <td className="px-4 py-4">
+                        <Mark ok={row.monitoring} />
+                      </td>
+                      <td className="px-5 py-4 text-muted">{row.note}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Reveal>
         </div>
       </section>
 
