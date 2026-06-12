@@ -151,25 +151,15 @@ class OpsRunner:
         thread.start()
 
     def _login_worker(self, settings: Settings, timeout: int) -> None:
-        from job_sentinel.adapters.registry import get_adapter
-        from job_sentinel.core.browser import browser_context
+        from job_sentinel.core.session import interactive_login
+
+        def on_event(message: str) -> None:
+            with self._lock:
+                if self._login.state == "running":
+                    self._login.message = message
 
         try:
-            # Force a visible browser so the user can clear any challenge.
-            scraper = settings.scraper.model_copy(update={"headless": False})
-            adapter = get_adapter(settings.site_adapter, scraper)
-            ready = adapter.LOGGED_IN_SELECTOR
-
-            with browser_context(scraper) as ctx:
-                page = ctx.new_page()
-                page.goto(settings.portal.jobs_url, wait_until="domcontentloaded")
-                if ready:
-                    page.wait_for_selector(ready, timeout=timeout * 1000)
-                else:
-                    page.wait_for_timeout(timeout * 1000)
-                settings.session_path.parent.mkdir(parents=True, exist_ok=True)
-                ctx.storage_state(path=str(settings.session_path))
-
+            interactive_login(settings, timeout_seconds=timeout, on_event=on_event)
             self._finish(
                 "login",
                 f"Session saved to {settings.session_path.name} — you're logged in.",
@@ -181,6 +171,19 @@ class OpsRunner:
                 "Didn't detect a signed-in page in time. Start the login again "
                 "and finish signing in (clear the challenge, enter credentials).",
             )
+
+    # ── Session check (headless probe — is the saved session still valid?) ──
+
+    def check_session(self) -> dict[str, Any]:
+        """Probe the saved session against the portal and report validity."""
+        from job_sentinel.core.session import check_session
+
+        settings = _load_settings()
+        with self._lock:
+            if self._login.state == "running":
+                raise OpsConflictError("Finish the login first — a browser is open.")
+        status = check_session(settings)
+        return status.model_dump(mode="json")
 
     # ── Scrape (one-shot) ──────────────────────────────────────────────────
 

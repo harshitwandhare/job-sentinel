@@ -19,7 +19,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -47,6 +47,17 @@ _LOCAL_ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
 class HealthResponse(BaseModel):
     status: str = "ok"
     service: str = "job-sentinel-api"
+
+
+class AuthLoginRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=1)
+
+
+class AuthCreateUserRequest(BaseModel):
+    username: str = Field(min_length=1)
+    password: str = Field(min_length=8, description="At least 8 characters")
+    is_admin: bool = False
 
 
 class ProfileSummary(BaseModel):
@@ -125,6 +136,85 @@ def create_app(
         allow_headers=["*"],
     )
 
+    # ── Authentication (AUTH_MODE: off | demo | required) ─────────────────
+    import os
+
+    from fastapi import Request
+    from fastapi.responses import JSONResponse
+
+    from job_sentinel.api.auth import AuthError, TokenIssuer, User, UserStore
+
+    auth_mode = os.environ.get("AUTH_MODE", "off").strip().lower()
+    if auth_mode not in ("off", "demo", "required"):
+        auth_mode = "off"
+    user_store = UserStore(_DATA_DIR / "users.json")
+    token_issuer = TokenIssuer(_DATA_DIR / "auth_secret")
+
+    def _bearer_user(request: Request) -> User | None:
+        header = request.headers.get("authorization", "")
+        if not header.lower().startswith("bearer "):
+            return None
+        try:
+            return token_issuer.verify(header[7:].strip())
+        except AuthError:
+            return None
+
+    # Paths that never need a token (health, docs, and the auth flow itself).
+    _public_paths = ("/health", "/docs", "/openapi.json", "/api/auth/")
+
+    @app.middleware("http")
+    async def auth_gate(request: Request, call_next):  # type: ignore[no-untyped-def]
+        """demo: writes need a login · required: everything needs a login."""
+        path = request.url.path
+        if (
+            auth_mode == "off"
+            or request.method == "OPTIONS"
+            or any(path.startswith(p) for p in _public_paths)
+            or (auth_mode == "demo" and request.method in ("GET", "HEAD"))
+        ):
+            return await call_next(request)
+        user = _bearer_user(request)
+        if user is None:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Login required — POST /api/auth/login for a token."},
+            )
+        request.state.user = user
+        return await call_next(request)
+
+    @app.get("/api/auth/status")
+    def auth_status(request: Request) -> dict[str, Any]:
+        user = _bearer_user(request)
+        return {
+            "mode": auth_mode,
+            "users_exist": user_store.has_users(),
+            "user": user.model_dump() if user else None,
+        }
+
+    @app.post("/api/auth/login")
+    def auth_login(req: AuthLoginRequest) -> dict[str, Any]:
+        try:
+            user = user_store.authenticate(req.username, req.password)
+        except AuthError as exc:
+            raise HTTPException(status_code=401, detail=str(exc)) from exc
+        return {"token": token_issuer.issue(user), "user": user.model_dump()}
+
+    @app.post("/api/auth/users")
+    def auth_create_user(req: AuthCreateUserRequest, request: Request) -> dict[str, Any]:
+        """Admin-only: create an account (how you invite someone to your instance)."""
+        actor = _bearer_user(request)
+        if user_store.has_users() and (actor is None or not actor.is_admin):
+            raise HTTPException(status_code=403, detail="Only an admin can create accounts.")
+        try:
+            user = user_store.add_user(
+                req.username,
+                req.password,
+                is_admin=req.is_admin if user_store.has_users() else True,
+            )
+        except AuthError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return {"user": user.model_dump()}
+
     @app.get("/health", response_model=HealthResponse)
     def health() -> HealthResponse:
         return HealthResponse()
@@ -138,6 +228,34 @@ def create_app(
         """Replace the stored profile (validated by pydantic) and persist it."""
         save_profile(profile, profile_path)
         return profile
+
+    @app.post("/api/profile/import-resume", response_model=Profile)
+    async def import_resume(file: UploadFile, ai: bool = True) -> Profile:
+        """
+        Parse an uploaded resume PDF into a Profile **draft**.
+
+        Nothing is saved — the UI loads the result into the editor so the
+        user reviews and saves explicitly. ``ai=true`` (default) uses the
+        local LLM when available; otherwise the heuristic parser runs.
+        """
+        from job_sentinel.documents.resume_import import (
+            ResumeImportError,
+            extract_pdf_text,
+            parse_resume_text,
+        )
+
+        if file.content_type not in ("application/pdf", "application/octet-stream", None):
+            raise HTTPException(status_code=415, detail="Upload a PDF file.")
+        data = await file.read()
+        if len(data) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="PDF is larger than 10 MB.")
+        try:
+            text = extract_pdf_text(data)
+        except ResumeImportError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        client = _resolve_ollama() if ai else None
+        return parse_resume_text(text, client=client)
 
     @app.get("/api/profile/summary", response_model=ProfileSummary)
     def profile_summary() -> ProfileSummary:
@@ -200,6 +318,16 @@ def create_app(
         except OpsConfigError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         return {"started": True}
+
+    @app.post("/api/ops/session/check")
+    def ops_session_check() -> dict[str, Any]:
+        """Headless probe: is the saved portal session still valid?"""
+        try:
+            return get_runner().check_session()
+        except OpsConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except OpsConfigError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     @app.post("/api/ops/scrape")
     def ops_scrape(req: ScrapeRequest) -> dict[str, bool]:

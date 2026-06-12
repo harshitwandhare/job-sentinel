@@ -52,6 +52,8 @@ db_app = typer.Typer(help="Database inspection commands.")
 app.add_typer(db_app, name="db")
 resume_app = typer.Typer(help="Universal profile + resume generation.")
 app.add_typer(resume_app, name="resume")
+users_app = typer.Typer(help="Manage accounts for the (optional) authenticated API.")
+app.add_typer(users_app, name="users")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -294,10 +296,9 @@ def login(
     email/password); the resulting cookies are saved to ``session_path`` and
     reused by ``run``/``scrape`` so they stay logged in.
     """
-    from job_sentinel.adapters.registry import get_adapter
     from job_sentinel.config.logging import configure_logging
     from job_sentinel.config.settings import get_settings
-    from job_sentinel.core.browser import browser_context
+    from job_sentinel.core.session import LoginTimeoutError, interactive_login
 
     settings = get_settings()
     configure_logging(settings.logging)
@@ -307,36 +308,56 @@ def login(
 
         load_custom_adapter(settings.custom_adapter_path)
 
-    # Force a visible browser so the user can complete the login + challenge.
-    scraper = settings.scraper.model_copy(update={"headless": False})
-    adapter = get_adapter(settings.site_adapter, scraper)
-    ready = adapter.LOGGED_IN_SELECTOR
-
     console.print(
-        "[bold]A browser window will open.[/] Sign in to the portal "
-        "(clear any challenge and enter your email/password).\n"
-        "The session saves automatically once your listings appear."
+        "[bold]A browser window will open.[/] Clear any challenge — your "
+        "email/password are prefilled from .env, so just click Sign In.\n"
+        "The session saves automatically once you're signed in."
     )
 
-    with browser_context(scraper) as ctx:
-        page = ctx.new_page()
-        page.goto(settings.portal.jobs_url, wait_until="domcontentloaded")
-        if ready:
-            try:
-                page.wait_for_selector(ready, timeout=timeout * 1000)
-            except Exception:
-                console.print(
-                    "[red]Didn't detect a signed-in page in time.[/] "
-                    "Re-run [bold]job-sentinel login[/] and finish signing in."
-                )
-                return
-        else:
-            page.wait_for_timeout(timeout * 1000)
-
-        settings.session_path.parent.mkdir(parents=True, exist_ok=True)
-        ctx.storage_state(path=str(settings.session_path))
+    try:
+        interactive_login(settings, timeout_seconds=timeout, on_event=console.print)
+    except LoginTimeoutError:
+        console.print(
+            "[red]Didn't detect a signed-in page in time.[/] "
+            "Re-run [bold]job-sentinel login[/] and finish signing in."
+        )
+        raise typer.Exit(code=1) from None
 
     console.print(f"[green]✓ Session saved[/] → [cyan]{settings.session_path}[/]")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# session — check whether the saved session is still valid
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@app.command()
+def session() -> None:
+    """Check whether the saved portal session is still valid (headless, fast)."""
+    from job_sentinel.config.logging import configure_logging
+    from job_sentinel.config.settings import get_settings
+    from job_sentinel.core.session import check_session
+
+    settings = get_settings()
+    configure_logging(settings.logging)
+
+    if settings.custom_adapter_path:
+        from job_sentinel.adapters.registry import load_custom_adapter
+
+        load_custom_adapter(settings.custom_adapter_path)
+
+    status = check_session(settings)
+    if status.valid:
+        who = f" as [bold]{status.user}[/]" if status.user else ""
+        console.print(f"[green]✓ Session valid[/]{who}")
+    elif not status.checked:
+        console.print(f"[yellow]? Unknown[/] — {status.detail}")
+    else:
+        console.print(
+            f"[red]✗ Session expired or missing[/] — {status.detail}\n"
+            "Run [bold]job-sentinel login[/] to sign in again."
+        )
+        raise typer.Exit(code=1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -360,6 +381,57 @@ def resume_init(
     path = save_profile(example_profile(), DEFAULT_PROFILE_PATH)
     console.print(f"[green]✓ Wrote starter profile[/] → [cyan]{path}[/]")
     console.print("Edit it, then run [bold]resume build[/].")
+
+
+@resume_app.command("import")
+def resume_import(
+    pdf: Path = typer.Argument(..., exists=True, readable=True, help="Resume PDF to import"),  # noqa: B008
+    ai: bool = typer.Option(True, "--ai/--no-ai", help="Use the local LLM when available"),
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing profile.yaml"),
+) -> None:
+    """Extract a profile from a resume PDF and save it as profile.yaml."""
+    from job_sentinel.documents.resume_import import (
+        ResumeImportError,
+        extract_pdf_text,
+        parse_resume_text,
+    )
+    from job_sentinel.profile import DEFAULT_PROFILE_PATH, load_profile, save_profile
+
+    if DEFAULT_PROFILE_PATH.exists() and not force:
+        existing = load_profile()
+        if not existing.is_empty():
+            console.print(
+                f"[yellow]A profile already exists[/] at [cyan]{DEFAULT_PROFILE_PATH}[/]. "
+                "Use [bold]--force[/] to overwrite it."
+            )
+            raise typer.Exit(code=1)
+
+    try:
+        text = extract_pdf_text(pdf.read_bytes())
+    except ResumeImportError as exc:
+        console.print(f"[red]Could not import the PDF.[/]\n{exc}")
+        raise typer.Exit(code=1) from exc
+
+    client = None
+    if ai:
+        from job_sentinel.config.settings import LLMSettings
+        from job_sentinel.documents.llm import OllamaClient
+
+        cfg = LLMSettings()
+        candidate = OllamaClient(cfg.base_url, cfg.model)
+        if candidate.available() and candidate.has_model():
+            console.print(f"[green]Extracting with local model[/] [cyan]{cfg.model}[/]…")
+            client = candidate
+        else:
+            console.print("[yellow]Local model unavailable[/] — using the heuristic parser.")
+
+    profile = parse_resume_text(text, client=client)
+    path = save_profile(profile, DEFAULT_PROFILE_PATH)
+    console.print(
+        f"[green]✓ Profile imported[/] → [cyan]{path}[/]\n"
+        "Review it with [bold]resume show[/] (or the web UI) — extraction is a draft, "
+        "not gospel."
+    )
 
 
 @resume_app.command("show")
@@ -603,6 +675,69 @@ def _load_job_description(posting_id: str) -> str:
         console.print(f"[yellow]Posting {posting_id} not found in the DB.[/]")
         return ""
     return " ".join([job.title, job.employer, job.job_type, job.description_snippet])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# users — accounts for the optional authenticated API (AUTH_MODE=demo|required)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_USERS_PATH = Path(__file__).resolve().parents[2] / "data" / "users.json"
+
+
+@users_app.command("add")
+def users_add(
+    username: str = typer.Argument(..., help="Login name (stored lowercase)"),
+    admin: bool = typer.Option(False, "--admin", help="Grant admin (can create accounts)"),
+    password: str = typer.Option(
+        ..., prompt=True, confirmation_prompt=True, hide_input=True, help="Account password"
+    ),
+) -> None:
+    """Create an account. The first account must be created with --admin."""
+    from job_sentinel.api.auth import AuthError, UserStore
+
+    if len(password) < 8:
+        console.print("[red]Password must be at least 8 characters.[/]")
+        raise typer.Exit(code=1)
+    try:
+        user = UserStore(_USERS_PATH).add_user(username, password, is_admin=admin)
+    except AuthError as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(code=1) from exc
+    role = "admin" if user.is_admin else "member"
+    console.print(f"[green]✓ Created {role}[/] [cyan]{user.username}[/] → {_USERS_PATH}")
+    console.print(
+        "Enable auth by setting [bold]AUTH_MODE=demo[/] (writes need login) or "
+        "[bold]AUTH_MODE=required[/] before [bold]job-sentinel serve[/]."
+    )
+
+
+@users_app.command("list")
+def users_list() -> None:
+    """List accounts."""
+    from job_sentinel.api.auth import UserStore
+
+    users = UserStore(_USERS_PATH).list_users()
+    if not users:
+        console.print("[yellow]No accounts yet.[/] Create one: [bold]users add <name> --admin[/]")
+        return
+    table = Table(title="API accounts")
+    table.add_column("Username", style="cyan")
+    table.add_column("Role")
+    for u in users:
+        table.add_row(u.username, "admin" if u.is_admin else "member")
+    console.print(table)
+
+
+@users_app.command("remove")
+def users_remove(username: str = typer.Argument(..., help="Account to delete")) -> None:
+    """Delete an account."""
+    from job_sentinel.api.auth import UserStore
+
+    if UserStore(_USERS_PATH).remove_user(username):
+        console.print(f"[green]✓ Removed[/] [cyan]{username}[/]")
+    else:
+        console.print(f"[yellow]No such user:[/] {username}")
+        raise typer.Exit(code=1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

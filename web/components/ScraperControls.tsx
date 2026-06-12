@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import {
+  checkSession,
   getOpsStatus,
   getStats,
   startLogin,
@@ -13,6 +14,7 @@ import {
   startWatcher,
   stopWatcher,
   type OpsStatus,
+  type SessionCheck,
 } from "@/lib/api";
 
 function fmtWhen(iso: string | null): string {
@@ -33,6 +35,8 @@ export function ScraperControls() {
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [sendAlerts, setSendAlerts] = useState(false);
+  const [sessionCheck, setSessionCheck] = useState<SessionCheck | null>(null);
+  const [checkingSession, setCheckingSession] = useState(false);
   const prevScrapeState = useRef<string>("idle");
 
   const refresh = useCallback(async () => {
@@ -73,6 +77,18 @@ export function ScraperControls() {
     const r = await startScrape(sendAlerts);
     if (!r.ok) setNotice(r.detail ?? "Could not start the scrape.");
     await refresh();
+  }
+
+  async function onCheckSession() {
+    setNotice("");
+    setCheckingSession(true);
+    try {
+      const result = await checkSession();
+      setSessionCheck(result);
+      if (!result) setNotice("Could not check the session (is the API running?).");
+    } finally {
+      setCheckingSession(false);
+    }
   }
 
   async function onWatcher() {
@@ -124,13 +140,36 @@ export function ScraperControls() {
             )}
           </CardSub>
         </div>
-        <span
-          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-            session.exists ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"
-          }`}
-        >
-          {session.exists ? `Logged in · session saved ${fmtWhen(session.saved_at)}` : "Not logged in"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+              sessionCheck
+                ? sessionCheck.valid
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-rose-100 text-rose-700"
+                : session.exists
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-amber-100 text-amber-700"
+            }`}
+          >
+            {sessionCheck
+              ? sessionCheck.valid
+                ? `Session valid${sessionCheck.user ? ` · ${sessionCheck.user}` : ""}`
+                : "Session expired — log in again"
+              : session.exists
+                ? `Session saved ${fmtWhen(session.saved_at)}`
+                : "Not logged in"}
+          </span>
+          <button
+            type="button"
+            onClick={onCheckSession}
+            disabled={checkingSession || loginRunning}
+            className="text-xs text-muted underline-offset-2 hover:underline disabled:opacity-50"
+            title="Verify the saved session against the portal"
+          >
+            {checkingSession ? "Checking…" : "Check"}
+          </button>
+        </div>
       </div>
 
       {!status.config_ok && (

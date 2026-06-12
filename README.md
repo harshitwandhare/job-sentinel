@@ -112,13 +112,25 @@ cp .env.example .env
 #   PORTAL_PASSWORD=your_password
 ```
 
-### 5. Test run (dry run — no messages sent)
+### 5. Sign in once (Cloudflare-gated portals)
+
+```bash
+uv run job-sentinel login     # a browser opens; credentials prefill from .env —
+                              # clear the challenge, click Sign In, done
+uv run job-sentinel session   # verify: "✓ Session valid as <your name>"
+```
+
+> ⚠️ Don't add a `viewId=<n>` parameter to `PORTAL_JOBS_URL` — saved-search
+> views can be "not authorized" for your account, which silently renders an
+> empty list (the classic "scrape found 0 jobs" trap).
+
+### 6. Test run (dry run — no messages sent)
 
 ```bash
 uv run job-sentinel scrape
 ```
 
-### 6. Start the full bot
+### 7. Start the full bot
 
 ```bash
 uv run job-sentinel run

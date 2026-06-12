@@ -73,3 +73,9 @@ playwright-report/
 # ─── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+
+# ─── Diagnostics & backups ──────────────────────────────────────────────────
+data/diagnostics/
+data/*.bak
+data/auth_secret
+data/browser-profile/

@@ -45,10 +45,20 @@ from playwright.sync_api import (
 from playwright.sync_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
+from pydantic import BaseModel
 
 if TYPE_CHECKING:
     from job_sentinel.config.settings import ScraperSettings
     from job_sentinel.core.models import JobPosting
+
+
+class SessionStatus(BaseModel):
+    """Result of a saved-session validity probe (see ``check_session``)."""
+
+    valid: bool
+    user: str = ""
+    detail: str = ""
+    checked: bool = True  # False when the adapter has no way to check
 
 
 class SiteAdapter(ABC):
@@ -79,6 +89,12 @@ class SiteAdapter(ABC):
     #: CSS selector that is only present once authenticated. ``job-sentinel
     #: login`` waits for it to confirm a manual sign-in succeeded.
     LOGGED_IN_SELECTOR: str = ""
+
+    #: Selectors for the portal's login form fields, used to prefill the
+    #: user's credentials during the interactive ``job-sentinel login`` flow.
+    #: Leave empty if the portal has no fillable form (e.g. SSO-only).
+    LOGIN_EMAIL_SELECTOR: str = ""
+    LOGIN_PASSWORD_SELECTOR: str = ""
 
     # ── Constructor ───────────────────────────────────────────────────────
 
@@ -134,6 +150,17 @@ class SiteAdapter(ABC):
             ``False`` if we're on the last page.
         """
         return False
+
+    def check_session(self, context: BrowserContext) -> SessionStatus:
+        """
+        Probe whether the stored session is still authenticated.
+
+        Default: no cheap probe available for this portal. Adapters that
+        expose a "current user" endpoint should override this with an
+        HTTP check (no page navigation needed).
+        """
+        del context  # unused in the default implementation
+        return SessionStatus(valid=False, checked=False, detail="No session probe implemented")
 
     # ── Orchestrator (provided — override only if needed) ─────────────────
 

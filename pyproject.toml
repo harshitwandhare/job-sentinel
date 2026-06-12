@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 # ─────────────────────────────────────────────────────────────────────────────
 [project]
 name            = "job-sentinel"
-version         = "0.5.0"
+version         = "0.6.0"
 description     = "Site-agnostic job-portal monitor with pluggable adapters and Telegram alerts"
 readme          = "README.md"
 license         = { text = "MIT" }
@@ -67,6 +67,9 @@ dependencies = [
   # ── Resume engine: YAML profile + LaTeX templating ────────────────────
   "pyyaml>=6.0",
   "jinja2>=3.1",
+
+  # ── Resume import (PDF text extraction) ───────────────────────────────
+  "pypdf>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -93,6 +96,7 @@ web = [
   # Local HTTP API the web UI consumes (kept optional so the core CLI stays lean)
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
+  "python-multipart>=0.0.9",  # multipart/form-data parsing (resume upload)
 ]
 docs = [
   "mkdocs>=1.6",
@@ -163,6 +167,9 @@ ignore = [
   "S101",    # assert allowed in tests
   "ERA001",  # sometimes commented code is intentional
 ]
+# Resume text genuinely contains en/em dashes and middle dots — regexes and
+# strip() sets that handle them are not typos.
+allowed-confusables = ["–", "—", "·"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**"   = ["S", "ANN"]

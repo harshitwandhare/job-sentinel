@@ -14,6 +14,51 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-06-12
+
+### Fixed
+- **The "scrape returns 0 jobs" bug.** Root cause: a `viewId=<n>` saved-search
+  reference in `PORTAL_JOBS_URL` made 12twenty respond *"you are not authorized"*
+  and render an empty table while the session was perfectly valid. The adapter now
+  strips `viewId` from the URL, and the logged-in check uses the real app-shell
+  selectors (`#side-nav a.side-nav-link, a.logout`) instead of job rows — verified
+  live: 16 Student Employment postings scraped end-to-end.
+- Profile links (LinkedIn, GitHub, …) stored without a scheme no longer resolve as
+  relative paths — all external links are normalised to `https://` and open in a
+  new tab.
+
+### Added
+- **API-first 12twenty scraping**: the adapter captures the portal's internal JSON
+  (`POST /Api/V2/job-postings/post-query`) while the page renders, then enriches
+  every posting from the detail endpoint (`GET /Api/V2/job-postings/{id}`) — full
+  description, salary, openings, industry, job function, work-study flag, contact,
+  required documents, and applicant count, stored in `raw_data.detail`. DOM parsing
+  remains as a fallback.
+- **Session validity check** everywhere: `job-sentinel session` (CLI),
+  `POST /api/ops/session/check` (API), and a "Check" button next to the session
+  badge in the jobs UI — probes the portal's current-user endpoint headlessly and
+  reports who you're signed in as.
+- **Credential prefill on login**: `job-sentinel login` (and the UI Login button)
+  now fills your portal username/password from `.env` the moment the form appears —
+  you only clear the Cloudflare challenge and click Sign In. One shared
+  implementation (`core/session.py`) backs both CLI and API.
+- **Resume PDF import**: upload a resume on the Profile page (or run
+  `job-sentinel resume import <pdf>`) and get a structured profile draft —
+  local-LLM extraction when Ollama is up, deterministic heuristic parser otherwise.
+  Nothing saves without your review.
+- **Optional authentication** for shared/demo deployments (`AUTH_MODE=off|demo|required`):
+  PBKDF2-hashed accounts in `data/users.json`, stateless HMAC tokens, admin-managed
+  account creation (`job-sentinel users add/list/remove`, `POST /api/auth/*`), and a
+  `/login` page in the UI. Stdlib-only — no services, no cost.
+- Jobs page shows the enriched details (salary, applicants, documents, contact,
+  full description) in an expandable section; richer deadline/posted metadata.
+- Free-hosting deployment guide (`docs/deployment.md`): laptop-as-server,
+  Vercel demo, GitHub Pages docs, tunnels — the whole stack at $0.
+
+### Changed
+- `/profile/edit` (legacy partial editor) now redirects to the integrated `/profile`
+  editor; navigation highlights the active tab; branded loaders cover route changes.
+
 ## [0.5.0] — 2026-06-10
 
 ### Added

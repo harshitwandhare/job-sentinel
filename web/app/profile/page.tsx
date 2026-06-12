@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { SentinelLoader } from "@/components/SentinelLoader";
 import { Button } from "@/components/ui/button";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { externalUrl } from "@/lib/utils";
 import {
   type Award,
   type Certification,
   type Education,
   type Experience,
   getProfile,
+  importResume,
   type Profile,
   type Project,
   type Publication,
@@ -67,6 +70,8 @@ export default function ProfilePage() {
   const [apiDown, setApiDown] = useState(false);
   const [status, setStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getProfile().then((p) => {
@@ -92,8 +97,47 @@ export default function ProfilePage() {
     }
   }
 
+  async function onImportFile(file: File) {
+    setImporting(true);
+    setStatus("Extracting profile from PDF…");
+    try {
+      const result = await importResume(file);
+      if (result.ok && result.profile) {
+        setDraft(result.profile);
+        setStatus("Imported — review the draft, then Save.");
+      } else {
+        setStatus(result.detail ?? "Import failed.");
+      }
+    } finally {
+      setImporting(false);
+      if (fileInput.current) fileInput.current.value = "";
+    }
+  }
+
+  const uploadControl = (
+    <>
+      <input
+        ref={fileInput}
+        type="file"
+        accept="application/pdf"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void onImportFile(f);
+        }}
+      />
+      <Button
+        variant="outline"
+        disabled={importing || saving}
+        onClick={() => fileInput.current?.click()}
+      >
+        {importing ? "Importing…" : "Upload resume (PDF)"}
+      </Button>
+    </>
+  );
+
   if (!loaded) {
-    return <div className="mx-auto max-w-3xl px-5 py-16 text-muted">Loading profile…</div>;
+    return <SentinelLoader label="Loading your profile" />;
   }
 
   if (apiDown) {
@@ -118,11 +162,15 @@ export default function ProfilePage() {
           <CardTitle>No profile yet</CardTitle>
           <CardSub>
             Your profile is the single source of truth for the résumé engine. Create it here —
-            it saves straight to <code>data/profile.yaml</code>.
+            it saves straight to <code>data/profile.yaml</code> — or import an existing resume.
           </CardSub>
-          <Button onClick={() => setDraft(structuredClone(profile ?? EMPTY_PROFILE))}>
-            Create profile
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={() => setDraft(structuredClone(profile ?? EMPTY_PROFILE))}>
+              Create profile
+            </Button>
+            {uploadControl}
+            {status && <span className="text-sm text-muted">{status}</span>}
+          </div>
         </Card>
       </div>
     );
@@ -144,7 +192,10 @@ export default function ProfilePage() {
               </Button>
             </>
           ) : (
-            <Button onClick={() => setDraft(structuredClone(profile!))}>Edit</Button>
+            <>
+              {uploadControl}
+              <Button onClick={() => setDraft(structuredClone(profile!))}>Edit</Button>
+            </>
           )}
         </div>
       </div>
@@ -176,8 +227,14 @@ function Viewer({ profile }: { profile: Profile }) {
           {basics.email && <span>{basics.email}</span>}
           {basics.phone && <span>{basics.phone}</span>}
           {basics.links.map((l) => (
-            <a key={l.url} href={l.url} className="text-brand hover:underline">
-              {l.label}
+            <a
+              key={l.url}
+              href={externalUrl(l.url)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand hover:underline"
+            >
+              {l.label || l.url}
             </a>
           ))}
         </div>
@@ -216,7 +273,12 @@ function Viewer({ profile }: { profile: Profile }) {
               <CardTitle>
                 {p.name}
                 {p.url && (
-                  <a href={p.url} className="ml-2 text-sm font-normal text-brand hover:underline">
+                  <a
+                    href={externalUrl(p.url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 text-sm font-normal text-brand hover:underline"
+                  >
                     link ↗
                   </a>
                 )}
@@ -304,7 +366,12 @@ function Viewer({ profile }: { profile: Profile }) {
               {[p.venue, p.date].filter(Boolean).length > 0 &&
                 ` — ${[p.venue, p.date].filter(Boolean).join(", ")}`}
               {p.url && (
-                <a href={p.url} className="ml-2 text-brand hover:underline">
+                <a
+                  href={externalUrl(p.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-2 text-brand hover:underline"
+                >
                   link ↗
                 </a>
               )}

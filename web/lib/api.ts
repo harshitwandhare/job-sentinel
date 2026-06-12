@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Typed client for the local Job Sentinel API (see src/job_sentinel/api/app.py).
  * Every call degrades gracefully: on any failure it returns a safe empty value
  * instead of throwing, so pages render an empty state rather than a crash.
@@ -78,15 +78,39 @@ export interface Profile {
   awards: Award[];
   publications: Publication[];
 }
+export interface JobDetail {
+  description?: string;
+  salary?: string;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  openings?: number | null;
+  industry?: string;
+  job_function?: string;
+  work_study_required?: boolean | null;
+  application_begins?: string | null;
+  job_start_date?: string | null;
+  application_documents?: string[];
+  contact_name?: string | null;
+  contact_title?: string | null;
+  contact_email?: string | null;
+  apply_via_site?: boolean | null;
+  external_url?: string | null;
+  num_applicants?: number | null;
+  required_work_auth?: string | null;
+  time_commitment?: string | null;
+}
 export interface JobPosting {
   posting_id: string;
   title: string;
   employer: string;
   location: string;
   job_type: string;
+  posted_date: string;
   deadline: string;
+  description_snippet: string;
   status: string;
   portal_url: string;
+  raw_data?: { detail?: JobDetail; [key: string]: unknown };
 }
 export interface TailorResult {
   score: number;
@@ -95,9 +119,24 @@ export interface TailorResult {
   profile: Profile;
 }
 
+const TOKEN_KEY = "sentinel_token";
+
+/** Bearer-token header from localStorage (no-op during SSR / when logged out). */
+function authHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = window.localStorage.getItem(TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function setAuthToken(token: string | null): void {
+  if (typeof window === "undefined") return;
+  if (token) window.localStorage.setItem(TOKEN_KEY, token);
+  else window.localStorage.removeItem(TOKEN_KEY);
+}
+
 async function getJSON<T>(path: string, fallback: T): Promise<T> {
   try {
-    const res = await fetch(`${API_BASE}${path}`, { cache: "no-store" });
+    const res = await fetch(`${API_BASE}${path}`, { cache: "no-store", headers: authHeaders() });
     if (!res.ok) return fallback;
     return (await res.json()) as T;
   } catch {
@@ -117,7 +156,7 @@ export async function tailorResume(jobDescription: string): Promise<TailorResult
   try {
     const res = await fetch(`${API_BASE}/api/resume/tailor`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ job_description: jobDescription }),
     });
     if (!res.ok) return null;
@@ -141,7 +180,7 @@ export async function sendChat(messages: ChatTurn[]): Promise<ChatReply | null> 
   try {
     const res = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ messages }),
     });
     if (!res.ok) return null;
@@ -156,7 +195,7 @@ export async function setJobStatus(postingId: string, status: string): Promise<b
   try {
     const res = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(postingId)}/status`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ status }),
     });
     return res.ok;
@@ -165,12 +204,38 @@ export async function setJobStatus(postingId: string, status: string): Promise<b
   }
 }
 
+export interface ImportResult {
+  ok: boolean;
+  profile?: Profile;
+  detail?: string;
+}
+
+/** Upload a resume PDF and get back a parsed Profile draft (nothing is saved). */
+export async function importResume(file: File, ai = true): Promise<ImportResult> {
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_BASE}/api/profile/import-resume?ai=${ai}`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: form,
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { detail?: string };
+      return { ok: false, detail: body.detail ?? `Import failed (${res.status})` };
+    }
+    return { ok: true, profile: (await res.json()) as Profile };
+  } catch {
+    return { ok: false, detail: "Could not reach the API. Is `job-sentinel serve` running?" };
+  }
+}
+
 /** Persist the full profile. Returns the saved (validated) profile, or null. */
 export async function putProfile(profile: Profile): Promise<Profile | null> {
   try {
     const res = await fetch(`${API_BASE}/api/profile`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(profile),
     });
     if (!res.ok) return null;
@@ -229,7 +294,7 @@ async function postJSON(path: string, body: unknown): Promise<StartResult> {
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(body ?? {}),
     });
     if (res.ok) return { ok: true };
@@ -245,6 +310,27 @@ export function startLogin(timeout = 300): Promise<StartResult> {
   return postJSON("/api/ops/login", { timeout });
 }
 
+export interface SessionCheck {
+  valid: boolean;
+  user: string;
+  detail: string;
+  checked: boolean;
+}
+
+/** Headless probe: is the saved portal session still valid? Null = API down/conflict. */
+export async function checkSession(): Promise<SessionCheck | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/ops/session/check`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as SessionCheck;
+  } catch {
+    return null;
+  }
+}
+
 /** Run one scrape cycle. `send` actually sends alerts (default dry-run). */
 export function startScrape(send = false): Promise<StartResult> {
   return postJSON("/api/ops/scrape", { send });
@@ -258,18 +344,61 @@ export function stopWatcher(): Promise<StartResult> {
   return postJSON("/api/ops/watcher/stop", {});
 }
 
+export interface AuthUser {
+  username: string;
+  is_admin: boolean;
+}
+export interface AuthStatus {
+  mode: "off" | "demo" | "required";
+  users_exist: boolean;
+  user: AuthUser | null;
+}
+
+/** Current auth mode and (if a valid token is held) the logged-in user. */
+export function getAuthStatus(): Promise<AuthStatus | null> {
+  return getJSON<AuthStatus | null>("/api/auth/status", null);
+}
+
+/** Log in; stores the token on success. */
+export async function authLogin(
+  username: string,
+  password: string,
+): Promise<{ ok: boolean; detail?: string; user?: AuthUser }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    const body = (await res.json().catch(() => ({}))) as {
+      token?: string;
+      user?: AuthUser;
+      detail?: string;
+    };
+    if (!res.ok || !body.token) return { ok: false, detail: body.detail ?? "Login failed." };
+    setAuthToken(body.token);
+    return { ok: true, user: body.user };
+  } catch {
+    return { ok: false, detail: "Could not reach the API." };
+  }
+}
+
+export function authLogout(): void {
+  setAuthToken(null);
+}
+
 export interface BuildResult {
   ok: boolean;
   blob?: Blob;
   detail?: string;
 }
 
-/** Build a (optionally tailored / LLM) résumé PDF and return the bytes. */
+/** Build a (optionally tailored / LLM) rÃ©sumÃ© PDF and return the bytes. */
 export async function buildResume(jobDescription = "", ai = false): Promise<BuildResult> {
   try {
     const res = await fetch(`${API_BASE}/api/resume/build`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ job_description: jobDescription, ai }),
     });
     if (!res.ok) {
@@ -292,7 +421,7 @@ export async function buildCover(
   try {
     const res = await fetch(`${API_BASE}/api/resume/cover`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ job_description: jobDescription, role, company, ai }),
     });
     if (!res.ok) {
