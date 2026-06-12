@@ -39,9 +39,39 @@ portal takes one file and ~50 lines of Python.
 > your portal credentials, your data, and the model never leave it. Follow the
 > [Quick Start](#-quick-start) below to run the real thing — about 5 minutes.
 
+## 🧭 Why this exists
+
+The 2026 job market is brutal for students: the average opening now draws
+[~242 applications](https://huntr.co/research/job-search-trends-q1-2026) (3×
+the 2021 volume), [93% of seekers have applied to a ghost
+job](https://www.cpapracticeadvisor.com/2026/04/30/ghost-jobs-still-haunting-67-of-job-seekers-report-finds/182536/),
+and [two-thirds have been rejected by an AI
+screen](https://enhancv.com/blog/ai-hiring-statistics/) without a human ever
+reading their résumé. The edge that's left: apply **early** (watch portals,
+don't scroll them) and apply **matched** (ATS-clean documents tailored to each
+posting).
+
+Every mainstream tool that helps with this is cloud SaaS — your résumé, your
+application history, and the jobs you're chasing live on someone else's
+servers, behind a freemium meter. Job Sentinel is the same loop with the
+opposite architecture:
+
+| | Job Sentinel | Cloud trackers (Simplify/Teal/Huntr) | AI auto-apply bots | OSS resume builders |
+|---|---|---|---|---|
+| Open source | ✅ MIT | ❌ | partly | ✅ |
+| Data stays on your machine | ✅ by design | ❌ | ❌ cloud LLM keys | ❌ usually |
+| Portal monitoring + alerts | ✅ | ❌ | ❌ | ❌ |
+| Tailored ATS documents | ✅ local LLM | ✅ cloud | ✅ cloud | ✅ cloud |
+| Account-ban risk | none — you apply | none | **high** (ToS) | none |
+| Cost | $0 forever | freemium | API costs | $0 + API keys |
+
+One integrated pipeline — **watch → alert → track → tailor → apply** — typed,
+tested, and free, on hardware you already own.
+
 <details>
 <summary><b>Table of contents</b></summary>
 
+- [Why this exists](#-why-this-exists)
 - [Features](#-features)
 - [Architecture](#-architecture)
 - [Quick Start](#-quick-start)
@@ -416,6 +446,11 @@ job-sentinel/
 - [x] Optional multi-user auth (demo/required modes, admin invites)
 - [x] Hosted demo (Vercel) + docs site (GitHub Pages) — both $0
 - [ ] More portal adapters (Greenhouse, Workday, public boards via JobSpy)
+- [ ] Deeper ATS scoring — parser-style simulation of the big enterprise ATSes,
+      beyond keyword coverage
+- [ ] Ghost-job signals — flag stale/repost patterns before you sink hours in
+- [ ] Application analytics — funnel stats over your own history (response
+      rates by employer, day-of-week, match score)
 - [ ] Discord webhook notifier
 - [ ] Playwright e2e suite against `job-sentinel web`
 - [ ] Packaged installers + PyPI publish

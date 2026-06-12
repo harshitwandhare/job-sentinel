@@ -33,6 +33,20 @@ The space splits into three jobs-to-be-done. Most projects do **one**.
 | [LinkedIn_AIHawk](https://github.com/us/linkedIn_auto_jobs_applier_with_AI_fast) | AI auto-apply on LinkedIn | ToS; account bans |
 | [Auto_job_applier_linkedIn](https://github.com/GodsScion/Auto_job_applier_linkedIn) | "100+ applies/hour" | Spray-and-pray; quality + ToS concerns |
 
+### D. Commercial SaaS (the mainstream)
+| Product | Model | Strengths | Why we're different |
+|---|---|---|---|
+| [Simplify](https://simplify.jobs) | Free + Chrome extension | Autofills 100+ ATS portals; huge student adoption | Cloud-holds your profile; no portal monitoring; closed source |
+| [Teal](https://tealhq.com) | Freemium | Keyword gap analysis per JD, polished tracker | Tailoring is metered; data on their servers |
+| [Huntr](https://huntr.co) | Free ≤40 jobs, $10/mo | Best-in-class kanban tracker + CRM | Tracking only; paywalled at exactly the volume the 2026 market demands |
+
+The 2026 numbers that frame the whole space: ~242 applications per opening
+(3× 2021), 93% of seekers have hit a ghost job (~9 hours lost per cycle),
+66% have been rejected by an AI with no human contact, and only 2–3% of
+résumés convert to an interview. Volume tools amplify the arms race;
+the durable edge is *earlier + better matched*, which is exactly the
+watch→tailor loop.
+
 ---
 
 ## 2. Honest read: where competitors are genuinely better (today)
