@@ -1,0 +1,36 @@
+name: OpenSSF Scorecard
+
+# Continuous supply-chain / security-posture measurement.
+# Results appear at https://securityscorecards.dev/viewer/?uri=github.com/harshitwandhare/job-sentinel
+on:
+  schedule:
+    - cron: "30 4 * * 1" # weekly, Monday 04:30 UTC
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # upload SARIF to code scanning
+      id-token: write        # publish results (signed)
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@v2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: results.sarif

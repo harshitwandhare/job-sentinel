@@ -7,8 +7,9 @@ import { TiltCard } from "@/components/TiltCard";
 
 const qualityBadges = [
   "mypy --strict",
-  "83% test coverage",
-  "185+ tests",
+  "240+ tests",
+  "eslint + vitest",
+  "reproducible builds (uv.lock)",
   "ruff lint + format",
   "gitleaks secret scan",
   "pip-audit CVE scan",
@@ -51,7 +52,7 @@ const features: { title: string; body: string; span?: string; mono?: string }[] 
 ];
 
 const engineering = [
-  { k: "7", v: "CI gates on every PR", d: "lint · format · types · tests ×2 · secrets · supply chain · web build" },
+  { k: "9", v: "CI gates on every PR", d: "lint · types · tests ×3 · secrets · supply chain · web lint+test+build · scorecard" },
   { k: "0", v: "known CVEs shipped", d: "pip-audit scans the dependency tree; strong-copyleft licenses are blocked" },
   { k: "100%", v: "strict-typed Python", d: "mypy --strict across the whole src tree, pydantic v2 at every boundary" },
   { k: "4", v: "releases on PyPI", d: "tag → build → GitHub Release → PyPI, fully automated and secret-gated" },
@@ -100,7 +101,7 @@ export default function HomePage() {
           <Reveal>
             <p className="font-mono text-sm font-medium uppercase tracking-widest text-brand">Capabilities</p>
             <h2 className="mt-3 max-w-2xl text-3xl font-bold tracking-tight text-ink sm:text-4xl">
-              Everything between "new posting" and "submitted".
+              Everything between &ldquo;new posting&rdquo; and &ldquo;submitted&rdquo;.
             </h2>
           </Reveal>
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

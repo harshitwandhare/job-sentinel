@@ -13,8 +13,8 @@ const Hero3D = dynamic(() => import("@/components/Hero3D"), { ssr: false });
 const stats = [
   { value: "100%", label: "local & private" },
   { value: "0", label: "API keys needed" },
-  { value: "185+", label: "tests, 83% coverage" },
-  { value: "7", label: "CI quality gates" },
+  { value: "240+", label: "tests, Python + web" },
+  { value: "9", label: "CI quality gates" },
 ];
 
 export function Hero() {

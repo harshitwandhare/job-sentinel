@@ -174,11 +174,12 @@ skip-magic-trailing-comma = false
 # Mypy
 # ─────────────────────────────────────────────────────────────────────────────
 [tool.mypy]
+# No global ignore_missing_imports: it would silently mask typo'd imports.
+# Untyped third-party libs are allowed per-module in the overrides below.
 python_version         = "3.11"
 strict                 = true
 warn_return_any        = true
 warn_unused_configs    = true
-ignore_missing_imports = true
 mypy_path              = "src"
 plugins                = ["pydantic.mypy"]
 
@@ -199,14 +200,11 @@ disallow_untyped_calls = false
 [tool.pytest.ini_options]
 testpaths    = ["tests"]
 asyncio_mode = "auto"
-addopts      = [
-  "--cov=job_sentinel",
-  "--cov-report=term-missing",
-  "--cov-report=html:htmlcov",
-  "--cov-fail-under=70",
-  "-v",
-  "--tb=short",
-]
+# Coverage is NOT in the default addopts on purpose: a quick local
+# `pytest -k one_test` shouldn't pay for full coverage + HTML report or trip
+# the 70% gate. CI runs the gate explicitly:
+#   pytest --cov=job_sentinel --cov-report=term-missing --cov-fail-under=70
+addopts       = ["-v", "--tb=short"]
 log_cli       = true
 log_cli_level = "INFO"
 

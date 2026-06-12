@@ -393,7 +393,7 @@ export interface BuildResult {
   detail?: string;
 }
 
-/** Build a (optionally tailored / LLM) rÃ©sumÃ© PDF and return the bytes. */
+/** Build a (optionally tailored / LLM) résumé PDF and return the bytes. */
 export async function buildResume(jobDescription = "", ai = false): Promise<BuildResult> {
   try {
     const res = await fetch(`${API_BASE}/api/resume/build`, {

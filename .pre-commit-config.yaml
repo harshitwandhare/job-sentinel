@@ -12,7 +12,7 @@ default_language_version:
 repos:
   # ── General file hygiene ──────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -30,7 +30,7 @@ repos:
 
   # ── Ruff: lint + format (replaces black, flake8, isort) ──────────────────
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.4.8
+    rev: v0.15.17
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -38,7 +38,7 @@ repos:
 
   # ── Mypy: static type checking ────────────────────────────────────────────
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.10.0
+    rev: v2.1.0
     hooks:
       - id: mypy
         additional_dependencies:
@@ -48,7 +48,7 @@ repos:
 
   # ── Conventional commits enforcement ─────────────────────────────────────
   - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.2.0
+    rev: v4.4.0
     hooks:
       - id: conventional-pre-commit
         stages: [commit-msg]
@@ -56,13 +56,13 @@ repos:
 
   # ── Security: scan for leaked secrets ────────────────────────────────────
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.18.4
+    rev: v8.30.0
     hooks:
       - id: gitleaks
 
   # ── YAML lint ─────────────────────────────────────────────────────────────
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.35.1
+    rev: v1.38.0
     hooks:
       - id: yamllint
         args: [--strict, -d, "{extends: default, rules: {line-length: {max: 120}}}"]
