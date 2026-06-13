@@ -14,6 +14,7 @@ const links = [
   { href: "/profile", label: "Profile" },
   { href: "/studio", label: "Studio" },
   { href: "/jobs", label: "Jobs" },
+  { href: "/applications", label: "Applications" },
   { href: "/settings", label: "Settings" },
 ];
 

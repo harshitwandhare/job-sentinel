@@ -4,8 +4,10 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   BookOpen,
   Briefcase,
+  ClipboardList,
   CornerDownLeft,
   FileText,
+  FolderOpen,
   Github,
   Home,
   LogIn,
@@ -42,6 +44,8 @@ const ITEMS: Item[] = [
   { label: "Profile", hint: "Your résumé, rendered live", icon: FileText, href: "/profile", group: "Navigate" },
   { label: "Studio", hint: "Tailor + score against a job description", icon: Wand2, href: "/studio", group: "Navigate" },
   { label: "Jobs", hint: "Tracked postings & deadlines", icon: Briefcase, href: "/jobs", group: "Navigate", keywords: "deadlines tracked postings" },
+  { label: "Applications", hint: "Your pipeline — saved to offer", icon: ClipboardList, href: "/applications", group: "Navigate", keywords: "tracker pipeline applied interview offer" },
+  { label: "Documents", hint: "Generated résumés & cover letters", icon: FolderOpen, href: "/resumes", group: "Navigate", keywords: "resume cover letter library pdf history" },
   { label: "Settings", hint: "LLM providers, API keys, model config", icon: Settings, href: "/settings", group: "Navigate", keywords: "llm model api key provider openrouter groq gemini ollama" },
   { label: "Sign in", hint: "Account / demo access", icon: LogIn, href: "/login", group: "Navigate", keywords: "login account" },
   {
