@@ -81,7 +81,11 @@ def test_broken_source_captured_in_errors() -> None:
     assert "Dev" in titles
     assert len(resp.errors) == 1
     assert resp.errors[0].source == "broken"
-    assert "timeout" in resp.errors[0].detail
+    # Detail is sanitized: it names the source and the exception type, but must
+    # NOT leak the raw exception message (here "timeout") to the client.
+    assert "Broken" in resp.errors[0].detail
+    assert "RuntimeError" in resp.errors[0].detail
+    assert "timeout" not in resp.errors[0].detail
 
 
 def test_deduplication_by_title_employer() -> None:

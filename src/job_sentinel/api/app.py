@@ -924,9 +924,14 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
         except Exception as exc:
+            # Log the cause server-side; return a generic message so internal
+            # detail (URLs, transport errors, traces) never reaches the client.
+            from loguru import logger as _log
+
+            _log.warning("Company board fetch failed for {}/{}: {}", ats, slug, exc)
             raise HTTPException(
                 status_code=404,
-                detail=f"Could not fetch board for {ats}/{slug}: {exc}",
+                detail=f"Could not fetch the {ats} board for {slug!r}.",
             ) from exc
 
         return {"results": [j.model_dump(mode="json") for j in jobs]}

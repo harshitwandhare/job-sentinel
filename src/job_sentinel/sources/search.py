@@ -18,6 +18,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from typing import Any
 
+from loguru import logger
 from pydantic import BaseModel
 
 from job_sentinel.sources.base import JobQuery, JobSource, SourceError
@@ -92,7 +93,10 @@ def aggregate_search(
             jobs = src.search(query)
             return src.SOURCE_ID, jobs, None
         except Exception as exc:  # intentional broad catch — isolate per-source failures
-            return src.SOURCE_ID, [], str(exc)
+            # Log the cause server-side; surface only a generic, exception-type
+            # label to the client so internal detail never leaks in the response.
+            logger.warning("Source {} failed: {}", src.SOURCE_ID, exc)
+            return src.SOURCE_ID, [], f"{src.LABEL} request failed ({type(exc).__name__})"
 
     with ThreadPoolExecutor(max_workers=min(len(sources), 8)) as pool:
         futures = {pool.submit(_search_one, src): src for src in sources}
