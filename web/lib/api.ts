@@ -110,6 +110,8 @@ export interface JobPosting {
   description_snippet: string;
   status: string;
   portal_url: string;
+  /** Source/adapter that produced this record (e.g. "remoteok", "12twenty"). */
+  source_adapter?: string;
   raw_data?: { detail?: JobDetail; [key: string]: unknown };
 }
 export interface TailorResult {
