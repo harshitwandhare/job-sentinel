@@ -13,6 +13,7 @@ const links = [
   { href: "/profile", label: "Profile" },
   { href: "/studio", label: "Studio" },
   { href: "/jobs", label: "Jobs" },
+  { href: "/settings", label: "Settings" },
 ];
 
 const NAV_HEIGHT = 56;

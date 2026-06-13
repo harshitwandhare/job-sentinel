@@ -33,6 +33,7 @@ nav:
   - Getting started:
       - Deployment (all at $0): deployment.md
       - Telegram setup: api/telegram-setup.md
+      - AI providers (BYO key): llm-providers.md
       - Releasing: RELEASING.md
   - Design:
       - North star: NORTH_STAR.md

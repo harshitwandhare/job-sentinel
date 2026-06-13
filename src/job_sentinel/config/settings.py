@@ -108,22 +108,137 @@ class FilterSettings(BaseSettings):
 
 
 class LLMSettings(BaseSettings):
-    """Local LLM (Ollama) config for the optional résumé-tailoring layer."""
+    """
+    LLM provider config — covers both the chat and embedding backends.
 
+    Backward-compatible: the legacy OLLAMA_BASE_URL / OLLAMA_MODEL /
+    OLLAMA_EMBED_MODEL env-vars still work as before.  New env-vars let users
+    route each backend independently to a different provider.
+    """
+
+    # ── Legacy Ollama vars (backward-compat; no prefix model) ────────────────
     model_config = SettingsConfigDict(
         env_prefix="OLLAMA_", extra="ignore", env_file=_ENV_FILE, env_file_encoding="utf-8"
     )
 
+    # Kept for backward-compat; the resolved helpers below honour these first.
     base_url: str = Field(
         default="http://localhost:11434", description="Ollama HTTP endpoint (OLLAMA_BASE_URL)"
     )
-    # 3B-class instruct default: loads fully on common 4 GB laptop GPUs and
-    # answers directly (no chain-of-thought rambling like thinking-tuned tags).
-    model: str = Field(default="llama3.2:3b", description="Local model tag to use (OLLAMA_MODEL)")
+    model: str = Field(default="llama3.2:3b", description="Local model tag (OLLAMA_MODEL)")
     embed_model: str = Field(
         default="nomic-embed-text",
-        description="Local embedding model for semantic ranking (OLLAMA_EMBED_MODEL)",
+        description="Local embedding model (OLLAMA_EMBED_MODEL)",
     )
+
+    # ── Chat backend ─────────────────────────────────────────────────────────
+    # These are read WITHOUT the OLLAMA_ prefix; pydantic-settings reads them
+    # from the environment / .env as CHAT_PROVIDER, CHAT_MODEL, etc.
+
+    chat_provider: str = Field(
+        default="ollama",
+        validation_alias="CHAT_PROVIDER",
+        description="Provider for chat: ollama | openai | openrouter | groq | gemini | custom",
+    )
+    # Empty string means "fall back to OLLAMA_MODEL then llama3.2:3b".
+    chat_model: str = Field(
+        default="",
+        validation_alias="CHAT_MODEL",
+        description="Chat model override (empty → use OLLAMA_MODEL default)",
+    )
+    chat_api_key: str = Field(
+        default="",
+        repr=False,
+        validation_alias="CHAT_API_KEY",
+        description="API key for the chat provider (never logged)",
+    )
+    # Empty string means "derive from provider table".
+    chat_base_url: str = Field(
+        default="",
+        validation_alias="CHAT_BASE_URL",
+        description="Base URL override for chat provider (empty → use provider default)",
+    )
+
+    # ── Embed backend ─────────────────────────────────────────────────────────
+    embed_provider: str = Field(
+        default="ollama",
+        validation_alias="EMBED_PROVIDER",
+        description="Provider for embeddings: ollama | openai | openrouter | gemini | custom",
+    )
+    embed_model_override: str = Field(
+        default="",
+        validation_alias="EMBED_MODEL",
+        description="Embed model override (empty → use OLLAMA_EMBED_MODEL default)",
+    )
+    embed_api_key: str = Field(
+        default="",
+        repr=False,
+        validation_alias="EMBED_API_KEY",
+        description="API key for the embed provider (never logged)",
+    )
+    embed_base_url: str = Field(
+        default="",
+        validation_alias="EMBED_BASE_URL",
+        description="Base URL override for embed provider (empty → use provider default)",
+    )
+
+    # ── Shared timeouts / flags ───────────────────────────────────────────────
+    llm_timeout: int = Field(
+        default=90,
+        validation_alias="LLM_TIMEOUT",
+        description="Shared HTTP timeout (seconds) for all LLM calls",
+    )
+    llm_graceful_degradation: bool = Field(
+        default=True,
+        validation_alias="LLM_GRACEFUL_DEGRADATION",
+        description="Fall back silently when a backend is unavailable",
+    )
+
+    # ── Resolved helpers ──────────────────────────────────────────────────────
+
+    @property
+    def chat_model_resolved(self) -> str:
+        """Effective chat model: CHAT_MODEL → OLLAMA_MODEL → built-in default."""
+        return self.chat_model or self.model or "llama3.2:3b"
+
+    @property
+    def embed_model_resolved(self) -> str:
+        """Effective embed model: EMBED_MODEL → OLLAMA_EMBED_MODEL → built-in default."""
+        return self.embed_model_override or self.embed_model or "nomic-embed-text"
+
+    @property
+    def chat_base_url_resolved(self) -> str:
+        """
+        Effective chat base URL.
+
+        For Ollama: CHAT_BASE_URL override → legacy OLLAMA_BASE_URL (native base,
+        not the /v1 shim — OllamaBackend constructs its own paths).
+        For others: CHAT_BASE_URL override → provider default from PROVIDER_DEFAULTS.
+        """
+        if self.chat_base_url:
+            return self.chat_base_url.rstrip("/")
+        if self.chat_provider.lower() == "ollama":
+            return self.base_url.rstrip("/")
+        from job_sentinel.documents.providers import PROVIDER_DEFAULTS
+
+        info = PROVIDER_DEFAULTS.get(self.chat_provider.lower())
+        return info.base_url if info else ""
+
+    @property
+    def embed_base_url_resolved(self) -> str:
+        """
+        Effective embed base URL.
+
+        Same logic as chat_base_url_resolved but for the embed backend.
+        """
+        if self.embed_base_url:
+            return self.embed_base_url.rstrip("/")
+        if self.embed_provider.lower() == "ollama":
+            return self.base_url.rstrip("/")
+        from job_sentinel.documents.providers import PROVIDER_DEFAULTS
+
+        info = PROVIDER_DEFAULTS.get(self.embed_provider.lower())
+        return info.base_url if info else ""
 
 
 class EmailSettings(BaseSettings):
