@@ -31,6 +31,7 @@ from rich.table import Table
 
 if TYPE_CHECKING:
     from job_sentinel.core.models import JobPosting
+    from job_sentinel.db.repository import JobRepository as _JobRepository
     from job_sentinel.documents.tailor import Tailor
 
 # Windows terminals default to cp1252, which raises UnicodeEncodeError on the
@@ -54,6 +55,10 @@ resume_app = typer.Typer(help="Universal profile + resume generation.")
 app.add_typer(resume_app, name="resume")
 users_app = typer.Typer(help="Manage accounts for the (optional) authenticated API.")
 app.add_typer(users_app, name="users")
+apps_app = typer.Typer(help="Track job applications (Huntr-style).")
+app.add_typer(apps_app, name="apps")
+docs_app = typer.Typer(help="Manage the generated résumé/cover-letter library.")
+app.add_typer(docs_app, name="docs")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -847,6 +852,218 @@ def adapters() -> None:
     for aid in ids:
         table.add_row(aid, "✓" if aid == active else "")
     console.print(table)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# apps — application tracker (Huntr/Teal-style)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_DEFAULT_DB = Path(__file__).resolve().parents[2] / "data" / "jobs.db"
+
+
+def _open_repo() -> _JobRepository:
+    from job_sentinel.db.repository import JobRepository
+
+    return JobRepository(_DEFAULT_DB)
+
+
+@apps_app.command("list")
+def apps_list(
+    stage: str = typer.Option("", "--stage", "-s", help="Filter by stage (saved/applied/…)"),
+) -> None:
+    """List tracked applications."""
+    from job_sentinel.core.models import ApplicationStage
+    from job_sentinel.db.repository import JobRepository
+
+    stage_filter = None
+    if stage:
+        try:
+            stage_filter = ApplicationStage(stage.lower())
+        except ValueError:
+            console.print(f"[red]Unknown stage:[/] {stage}")
+            raise typer.Exit(code=1) from None
+
+    repo = JobRepository(_DEFAULT_DB)
+    apps = repo.list_applications(stage=stage_filter)
+    repo.close()
+
+    if not apps:
+        console.print("[yellow]No applications found.[/]")
+        return
+
+    table = Table(title="Tracked Applications")
+    table.add_column("ID", style="dim", no_wrap=True)
+    table.add_column("Title", style="bold")
+    table.add_column("Employer")
+    table.add_column("Stage", style="cyan")
+    table.add_column("Applied")
+
+    for a in apps:
+        table.add_row(
+            a.id[:12],
+            a.title[:40],
+            a.employer[:25],
+            a.stage.value,
+            a.applied_date or "-",
+        )
+    console.print(table)
+
+
+@apps_app.command("add")
+def apps_add(
+    title: str = typer.Option(..., "--title", "-t", help="Job title"),
+    employer: str = typer.Option("", "--employer", "-e", help="Company name"),
+    url: str = typer.Option("", "--url", "-u", help="Posting URL"),
+    source: str = typer.Option("", "--source", help="Source (e.g. manual, adzuna)"),
+    stage: str = typer.Option("saved", "--stage", "-s", help="Initial stage"),
+) -> None:
+    """Add a new application manually."""
+    from job_sentinel.core.models import Application, ApplicationStage
+    from job_sentinel.db.repository import JobRepository
+
+    try:
+        stage_enum = ApplicationStage(stage.lower())
+    except ValueError:
+        console.print(f"[red]Unknown stage:[/] {stage}")
+        raise typer.Exit(code=1) from None
+
+    app_obj = Application(
+        title=title,
+        employer=employer,
+        url=url,
+        source=source,
+        stage=stage_enum,
+    )
+    repo = JobRepository(_DEFAULT_DB)
+    repo.create_application(app_obj)
+    repo.close()
+    console.print(f"[green]✓ Application added[/] | id=[cyan]{app_obj.id[:12]}[/] {title!r}")
+
+
+@apps_app.command("stage")
+def apps_stage(
+    app_id: str = typer.Argument(..., help="Application id (or prefix)"),
+    stage: str = typer.Argument(..., help="New stage"),
+) -> None:
+    """Update the stage of a tracked application."""
+    from job_sentinel.core.models import ApplicationStage
+    from job_sentinel.db.repository import JobRepository
+
+    try:
+        stage_enum = ApplicationStage(stage.lower())
+    except ValueError:
+        console.print(f"[red]Unknown stage:[/] {stage}")
+        raise typer.Exit(code=1) from None
+
+    repo = JobRepository(_DEFAULT_DB)
+    found = repo.update_application(app_id, stage=stage_enum)
+    repo.close()
+    if not found:
+        console.print(f"[red]Application {app_id!r} not found.[/]")
+        raise typer.Exit(code=1)
+    console.print(f"[green]✓ Stage updated[/] → [cyan]{stage_enum.value}[/]")
+
+
+@apps_app.command("note")
+def apps_note(
+    app_id: str = typer.Argument(..., help="Application id"),
+    text: str = typer.Argument(..., help="Note text to set"),
+) -> None:
+    """Set the notes field on a tracked application."""
+    from job_sentinel.db.repository import JobRepository
+
+    repo = JobRepository(_DEFAULT_DB)
+    found = repo.update_application(app_id, notes=text)
+    repo.close()
+    if not found:
+        console.print(f"[red]Application {app_id!r} not found.[/]")
+        raise typer.Exit(code=1)
+    console.print("[green]✓ Note saved.[/]")
+
+
+@apps_app.command("rm")
+def apps_rm(app_id: str = typer.Argument(..., help="Application id to delete")) -> None:
+    """Delete a tracked application."""
+    from job_sentinel.db.repository import JobRepository
+
+    repo = JobRepository(_DEFAULT_DB)
+    found = repo.delete_application(app_id)
+    repo.close()
+    if not found:
+        console.print(f"[red]Application {app_id!r} not found.[/]")
+        raise typer.Exit(code=1)
+    console.print(f"[green]✓ Deleted[/] [cyan]{app_id[:12]}[/]")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# docs — generated document library
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@docs_app.command("list")
+def docs_list(
+    kind: str = typer.Option("", "--kind", "-k", help="Filter by kind (resume/cover_letter)"),
+) -> None:
+    """List generated résumés and cover letters."""
+    from job_sentinel.core.models import DocumentKind
+    from job_sentinel.db.repository import JobRepository
+
+    kind_filter = None
+    if kind:
+        try:
+            kind_filter = DocumentKind(kind.lower())
+        except ValueError:
+            console.print(f"[red]Unknown kind:[/] {kind}")
+            raise typer.Exit(code=1) from None
+
+    repo = JobRepository(_DEFAULT_DB)
+    docs = repo.list_documents(kind=kind_filter)
+    repo.close()
+
+    if not docs:
+        console.print("[yellow]No generated documents found.[/]")
+        return
+
+    table = Table(title="Generated Documents")
+    table.add_column("ID", style="dim", no_wrap=True)
+    table.add_column("Kind", style="cyan")
+    table.add_column("Title")
+    table.add_column("Employer")
+    table.add_column("ATS%", justify="right")
+    table.add_column("Created")
+
+    for d in docs:
+        ats = f"{d.ats_score:.0f}" if d.ats_score is not None else "-"
+        table.add_row(
+            d.id[:12],
+            d.kind.value,
+            d.title[:30] or "-",
+            d.employer[:20] or "-",
+            ats,
+            d.created_at.strftime("%m-%d %H:%M"),
+        )
+    console.print(table)
+
+
+@docs_app.command("rm")
+def docs_rm(doc_id: str = typer.Argument(..., help="Document id to delete")) -> None:
+    """Delete a generated document record (and its PDF file)."""
+    import contextlib
+
+    from job_sentinel.db.repository import JobRepository
+
+    repo = JobRepository(_DEFAULT_DB)
+    doc = repo.get_document(doc_id)
+    if doc is None:
+        repo.close()
+        console.print(f"[red]Document {doc_id!r} not found.[/]")
+        raise typer.Exit(code=1)
+    repo.delete_document(doc_id)
+    repo.close()
+    if doc.file_path:
+        with contextlib.suppress(OSError):
+            Path(doc.file_path).unlink(missing_ok=True)
+    console.print(f"[green]✓ Deleted[/] [cyan]{doc_id[:12]}[/]")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
