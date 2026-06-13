@@ -16,6 +16,7 @@ never touch the user's real ``data/`` files.
 
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -27,7 +28,14 @@ from pydantic import BaseModel, Field
 from job_sentinel.api.chat import ChatMessage, ChatReply
 from job_sentinel.api.chat import answer as chat_answer
 from job_sentinel.api.ops import OpsConfigError, OpsConflictError, get_runner
-from job_sentinel.core.models import ApplicationStatus, JobPosting
+from job_sentinel.core.models import (
+    Application,
+    ApplicationStage,
+    ApplicationStatus,
+    DocumentKind,
+    GeneratedDocument,
+    JobPosting,
+)
 from job_sentinel.documents.tailor import KeywordTailor, TailorResult
 from job_sentinel.profile import DEFAULT_PROFILE_PATH, Profile, load_profile, save_profile
 
@@ -101,6 +109,37 @@ class CoverRequest(BaseModel):
     role: str = Field(default="", description="Role title for the opening line")
     company: str = Field(default="", description="Company / department name")
     ai: bool = Field(default=False, description="Polish with the local LLM (if available)")
+
+
+class ApplicationCreateRequest(BaseModel):
+    # From a tracked posting — if provided, fields are copied from it.
+    posting_id: str | None = Field(default=None)
+    # Manual fields (also used when overriding posting-sourced values).
+    title: str = Field(default="")
+    employer: str = Field(default="")
+    location: str = Field(default="")
+    url: str = Field(default="")
+    source: str = Field(default="")
+    stage: ApplicationStage = Field(default=ApplicationStage.SAVED)
+    salary: str = Field(default="")
+    applied_date: str = Field(default="")
+    deadline: str = Field(default="")
+    notes: str = Field(default="")
+    resume_document_id: str | None = Field(default=None)
+
+
+class ApplicationPatchRequest(BaseModel):
+    stage: ApplicationStage | None = Field(default=None)
+    notes: str | None = Field(default=None)
+    applied_date: str | None = Field(default=None)
+    deadline: str | None = Field(default=None)
+    salary: str | None = Field(default=None)
+    resume_document_id: str | None = Field(default=None)
+    title: str | None = Field(default=None)
+    employer: str | None = Field(default=None)
+    location: str | None = Field(default=None)
+    url: str | None = Field(default=None)
+    source: str | None = Field(default=None)
 
 
 def _summary(p: Profile) -> ProfileSummary:
@@ -301,6 +340,203 @@ def create_app(
             return repo.get_stats()
         finally:
             repo.close()
+
+    # ── documents directory (sibling of db_path) ─────────────────────────
+    _docs_dir = db_path.parent / "documents"
+    _docs_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── Applications ──────────────────────────────────────────────────────
+
+    @app.get("/api/applications/stats")
+    def applications_stats() -> dict[str, int]:
+        """Count of tracked applications per stage plus total."""
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            return repo.application_stats()
+        finally:
+            repo.close()
+
+    @app.get("/api/applications")
+    def list_applications(
+        stage: ApplicationStage | None = None,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            apps = repo.list_applications(stage=stage, limit=limit)
+        finally:
+            repo.close()
+        return [a.model_dump(mode="json") for a in apps]
+
+    @app.post("/api/applications")
+    def create_application(req: ApplicationCreateRequest, request: Request) -> dict[str, Any]:
+        """
+        Create a tracked application.
+
+        Pass ``posting_id`` to populate fields from a stored JobPosting (stage
+        defaults to APPLIED in that case).  Otherwise supply manual fields.
+        """
+        if auth_mode != "off" and _bearer_user(request) is None:
+            raise HTTPException(status_code=401, detail="Login required.")
+
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            if req.posting_id:
+                posting = repo.get_job(req.posting_id)
+                if posting is None:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Posting {req.posting_id} not found.",
+                    )
+                app = Application(
+                    title=req.title or posting.title,
+                    employer=req.employer or posting.employer,
+                    location=req.location or posting.location,
+                    url=req.url or posting.portal_url,
+                    source=req.source or posting.source_adapter,
+                    stage=req.stage
+                    if req.stage != ApplicationStage.SAVED
+                    else ApplicationStage.APPLIED,
+                    salary=req.salary,
+                    applied_date=req.applied_date,
+                    deadline=req.deadline or posting.deadline,
+                    notes=req.notes,
+                    posting_id=req.posting_id,
+                    resume_document_id=req.resume_document_id,
+                )
+            else:
+                app = Application(
+                    title=req.title,
+                    employer=req.employer,
+                    location=req.location,
+                    url=req.url,
+                    source=req.source,
+                    stage=req.stage,
+                    salary=req.salary,
+                    applied_date=req.applied_date,
+                    deadline=req.deadline,
+                    notes=req.notes,
+                    posting_id=req.posting_id,
+                    resume_document_id=req.resume_document_id,
+                )
+            result = repo.create_application(app)
+        finally:
+            repo.close()
+        return result.model_dump(mode="json")
+
+    @app.get("/api/applications/{app_id}")
+    def get_application(app_id: str) -> dict[str, Any]:
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            app = repo.get_application(app_id)
+        finally:
+            repo.close()
+        if app is None:
+            raise HTTPException(status_code=404, detail=f"Application {app_id} not found.")
+        return app.model_dump(mode="json")
+
+    @app.patch("/api/applications/{app_id}")
+    def patch_application(
+        app_id: str,
+        req: ApplicationPatchRequest,
+        request: Request,
+    ) -> dict[str, Any]:
+        if auth_mode != "off" and _bearer_user(request) is None:
+            raise HTTPException(status_code=401, detail="Login required.")
+
+        from job_sentinel.db.repository import JobRepository
+
+        updates = {k: v for k, v in req.model_dump(exclude_unset=True).items() if v is not None}
+        repo = JobRepository(db_path)
+        try:
+            found = repo.update_application(app_id, **updates)
+            if not found:
+                raise HTTPException(status_code=404, detail=f"Application {app_id} not found.")
+            app = repo.get_application(app_id)
+        finally:
+            repo.close()
+        if app is None:  # pragma: no cover — defensive
+            raise HTTPException(status_code=404, detail=f"Application {app_id} not found.")
+        return app.model_dump(mode="json")
+
+    @app.delete("/api/applications/{app_id}")
+    def delete_application(app_id: str, request: Request) -> dict[str, bool]:
+        if auth_mode != "off" and _bearer_user(request) is None:
+            raise HTTPException(status_code=401, detail="Login required.")
+
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            found = repo.delete_application(app_id)
+        finally:
+            repo.close()
+        if not found:
+            raise HTTPException(status_code=404, detail=f"Application {app_id} not found.")
+        return {"ok": True}
+
+    # ── Generated Documents ───────────────────────────────────────────────
+
+    @app.get("/api/documents")
+    def list_documents(
+        kind: DocumentKind | None = None,
+        limit: int = 200,
+    ) -> list[dict[str, Any]]:
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            docs = repo.list_documents(kind=kind, limit=limit)
+        finally:
+            repo.close()
+        return [d.model_dump(mode="json") for d in docs]
+
+    @app.get("/api/documents/{doc_id}/file")
+    def document_file(doc_id: str) -> FileResponse:
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            doc = repo.get_document(doc_id)
+        finally:
+            repo.close()
+        if doc is None:
+            raise HTTPException(status_code=404, detail=f"Document {doc_id} not found.")
+        p = Path(doc.file_path)
+        if not p.is_file():
+            raise HTTPException(status_code=404, detail="File not found on disk.")
+        return FileResponse(p, media_type="application/pdf", filename=p.name)
+
+    @app.delete("/api/documents/{doc_id}")
+    def delete_document(doc_id: str, request: Request) -> dict[str, bool]:
+        if auth_mode != "off" and _bearer_user(request) is None:
+            raise HTTPException(status_code=401, detail="Login required.")
+
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            doc = repo.get_document(doc_id)
+            if doc is None:
+                raise HTTPException(status_code=404, detail=f"Document {doc_id} not found.")
+            repo.delete_document(doc_id)
+        finally:
+            repo.close()
+        # Best-effort file removal.
+        if doc.file_path:
+            import contextlib
+
+            with contextlib.suppress(OSError):
+                Path(doc.file_path).unlink(missing_ok=True)
+        return {"ok": True}
 
     @app.get("/api/ops/status")
     def ops_status() -> dict[str, Any]:
@@ -545,22 +781,50 @@ def create_app(
     @app.post("/api/resume/build")
     def build_resume(req: BuildRequest) -> FileResponse:
         """Render a PDF and return it. 503 if the LaTeX engine isn't installed."""
+        from job_sentinel.db.repository import JobRepository
         from job_sentinel.documents import RenderError, build_resume_pdf
 
         profile = load_profile(profile_path)
         if profile.is_empty():
             raise HTTPException(status_code=400, detail="Profile is empty; create one first.")
 
+        tailor_result = None
         if req.job_description:
             tailor = _resolve_tailor(use_ai=req.ai)
-            profile = tailor.tailor(profile, req.job_description).profile
+            tailor_result = tailor.tailor(profile, req.job_description)
+            profile = tailor_result.profile
 
-        out = _DATA_DIR / "resume_api.pdf"
+        doc_id = uuid.uuid4().hex
+        out = _docs_dir / f"{doc_id}.pdf"
         try:
             pdf = build_resume_pdf(profile, out)
         except RenderError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        return FileResponse(pdf, media_type="application/pdf", filename="resume.pdf")
+
+        # Persist a GeneratedDocument record.
+        provider_str = _resolve_provider_str(use_ai=req.ai)
+        doc = GeneratedDocument(
+            id=doc_id,
+            kind=DocumentKind.RESUME,
+            file_path=str(pdf),
+            ats_score=tailor_result.score_pct if tailor_result else None,
+            provider=provider_str,
+            tailored=req.ai,
+            job_snippet=req.job_description[:300],
+        )
+        tex_candidate = pdf.with_suffix(".tex")
+        if tex_candidate.is_file():
+            doc.tex_path = str(tex_candidate)
+
+        repo = JobRepository(db_path)
+        try:
+            repo.create_document(doc)
+        finally:
+            repo.close()
+
+        file_resp = FileResponse(pdf, media_type="application/pdf", filename="resume.pdf")
+        file_resp.headers["X-Document-Id"] = doc_id
+        return file_resp
 
     @app.post("/api/chat", response_model=ChatReply)
     def chat(req: ChatRequest) -> ChatReply:
@@ -579,6 +843,7 @@ def create_app(
         """Render a cover-letter PDF. 503 if the LaTeX engine isn't installed."""
         from datetime import date
 
+        from job_sentinel.db.repository import JobRepository
         from job_sentinel.documents import (
             RenderError,
             build_cover_letter_pdf,
@@ -597,7 +862,8 @@ def create_app(
             job_description=req.job_description,
             client=client,
         )
-        out = _DATA_DIR / "cover_api.pdf"
+        doc_id = uuid.uuid4().hex
+        out = _docs_dir / f"{doc_id}.pdf"
         try:
             pdf = build_cover_letter_pdf(
                 profile,
@@ -609,7 +875,31 @@ def create_app(
             )
         except RenderError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
-        return FileResponse(pdf, media_type="application/pdf", filename="cover_letter.pdf")
+
+        provider_str = _resolve_provider_str(use_ai=req.ai)
+        doc = GeneratedDocument(
+            id=doc_id,
+            kind=DocumentKind.COVER_LETTER,
+            title=req.role,
+            employer=req.company,
+            file_path=str(pdf),
+            provider=provider_str,
+            tailored=req.ai,
+            job_snippet=req.job_description[:300],
+        )
+        tex_candidate = pdf.with_suffix(".tex")
+        if tex_candidate.is_file():
+            doc.tex_path = str(tex_candidate)
+
+        repo = JobRepository(db_path)
+        try:
+            repo.create_document(doc)
+        finally:
+            repo.close()
+
+        file_resp = FileResponse(pdf, media_type="application/pdf", filename="cover_letter.pdf")
+        file_resp.headers["X-Document-Id"] = doc_id
+        return file_resp
 
     return app
 
@@ -628,6 +918,19 @@ def _resolve_ollama() -> OllamaClient | None:
     cfg = LLMSettings()
     backend = build_chat_backend(cfg)
     return backend if (backend.available() and backend.ready()) else None  # type: ignore[return-value]
+
+
+def _resolve_provider_str(*, use_ai: bool) -> str:
+    """Return a human-readable provider/model string for document records."""
+    if not use_ai:
+        return "deterministic"
+    try:
+        from job_sentinel.config.settings import LLMSettings
+
+        cfg = LLMSettings()
+        return f"{cfg.chat_provider}/{cfg.chat_model_resolved}"
+    except Exception:
+        return "deterministic"
 
 
 def _resolve_tailor(*, use_ai: bool) -> Tailor:

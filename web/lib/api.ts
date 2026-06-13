@@ -486,6 +486,177 @@ export async function buildResume(jobDescription = "", ai = false): Promise<Buil
   }
 }
 
+// ── Application tracker ──────────────────────────────────────────────────────
+
+export type ApplicationStage =
+  | "saved"
+  | "applied"
+  | "interviewing"
+  | "offer"
+  | "rejected"
+  | "archived";
+
+export interface Application {
+  id: string;
+  title: string;
+  employer: string;
+  location: string;
+  url: string;
+  source: string;
+  stage: ApplicationStage;
+  salary: string;
+  applied_date: string;
+  deadline: string;
+  notes: string;
+  posting_id: string | null;
+  resume_document_id: string | null;
+  created_at: string;
+  updated_at: string;
+  raw_data: Record<string, unknown>;
+}
+
+export interface ApplicationCreateBody {
+  posting_id?: string;
+  title?: string;
+  employer?: string;
+  location?: string;
+  url?: string;
+  source?: string;
+  stage?: ApplicationStage;
+  salary?: string;
+  applied_date?: string;
+  deadline?: string;
+  notes?: string;
+  resume_document_id?: string | null;
+}
+
+export interface ApplicationPatch {
+  stage?: ApplicationStage;
+  notes?: string;
+  applied_date?: string;
+  deadline?: string;
+  salary?: string;
+  resume_document_id?: string | null;
+  title?: string;
+  employer?: string;
+  location?: string;
+  url?: string;
+  source?: string;
+}
+
+export type DocumentKind = "resume" | "cover_letter";
+
+export interface GeneratedDocument {
+  id: string;
+  kind: DocumentKind;
+  label: string;
+  title: string;
+  employer: string;
+  file_path: string;
+  tex_path: string | null;
+  ats_score: number | null;
+  provider: string;
+  tailored: boolean;
+  job_snippet: string;
+  application_id: string | null;
+  posting_id: string | null;
+  created_at: string;
+  raw_data: Record<string, unknown>;
+}
+
+/** List applications, optionally filtered by stage. */
+export function getApplications(
+  stage?: ApplicationStage,
+  limit = 200,
+): Promise<Application[]> {
+  const params = new URLSearchParams();
+  if (stage) params.set("stage", stage);
+  params.set("limit", String(limit));
+  return getJSON<Application[]>(`/api/applications?${params}`, []);
+}
+
+/** Create a new tracked application (from a posting or manually). */
+export async function createApplication(body: ApplicationCreateBody): Promise<Application | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/applications`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as Application;
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch a single application by id. */
+export function getApplication(id: string): Promise<Application | null> {
+  return getJSON<Application | null>(`/api/applications/${encodeURIComponent(id)}`, null);
+}
+
+/** Partially update a tracked application. */
+export async function updateApplication(
+  id: string,
+  patch: ApplicationPatch,
+): Promise<Application | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/applications/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(patch),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as Application;
+  } catch {
+    return null;
+  }
+}
+
+/** Delete a tracked application. Returns true on success. */
+export async function deleteApplication(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/applications/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Count of applications per stage plus total. */
+export function getApplicationStats(): Promise<Record<string, number>> {
+  return getJSON<Record<string, number>>("/api/applications/stats", {});
+}
+
+/** List generated documents, optionally filtered by kind. */
+export function getDocuments(kind?: DocumentKind, limit = 200): Promise<GeneratedDocument[]> {
+  const params = new URLSearchParams();
+  if (kind) params.set("kind", kind);
+  params.set("limit", String(limit));
+  return getJSON<GeneratedDocument[]>(`/api/documents?${params}`, []);
+}
+
+/** Return the URL that serves the PDF file for a document. */
+export function documentFileUrl(id: string): string {
+  return `${API_BASE}/api/documents/${encodeURIComponent(id)}/file`;
+}
+
+/** Delete a generated document record (and its file on disk). Returns true on success. */
+export async function deleteDocument(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Build a cover-letter PDF and return the bytes. */
 export async function buildCover(
   jobDescription = "",

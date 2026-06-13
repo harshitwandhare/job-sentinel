@@ -27,16 +27,25 @@ from typing import TYPE_CHECKING, Any, cast
 import sqlite_utils
 from loguru import logger
 
-from job_sentinel.core.models import ApplicationStatus, JobPosting
+from job_sentinel.core.models import (
+    Application,
+    ApplicationStage,
+    ApplicationStatus,
+    DocumentKind,
+    GeneratedDocument,
+    JobPosting,
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from sqlite_utils.db import Table
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 _TABLE = "job_postings"
 _META_TABLE = "sentinel_meta"
+_APP_TABLE = "applications"
+_DOC_TABLE = "generated_documents"
 
 
 class JobRepository:
@@ -111,6 +120,62 @@ class JobRepository:
             self._table(_TABLE).create_index(["source_adapter"], if_not_exists=True)
             logger.debug("job_postings table created")
 
+        self._ensure_applications_table()
+        self._ensure_documents_table()
+
+    def _ensure_applications_table(self) -> None:
+        if _APP_TABLE not in self._db.table_names():
+            self._table(_APP_TABLE).create(
+                {
+                    "id": str,
+                    "title": str,
+                    "employer": str,
+                    "location": str,
+                    "url": str,
+                    "source": str,
+                    "stage": str,
+                    "salary": str,
+                    "applied_date": str,
+                    "deadline": str,
+                    "notes": str,
+                    "posting_id": str,
+                    "resume_document_id": str,
+                    "created_at": str,
+                    "updated_at": str,
+                    "raw_data": str,  # JSON
+                },
+                pk="id",
+            )
+            self._table(_APP_TABLE).create_index(["stage"], if_not_exists=True)
+            self._table(_APP_TABLE).create_index(["created_at"], if_not_exists=True)
+            logger.debug("applications table created")
+
+    def _ensure_documents_table(self) -> None:
+        if _DOC_TABLE not in self._db.table_names():
+            self._table(_DOC_TABLE).create(
+                {
+                    "id": str,
+                    "kind": str,
+                    "label": str,
+                    "title": str,
+                    "employer": str,
+                    "file_path": str,
+                    "tex_path": str,
+                    "ats_score": float,
+                    "provider": str,
+                    "tailored": int,  # SQLite has no bool; 0/1
+                    "job_snippet": str,
+                    "application_id": str,
+                    "posting_id": str,
+                    "created_at": str,
+                    "raw_data": str,  # JSON
+                },
+                pk="id",
+            )
+            self._table(_DOC_TABLE).create_index(["kind"], if_not_exists=True)
+            self._table(_DOC_TABLE).create_index(["created_at"], if_not_exists=True)
+            logger.debug("generated_documents table created")
+
     def _get_meta(self, key: str) -> str | None:
         rows = list(self._table(_META_TABLE).rows_where("key = ?", [key]))
         return rows[0]["value"] if rows else None
@@ -120,9 +185,10 @@ class JobRepository:
 
     def _migrate(self, from_version: int) -> None:
         logger.info("Migrating DB schema v{} → v{}", from_version, SCHEMA_VERSION)
-        # Example future migration:
-        # if from_version < 2:
-        #     self._db[_TABLE].add_column("notes", str, not_null_default="")
+        if from_version < 2:
+            # Idempotent — only creates tables when they don't already exist.
+            self._ensure_applications_table()
+            self._ensure_documents_table()
         self._set_meta("schema_version", str(SCHEMA_VERSION))
 
     # ─────────────────────────────────────────────────────────────────────
@@ -242,6 +308,121 @@ class JobRepository:
         self._db.conn.close()
         logger.debug("Database connection closed")
 
+    # ─────────────────────────────────────────────────────────────────────
+    # Application CRUD
+    # ─────────────────────────────────────────────────────────────────────
+
+    def create_application(self, app: Application) -> Application:
+        """Persist a new Application row and return it."""
+        self._table(_APP_TABLE).insert(_app_to_row(app))
+        logger.debug("Application created | id={}", app.id)
+        return app
+
+    def get_application(self, app_id: str) -> Application | None:
+        """Fetch a single Application by id, or None."""
+        try:
+            row = self._table(_APP_TABLE).get(app_id)
+            return _app_from_row(dict(row))
+        except sqlite_utils.db.NotFoundError:
+            return None
+
+    def list_applications(
+        self,
+        stage: ApplicationStage | None = None,
+        limit: int = 200,
+    ) -> list[Application]:
+        """Return applications newest-first, optionally filtered by stage."""
+        if stage is not None:
+            rows = self._table(_APP_TABLE).rows_where(
+                "stage = ?",
+                [stage.value],
+                order_by="created_at DESC",
+                limit=limit,
+            )
+        else:
+            rows = self._table(_APP_TABLE).rows_where(
+                order_by="created_at DESC",
+                limit=limit,
+            )
+        return [_app_from_row(dict(r)) for r in rows]
+
+    def update_application(self, app_id: str, **fields: Any) -> bool:
+        """
+        Partially update an Application row.
+
+        Always bumps ``updated_at``.  Returns True if the row existed.
+        """
+        if self.get_application(app_id) is None:
+            return False
+        fields["updated_at"] = _now_iso()
+        # Coerce stage enum to its value string if passed.
+        if "stage" in fields and isinstance(fields["stage"], ApplicationStage):
+            fields["stage"] = fields["stage"].value
+        self._table(_APP_TABLE).update(app_id, fields)
+        return True
+
+    def delete_application(self, app_id: str) -> bool:
+        """Delete an application. Returns True if the row existed."""
+        if self.get_application(app_id) is None:
+            return False
+        self._table(_APP_TABLE).delete(app_id)
+        return True
+
+    def application_stats(self) -> dict[str, int]:
+        """Count of applications per stage, plus a 'total' key."""
+        counts: dict[str, int] = {s.value: 0 for s in ApplicationStage}
+        for row in self._db.execute(
+            f"SELECT stage, COUNT(*) AS cnt FROM {_APP_TABLE} GROUP BY stage"  # noqa: S608
+        ).fetchall():
+            counts[row[0]] = row[1]
+        counts["total"] = sum(counts.values())
+        return counts
+
+    # ─────────────────────────────────────────────────────────────────────
+    # GeneratedDocument CRUD
+    # ─────────────────────────────────────────────────────────────────────
+
+    def create_document(self, doc: GeneratedDocument) -> GeneratedDocument:
+        """Persist a new GeneratedDocument row and return it."""
+        self._table(_DOC_TABLE).insert(_doc_to_row(doc))
+        logger.debug("Document created | id={} kind={}", doc.id, doc.kind.value)
+        return doc
+
+    def get_document(self, doc_id: str) -> GeneratedDocument | None:
+        """Fetch a single GeneratedDocument by id, or None."""
+        try:
+            row = self._table(_DOC_TABLE).get(doc_id)
+            return _doc_from_row(dict(row))
+        except sqlite_utils.db.NotFoundError:
+            return None
+
+    def list_documents(
+        self,
+        kind: DocumentKind | None = None,
+        limit: int = 200,
+    ) -> list[GeneratedDocument]:
+        """Return documents newest-first, optionally filtered by kind."""
+        if kind is not None:
+            rows = self._table(_DOC_TABLE).rows_where(
+                "kind = ?",
+                [kind.value],
+                order_by="created_at DESC",
+                limit=limit,
+            )
+        else:
+            rows = self._table(_DOC_TABLE).rows_where(
+                order_by="created_at DESC",
+                limit=limit,
+            )
+        return [_doc_from_row(dict(r)) for r in rows]
+
+    def delete_document(self, doc_id: str) -> bool:
+        """Delete a document record. Returns True if the row existed."""
+        if self.get_document(doc_id) is None:
+            return False
+        self._table(_DOC_TABLE).delete(doc_id)
+        return True
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Serialisation helpers
@@ -297,3 +478,92 @@ def _parse_dt(value: str) -> datetime:
         return datetime.fromisoformat(value)
     except (ValueError, TypeError):
         return datetime.now(tz=UTC)
+
+
+# ── Application helpers ───────────────────────────────────────────────────────
+
+
+def _app_to_row(app: Application) -> dict[str, Any]:
+    return {
+        "id": app.id,
+        "title": app.title,
+        "employer": app.employer,
+        "location": app.location,
+        "url": app.url,
+        "source": app.source,
+        "stage": app.stage.value,
+        "salary": app.salary,
+        "applied_date": app.applied_date,
+        "deadline": app.deadline,
+        "notes": app.notes,
+        "posting_id": app.posting_id,
+        "resume_document_id": app.resume_document_id,
+        "created_at": app.created_at.isoformat(),
+        "updated_at": app.updated_at.isoformat(),
+        "raw_data": json.dumps(app.raw_data),
+    }
+
+
+def _app_from_row(row: dict[str, Any]) -> Application:
+    return Application(
+        id=row["id"],
+        title=row.get("title", ""),
+        employer=row.get("employer", ""),
+        location=row.get("location", ""),
+        url=row.get("url", ""),
+        source=row.get("source", ""),
+        stage=ApplicationStage(row.get("stage", ApplicationStage.SAVED.value)),
+        salary=row.get("salary", ""),
+        applied_date=row.get("applied_date", ""),
+        deadline=row.get("deadline", ""),
+        notes=row.get("notes", ""),
+        posting_id=row.get("posting_id") or None,
+        resume_document_id=row.get("resume_document_id") or None,
+        created_at=_parse_dt(row.get("created_at", "")),
+        updated_at=_parse_dt(row.get("updated_at", "")),
+        raw_data=json.loads(row.get("raw_data") or "{}"),
+    )
+
+
+# ── GeneratedDocument helpers ─────────────────────────────────────────────────
+
+
+def _doc_to_row(doc: GeneratedDocument) -> dict[str, Any]:
+    return {
+        "id": doc.id,
+        "kind": doc.kind.value,
+        "label": doc.label,
+        "title": doc.title,
+        "employer": doc.employer,
+        "file_path": doc.file_path,
+        "tex_path": doc.tex_path,
+        "ats_score": doc.ats_score,
+        "provider": doc.provider,
+        "tailored": 1 if doc.tailored else 0,
+        "job_snippet": doc.job_snippet,
+        "application_id": doc.application_id,
+        "posting_id": doc.posting_id,
+        "created_at": doc.created_at.isoformat(),
+        "raw_data": json.dumps(doc.raw_data),
+    }
+
+
+def _doc_from_row(row: dict[str, Any]) -> GeneratedDocument:
+    ats_raw = row.get("ats_score")
+    return GeneratedDocument(
+        id=row["id"],
+        kind=DocumentKind(row.get("kind", DocumentKind.RESUME.value)),
+        label=row.get("label", ""),
+        title=row.get("title", ""),
+        employer=row.get("employer", ""),
+        file_path=row.get("file_path", ""),
+        tex_path=row.get("tex_path") or None,
+        ats_score=float(ats_raw) if ats_raw is not None else None,
+        provider=row.get("provider", ""),
+        tailored=bool(row.get("tailored", 0)),
+        job_snippet=row.get("job_snippet", ""),
+        application_id=row.get("application_id") or None,
+        posting_id=row.get("posting_id") or None,
+        created_at=_parse_dt(row.get("created_at", "")),
+        raw_data=json.loads(row.get("raw_data") or "{}"),
+    )

@@ -19,6 +19,7 @@ Design note — why Pydantic v2 here instead of plain dataclasses?
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -162,6 +163,165 @@ class JobPosting(BaseModel):
         )
 
     model_config = {"frozen": False}  # allow touch() mutations
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Application tracker
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class ApplicationStage(StrEnum):
+    """
+    Lifecycle stages for a tracked job application (Huntr/Teal-style).
+
+    State machine is intentionally open-ended — the user drives transitions.
+    """
+
+    SAVED = "saved"
+    APPLIED = "applied"
+    INTERVIEWING = "interviewing"
+    OFFER = "offer"
+    REJECTED = "rejected"
+    ARCHIVED = "archived"
+
+
+class Application(BaseModel):
+    """
+    A tracked job application, either linked to a scraped JobPosting or entered
+    manually.
+
+    Attributes
+    ----------
+    id : str
+        UUID4 hex, primary key.
+    title : str
+        Job/position title.
+    employer : str
+        Company or department name.
+    location : str
+        Work location.
+    url : str
+        Direct link to the posting.
+    source : str
+        Where the application came from (e.g. "12twenty", "manual", "adzuna").
+    stage : ApplicationStage
+        Current stage in the application funnel.
+    salary : str
+        Salary range / offer (free-form).
+    applied_date : str
+        ISO date string when the user submitted the application.
+    deadline : str
+        Application deadline.
+    notes : str
+        Free-form notes.
+    posting_id : str | None
+        FK into job_postings.posting_id when created from a scraped posting.
+    resume_document_id : str | None
+        FK into generated_documents.id for the résumé used.
+    created_at : datetime
+        UTC timestamp of record creation.
+    updated_at : datetime
+        UTC timestamp of the most recent update.
+    raw_data : dict
+        Catch-all for extra fields.
+    """
+
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    title: str = Field(default="")
+    employer: str = Field(default="")
+    location: str = Field(default="")
+    url: str = Field(default="")
+    source: str = Field(default="")
+    stage: ApplicationStage = Field(default=ApplicationStage.SAVED)
+    salary: str = Field(default="")
+    applied_date: str = Field(default="")
+    deadline: str = Field(default="")
+    notes: str = Field(default="")
+    posting_id: str | None = Field(default=None)
+    resume_document_id: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    raw_data: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("title", "employer", "location", mode="before")
+    @classmethod
+    def _strip(cls, v: object) -> str:
+        return str(v).strip() if v else ""
+
+    def touch(self) -> None:
+        """Update ``updated_at`` to now (UTC)."""
+        object.__setattr__(self, "updated_at", datetime.now(tz=UTC))
+
+    model_config = {"frozen": False}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Generated document library
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class DocumentKind(StrEnum):
+    """The type of generated document."""
+
+    RESUME = "resume"
+    COVER_LETTER = "cover_letter"
+
+
+class GeneratedDocument(BaseModel):
+    """
+    A record of every résumé or cover-letter the engine builds.
+
+    Attributes
+    ----------
+    id : str
+        UUID4 hex, primary key.
+    kind : DocumentKind
+        Whether this is a résumé or cover letter.
+    label : str
+        Short user-visible label (optional).
+    title : str
+        Job title the document was tailored for.
+    employer : str
+        Company the document was tailored for.
+    file_path : str
+        Absolute or data-dir-relative path to the output PDF.
+    tex_path : str | None
+        Path to the intermediate .tex file, if kept.
+    ats_score : float | None
+        Keyword coverage score (0–100) from the tailor, if available.
+    provider : str
+        LLM provider/model used (e.g. "ollama/llama3"), or "deterministic".
+    tailored : bool
+        Whether an AI tailor was applied.
+    job_snippet : str
+        First ~300 chars of the JD used for tailoring.
+    application_id : str | None
+        FK into applications.id, if linked.
+    posting_id : str | None
+        FK into job_postings.posting_id, if linked.
+    created_at : datetime
+        UTC timestamp of generation.
+    raw_data : dict
+        Catch-all for extra metadata.
+    """
+
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    kind: DocumentKind = Field(default=DocumentKind.RESUME)
+    label: str = Field(default="")
+    title: str = Field(default="")
+    employer: str = Field(default="")
+    file_path: str = Field(default="")
+    tex_path: str | None = Field(default=None)
+    ats_score: float | None = Field(default=None)
+    provider: str = Field(default="")
+    tailored: bool = Field(default=False)
+    job_snippet: str = Field(default="")
+    application_id: str | None = Field(default=None)
+    posting_id: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=UTC))
+    raw_data: dict[str, Any] = Field(default_factory=dict)
+
+    model_config = {"frozen": False}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
