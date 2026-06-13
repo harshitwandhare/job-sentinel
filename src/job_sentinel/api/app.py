@@ -961,7 +961,15 @@ def create_app(
         try:
             pdf = build_resume_pdf(profile, out)
         except RenderError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            # Log the underlying LaTeX/subprocess error server-side; return a
+            # generic, actionable message so internal paths/traces never leak.
+            from loguru import logger as _log
+
+            _log.warning("PDF render failed: {}", exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Could not render the PDF — is the LaTeX engine (Tectonic) installed?",
+            ) from exc
 
         # Persist a GeneratedDocument record.
         provider_str = _resolve_provider_str(use_ai=req.ai)
@@ -1036,7 +1044,15 @@ def create_app(
                 today=date.today().strftime("%B %d, %Y"),
             )
         except RenderError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            # Log the underlying LaTeX/subprocess error server-side; return a
+            # generic, actionable message so internal paths/traces never leak.
+            from loguru import logger as _log
+
+            _log.warning("PDF render failed: {}", exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Could not render the PDF — is the LaTeX engine (Tectonic) installed?",
+            ) from exc
 
         provider_str = _resolve_provider_str(use_ai=req.ai)
         doc = GeneratedDocument(
