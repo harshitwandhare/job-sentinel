@@ -233,6 +233,12 @@ export default function ProfilePage() {
               Rendered live from <code className="font-mono text-xs">data/profile.yaml</code> — the
               same single source of truth the PDF engine prints.
             </p>
+            <a
+              href="/resumes"
+              className="mt-2 inline-block text-sm text-brand-400 underline-offset-2 hover:underline"
+            >
+              Browse generated résumés & cover letters →
+            </a>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {status && <span className="text-sm text-stone-300">{status}</span>}
