@@ -111,6 +111,39 @@ class CoverRequest(BaseModel):
     ai: bool = Field(default=False, description="Polish with the local LLM (if available)")
 
 
+class _SourceConfigKeys(BaseModel):
+    ADZUNA_APP_ID: str | None = None
+    ADZUNA_APP_KEY: str | None = None
+    ADZUNA_COUNTRY: str | None = None
+    USAJOBS_API_KEY: str | None = None
+    USAJOBS_EMAIL: str | None = None
+    THEMUSE_API_KEY: str | None = None
+
+
+class SourceConfigRequest(BaseModel):
+    enabled_sources: list[str] | None = None
+    keys: _SourceConfigKeys | None = None
+
+
+class SourceSearchRequest(BaseModel):
+    keywords: str = ""
+    location: str = ""
+    remote: bool | None = None
+    job_type: str = ""
+    salary_min: int | None = None
+    date_posted_days: int | None = None
+    radius_km: int | None = None
+    seniority: str = ""
+    company: str = ""
+    limit: int = Field(default=50, ge=1)
+    sources: list[str] | None = None  # restrict to specific source IDs
+
+
+class CompanyBoardRequest(BaseModel):
+    ats: str
+    slug: str
+
+
 class ApplicationCreateRequest(BaseModel):
     # From a tracked posting — if provided, fields are copied from it.
     posting_id: str | None = Field(default=None)
@@ -774,6 +807,135 @@ def create_app(
         elapsed_ms = int((time.monotonic() - start) * 1000)
         return {"ok": True, "detail": "ok", "latency_ms": elapsed_ms}
 
+    # ── Job Sources ───────────────────────────────────────────────────────────
+
+    @app.get("/api/sources")
+    def list_sources_status() -> dict[str, Any]:
+        """Return status info for every known job source."""
+        from job_sentinel.config.settings import get_settings
+        from job_sentinel.sources.registry import all_sources_status
+
+        settings = get_settings()
+        return {"sources": all_sources_status(settings)}
+
+    @app.put("/api/sources/config")
+    def put_sources_config(req: SourceConfigRequest, request: Request) -> dict[str, Any]:
+        """
+        Persist job-source settings to .env and return updated status.
+
+        API keys are written via _update_env_file — raw keys are never
+        echoed back; the response returns configured booleans only.
+        """
+        if auth_mode != "off" and _bearer_user(request) is None:
+            raise HTTPException(status_code=401, detail="Login required to change source config.")
+
+        from job_sentinel.config.settings import get_settings
+
+        updates: dict[str, str] = {}
+        if req.enabled_sources is not None:
+            updates["JOB_SOURCES_ENABLED"] = ",".join(req.enabled_sources)
+        if req.keys is not None:
+            keys_map = {
+                "ADZUNA_APP_ID": req.keys.ADZUNA_APP_ID,
+                "ADZUNA_APP_KEY": req.keys.ADZUNA_APP_KEY,
+                "ADZUNA_COUNTRY": req.keys.ADZUNA_COUNTRY,
+                "USAJOBS_API_KEY": req.keys.USAJOBS_API_KEY,
+                "USAJOBS_EMAIL": req.keys.USAJOBS_EMAIL,
+                "THEMUSE_API_KEY": req.keys.THEMUSE_API_KEY,
+            }
+            for env_key, val in keys_map.items():
+                if val is not None:
+                    updates[env_key] = val
+
+        if updates:
+            _update_env_file(updates)
+            get_settings.cache_clear()
+
+        return list_sources_status()
+
+    @app.post("/api/sources/search")
+    def sources_search(req: SourceSearchRequest) -> dict[str, Any]:
+        """
+        Search for jobs across enabled sources.
+
+        Results are ephemeral — not written to the DB. The user later
+        "tracks" one via POST /api/applications.
+        """
+        from job_sentinel.config.settings import get_settings
+        from job_sentinel.sources.base import JobQuery
+        from job_sentinel.sources.registry import build_enabled_sources
+        from job_sentinel.sources.search import aggregate_search
+
+        settings = get_settings()
+        capped_limit = min(req.limit, 100)
+
+        query = JobQuery(
+            keywords=req.keywords,
+            location=req.location,
+            remote=req.remote,
+            job_type=req.job_type,
+            salary_min=req.salary_min,
+            date_posted_days=req.date_posted_days,
+            radius_km=req.radius_km,
+            seniority=req.seniority,
+            company=req.company,
+            limit=capped_limit,
+        )
+
+        if req.sources:
+            # Restrict to explicitly requested source IDs
+            sources = []
+            for sid in req.sources:
+                try:
+                    instance = _instantiate_source_for_api(sid, settings)
+                    sources.append(instance)
+                except Exception as exc:
+                    from loguru import logger as _log
+
+                    _log.debug("Could not instantiate source '{}': {}", sid, exc)
+        else:
+            sources = build_enabled_sources(settings)
+
+        response = aggregate_search(query, sources)
+        return {
+            "results": [j.model_dump(mode="json") for j in response.results],
+            "errors": [e.model_dump() for e in response.errors],
+            "counts": response.counts,
+        }
+
+    @app.post("/api/sources/company")
+    def sources_company(req: CompanyBoardRequest) -> dict[str, Any]:
+        """Fetch all current openings from a company's public ATS board."""
+        from job_sentinel.sources.company_boards import SUPPORTED_ATS, fetch_company_board
+
+        ats = req.ats.strip().lower()
+        slug = req.slug.strip()
+
+        if not ats or not slug:
+            raise HTTPException(status_code=400, detail="Both 'ats' and 'slug' are required.")
+        if ats not in SUPPORTED_ATS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported ATS: {ats!r}. Supported: {sorted(SUPPORTED_ATS)}",
+            )
+
+        try:
+            jobs = fetch_company_board(ats, slug)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except Exception as exc:
+            # Log the cause server-side; return a generic message so internal
+            # detail (URLs, transport errors, traces) never reaches the client.
+            from loguru import logger as _log
+
+            _log.warning("Company board fetch failed for {}/{}: {}", ats, slug, exc)
+            raise HTTPException(
+                status_code=404,
+                detail=f"Could not fetch the {ats} board for {slug!r}.",
+            ) from exc
+
+        return {"results": [j.model_dump(mode="json") for j in jobs]}
+
     @app.post("/api/resume/tailor", response_model=TailorResult)
     def tailor_resume(req: TailorRequest) -> TailorResult:
         return KeywordTailor().tailor(load_profile(profile_path), req.job_description)
@@ -799,7 +961,15 @@ def create_app(
         try:
             pdf = build_resume_pdf(profile, out)
         except RenderError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            # Log the underlying LaTeX/subprocess error server-side; return a
+            # generic, actionable message so internal paths/traces never leak.
+            from loguru import logger as _log
+
+            _log.warning("PDF render failed: {}", exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Could not render the PDF — is the LaTeX engine (Tectonic) installed?",
+            ) from exc
 
         # Persist a GeneratedDocument record.
         provider_str = _resolve_provider_str(use_ai=req.ai)
@@ -874,7 +1044,15 @@ def create_app(
                 today=date.today().strftime("%B %d, %Y"),
             )
         except RenderError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            # Log the underlying LaTeX/subprocess error server-side; return a
+            # generic, actionable message so internal paths/traces never leak.
+            from loguru import logger as _log
+
+            _log.warning("PDF render failed: {}", exc)
+            raise HTTPException(
+                status_code=503,
+                detail="Could not render the PDF — is the LaTeX engine (Tectonic) installed?",
+            ) from exc
 
         provider_str = _resolve_provider_str(use_ai=req.ai)
         doc = GeneratedDocument(
@@ -902,6 +1080,13 @@ def create_app(
         return file_resp
 
     return app
+
+
+def _instantiate_source_for_api(source_id: str, settings: Any) -> Any:
+    """Instantiate a single source with keys from settings (used by sources_search)."""
+    from job_sentinel.sources.registry import _instantiate_source
+
+    return _instantiate_source(source_id, settings)
 
 
 def _resolve_ollama() -> OllamaClient | None:

@@ -51,6 +51,8 @@ app = typer.Typer(
 )
 db_app = typer.Typer(help="Database inspection commands.")
 app.add_typer(db_app, name="db")
+sources_app = typer.Typer(help="Search jobs from public APIs and ATS boards (no browser).")
+app.add_typer(sources_app, name="sources")
 resume_app = typer.Typer(help="Universal profile + resume generation.")
 app.add_typer(resume_app, name="resume")
 users_app = typer.Typer(help="Manage accounts for the (optional) authenticated API.")
@@ -1064,6 +1066,153 @@ def docs_rm(doc_id: str = typer.Argument(..., help="Document id to delete")) -> 
         with contextlib.suppress(OSError):
             Path(doc.file_path).unlink(missing_ok=True)
     console.print(f"[green]✓ Deleted[/] [cyan]{doc_id[:12]}[/]")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# sources — job-source search (HTTP/JSON APIs, no browser)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@sources_app.command("list")
+def sources_list() -> None:
+    """List all known job sources and their configuration status."""
+    from job_sentinel.config.settings import get_settings
+    from job_sentinel.sources.registry import all_sources_status
+
+    settings = get_settings()
+    statuses = all_sources_status(settings)
+
+    table = Table(title="Job Sources")
+    table.add_column("ID", style="cyan")
+    table.add_column("Label")
+    table.add_column("Enabled", justify="center")
+    table.add_column("Key?", justify="center")
+    table.add_column("Configured", justify="center")
+    table.add_column("Scraper?", justify="center")
+
+    for s in statuses:
+        table.add_row(
+            s["id"],
+            s["label"],
+            "[green]✓[/]" if s["enabled"] else "",
+            "[yellow]✓[/]" if s["requires_key"] else "",
+            "[green]✓[/]" if s["configured"] else "[red]✗[/]",
+            "[yellow]⚠[/]" if s["is_scraper"] else "",
+        )
+    console.print(table)
+
+
+@sources_app.command("search")
+def sources_search(
+    keywords: str = typer.Argument("", help="Job keywords to search for"),
+    location: str = typer.Option("", "--location", "-l", help="Location filter"),
+    remote: bool | None = typer.Option(None, "--remote/--no-remote", help="Remote filter"),
+    limit: int = typer.Option(20, "--limit", "-n", help="Max results to show"),
+    source: list[str] = typer.Option(  # noqa: B008
+        None, "--source", "-s", help="Restrict to this source ID (repeatable)"
+    ),
+) -> None:
+    """Search jobs from enabled public API sources (no browser needed)."""
+    from job_sentinel.config.settings import get_settings
+    from job_sentinel.sources.base import JobQuery
+    from job_sentinel.sources.registry import build_enabled_sources, get_source
+    from job_sentinel.sources.search import aggregate_search
+
+    settings = get_settings()
+    query = JobQuery(keywords=keywords, location=location, remote=remote, limit=limit)
+
+    if source:
+        active_sources = []
+        for sid in source:
+            try:
+                cls = get_source(sid)
+                active_sources.append(cls())
+            except Exception as exc:
+                console.print(f"[yellow]Unknown source {sid!r}:[/] {exc}")
+    else:
+        active_sources = build_enabled_sources(settings)
+
+    if not active_sources:
+        console.print("[yellow]No sources enabled.[/] Check [bold]sources list[/].")
+        raise typer.Exit(code=1)
+
+    console.print(f"Searching [cyan]{len(active_sources)}[/] source(s) for [bold]{keywords!r}[/]…")
+
+    response = aggregate_search(query, active_sources)
+
+    if response.errors:
+        for err in response.errors:
+            console.print(f"[yellow]Source {err.source} error:[/] {err.detail}")
+
+    if not response.results:
+        console.print("[yellow]No results found.[/]")
+        return
+
+    table = Table(title=f"Search Results ({len(response.results)} jobs)", show_lines=False)
+    table.add_column("Source", style="dim")
+    table.add_column("Title", style="bold")
+    table.add_column("Employer")
+    table.add_column("Location")
+    table.add_column("Posted")
+    table.add_column("URL", style="cyan", no_wrap=True)
+
+    for job in response.results:
+        table.add_row(
+            job.source_adapter,
+            job.title[:45],
+            job.employer[:25],
+            job.location[:20],
+            job.posted_date[:10] if job.posted_date else "-",
+            job.portal_url[:50] if job.portal_url else "-",
+        )
+    console.print(table)
+
+    counts_str = ", ".join(f"{k}:{v}" for k, v in response.counts.items() if v)
+    console.print(f"[dim]Counts: {counts_str}[/]")
+
+
+@sources_app.command("company")
+def sources_company(
+    ats: str = typer.Argument(..., help="ATS platform: greenhouse, lever, or ashby"),
+    slug: str = typer.Argument(..., help="Company slug (e.g. 'stripe', 'linear')"),
+) -> None:
+    """Fetch all open positions from a company's public ATS board."""
+    from job_sentinel.sources.company_boards import SUPPORTED_ATS, fetch_company_board
+
+    ats = ats.strip().lower()
+    if ats not in SUPPORTED_ATS:
+        console.print(
+            f"[red]Unsupported ATS:[/] {ats!r}. Supported: {', '.join(sorted(SUPPORTED_ATS))}"
+        )
+        raise typer.Exit(code=1)
+
+    console.print(f"Fetching [bold]{slug}[/] from [cyan]{ats}[/]…")
+    try:
+        jobs = fetch_company_board(ats, slug)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    if not jobs:
+        console.print("[yellow]No openings found.[/]")
+        return
+
+    table = Table(title=f"{slug} on {ats} ({len(jobs)} openings)")
+    table.add_column("Title", style="bold")
+    table.add_column("Location")
+    table.add_column("Type")
+    table.add_column("Posted")
+    table.add_column("URL", style="cyan")
+
+    for job in jobs:
+        table.add_row(
+            job.title[:50],
+            job.location[:25],
+            job.job_type[:20],
+            job.posted_date[:10] if job.posted_date else "-",
+            job.portal_url[:55] if job.portal_url else "-",
+        )
+    console.print(table)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

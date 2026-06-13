@@ -241,6 +241,125 @@ class LLMSettings(BaseSettings):
         return info.base_url if info else ""
 
 
+class JobSourceSettings(BaseSettings):
+    """
+    Pluggable job-source layer configuration.
+
+    enabled_sources: comma-separated list of source IDs to activate.
+    All secrets use repr=False so they never appear in logs or repr().
+    """
+
+    model_config = SettingsConfigDict(extra="ignore", env_file=_ENV_FILE, env_file_encoding="utf-8")
+
+    # NoDecode so pydantic-settings doesn't try JSON-decode a CSV value first
+    enabled_sources: Annotated[list[str], NoDecode] = Field(
+        default=["remoteok", "themuse", "arbeitnow", "himalayas"],
+        description="Comma-separated list of enabled job source IDs",
+        validation_alias="JOB_SOURCES_ENABLED",
+    )
+
+    @field_validator("enabled_sources", mode="before")
+    @classmethod
+    def _parse_sources_csv(cls, v: object) -> list[str]:
+        """Accept 'a,b,c' string OR a real list from the environment."""
+        if v is None or v == "":
+            return ["remoteok", "themuse", "arbeitnow", "himalayas"]
+        if isinstance(v, str):
+            return [s.strip() for s in v.split(",") if s.strip()]
+        if isinstance(v, Iterable):
+            return [str(item) for item in v]
+        return ["remoteok", "themuse", "arbeitnow", "himalayas"]
+
+    # ── Adzuna (free key — https://developer.adzuna.com) ─────────────────────
+    adzuna_app_id: str = Field(
+        default="",
+        repr=False,
+        validation_alias="ADZUNA_APP_ID",
+        description="Adzuna application ID (never logged)",
+    )
+    adzuna_app_key: str = Field(
+        default="",
+        repr=False,
+        validation_alias="ADZUNA_APP_KEY",
+        description="Adzuna application key (never logged)",
+    )
+    adzuna_country: str = Field(
+        default="us",
+        validation_alias="ADZUNA_COUNTRY",
+        description="Adzuna country code (default 'us')",
+    )
+
+    # ── USAJobs (free key — https://developer.usajobs.gov) ───────────────────
+    usajobs_api_key: str = Field(
+        default="",
+        repr=False,
+        validation_alias="USAJOBS_API_KEY",
+        description="USAJobs authorization key (never logged)",
+    )
+    usajobs_email: str = Field(
+        default="",
+        validation_alias="USAJOBS_EMAIL",
+        description="Email used as User-Agent for USAJobs API",
+    )
+
+    # ── The Muse (optional key raises rate limit) ─────────────────────────────
+    themuse_api_key: str = Field(
+        default="",
+        repr=False,
+        validation_alias="THEMUSE_API_KEY",
+        description="The Muse API key (optional; raises rate limit)",
+    )
+
+    # ── Reserved for future Apify integration ────────────────────────────────
+    apify_token: str = Field(
+        default="",
+        repr=False,
+        validation_alias="APIFY_TOKEN",
+        description="Apify API token (reserved for future use)",
+    )
+
+    # ── JobSpy scraper configuration ─────────────────────────────────────────
+    jobspy_sites: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        # default sites: indeed, zip_recruiter, glassdoor, google (set via JOBSPY_SITES)
+        description="Comma-separated list of sites for JobSpy",
+        validation_alias="JOBSPY_SITES",
+    )
+
+    @field_validator("jobspy_sites", mode="before")
+    @classmethod
+    def _parse_jobspy_sites(cls, v: object) -> list[str]:
+        if v is None or v == "":
+            return []
+        if isinstance(v, str):
+            return [s.strip() for s in v.split(",") if s.strip()]
+        if isinstance(v, Iterable):
+            return [str(item) for item in v]
+        return []
+
+    jobspy_country: str = Field(
+        default="USA",
+        validation_alias="JOBSPY_COUNTRY",
+        description="Country for JobSpy scraper (default 'USA')",
+    )
+    jobspy_proxies: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        description="Comma-separated proxy URLs for JobSpy",
+        validation_alias="JOBSPY_PROXIES",
+    )
+
+    @field_validator("jobspy_proxies", mode="before")
+    @classmethod
+    def _parse_jobspy_proxies(cls, v: object) -> list[str]:
+        if v is None or v == "":
+            return []
+        if isinstance(v, str):
+            return [p.strip() for p in v.split(",") if p.strip()]
+        if isinstance(v, Iterable):
+            return [str(item) for item in v]
+        return []
+
+
 class EmailSettings(BaseSettings):
     """Optional SMTP email notifier (a second alert channel alongside Telegram)."""
 
@@ -315,6 +434,7 @@ class Settings(BaseSettings):
     filters: FilterSettings = Field(default_factory=FilterSettings)
     email: EmailSettings = Field(default_factory=EmailSettings)
     logging: LogSettings = Field(default_factory=LogSettings)
+    job_sources: JobSourceSettings = Field(default_factory=JobSourceSettings)
 
     # ── Top-level ─────────────────────────────────────────────────────────
     site_adapter: str = Field(

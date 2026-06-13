@@ -79,6 +79,14 @@ web = [
   "uvicorn[standard]>=0.30",
   "python-multipart>=0.0.9",  # multipart/form-data parsing (resume upload)
 ]
+sources = [
+  # Opt-in scraper backend — scraping may violate target-site ToS; use deliberately
+  "python-jobspy>=1.1.79",
+]
+apify = [
+  # Reserved for future Apify cloud-actor integration
+  "apify-client>=1.7",
+]
 docs = [
   "mkdocs>=1.6",
   "mkdocs-material>=9.5",
@@ -184,7 +192,7 @@ mypy_path              = "src"
 plugins                = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["playwright.*", "apscheduler.*", "sqlite_utils.*", "telegram.*"]
+module = ["playwright.*", "apscheduler.*", "sqlite_utils.*", "telegram.*", "jobspy.*"]
 ignore_missing_imports = true
 
 # sqlite-utils ships no type information, so calls into it read as "untyped".
