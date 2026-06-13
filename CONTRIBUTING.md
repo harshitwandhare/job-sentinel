@@ -15,7 +15,7 @@ you need to submit high-quality pull requests.
 6. [Pull Request Process](#pull-request-process)
 7. [Adding a New Portal Adapter](#adding-a-new-portal-adapter)
 8. [Tests](#tests)
-9. [Style Guide](#style-guide)
+9. [Style Guide & Coding Standards](#style-guide)
 
 ---
 
@@ -229,14 +229,33 @@ Test categories:
 
 ## Style Guide
 
-- **Formatter**: `ruff format` (Black-compatible)
-- **Linter**: `ruff check` (replaces flake8 + isort + bandit)
-- **Type hints**: required on all public functions and methods
-- **Docstrings**: Google style for public APIs
-- **Line length**: 100 characters
-- **Imports**: `from __future__ import annotations` in every file
+All contributions **must** satisfy the following coding standards. CI enforces
+them automatically; PRs that fail any check will not be merged.
 
-All of this is enforced automatically by pre-commit + CI.
+### Required standards
+
+| Tool | Purpose | Config |
+|---|---|---|
+| `ruff format` | Code formatting (Black-compatible) | `pyproject.toml` |
+| `ruff check` | Linting — includes isort, flake8, bandit (S rules), pyupgrade, pathlib (PTH), SIM, N | `pyproject.toml` |
+| `mypy --strict` | Static type checking (strict mode) | `pyproject.toml` |
+| `pytest` (≥80 % coverage gate in CI) | Automated test suite | `.github/workflows/ci.yml` |
+
+Additional rules:
+- **Type hints**: required on all public functions, methods, and module-level constants
+- **Docstrings**: Google style for all public APIs
+- **Line length**: 100 characters maximum
+- **Imports**: `from __future__ import annotations` at the top of every Python file
+- **No direct commits to `main`**: all changes via pull request with at least one maintainer review
+- **New major functionality must include tests** (see [Tests](#tests) section)
+
+Run all checks locally before opening a PR:
+
+```bash
+uv run ruff check . && uv run ruff format --check . && uv run mypy src/ && uv run pytest
+```
+
+All of this is also enforced automatically by pre-commit + CI.
 
 ---
 
