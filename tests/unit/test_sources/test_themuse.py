@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 import httpx
 import respx
 
@@ -43,7 +45,9 @@ def test_themuse_parses_job() -> None:
     assert job.employer == "Data Co"
     assert job.location == "New York, NY"
     assert job.job_type == "Mid Level"
-    assert "themuse.com" in job.portal_url
+    # Host-anchored check (not a substring) so a URL like evil.com/themuse.com
+    # can't pass — also clears CodeQL's incomplete-URL-sanitization rule.
+    assert urlparse(job.portal_url).hostname in {"themuse.com", "www.themuse.com"}
 
 
 @respx.mock
