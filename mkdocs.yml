@@ -34,6 +34,7 @@ nav:
       - Deployment (all at $0): deployment.md
       - Telegram setup: api/telegram-setup.md
       - AI providers (BYO key): llm-providers.md
+      - Compliance & data protection: compliance.md
       - Releasing: RELEASING.md
   - Design:
       - North star: NORTH_STAR.md
@@ -44,6 +45,8 @@ nav:
   - Decisions (ADRs):
       - "001 — uv package manager": adr/001-use-uv-package-manager.md
       - "002–004 — design decisions": adr/002-004-design-decisions.md
+      - "005 — job-source layer": adr/005-job-source-layer.md
+      - "006 — AI personalization & data": adr/006-ai-personalization-and-data-strategy.md
   - Research:
       - Competitive analysis: research/competitive-analysis.md
       - Quality audit (2026-06): audit/2026-06-12-quality-audit.md
