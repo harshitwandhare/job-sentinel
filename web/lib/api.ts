@@ -657,6 +657,120 @@ export async function deleteDocument(id: string): Promise<boolean> {
   }
 }
 
+// ── Job Sources ───────────────────────────────────────────────────────────────
+
+export interface JobQuery {
+  keywords?: string;
+  location?: string;
+  remote?: boolean | null;
+  job_type?: string;
+  salary_min?: number | null;
+  date_posted_days?: number | null;
+  radius_km?: number | null;
+  seniority?: string;
+  company?: string;
+  limit?: number;
+  /** Restrict search to these source IDs only. */
+  sources?: string[];
+}
+
+export interface JobSourceStatus {
+  id: string;
+  label: string;
+  enabled: boolean;
+  requires_key: boolean;
+  is_scraper: boolean;
+  configured: boolean;
+  homepage: string;
+}
+
+export interface SourceError {
+  source: string;
+  detail: string;
+}
+
+export interface SearchResponse {
+  results: JobPosting[];
+  errors: SourceError[];
+  counts: Record<string, number>;
+}
+
+export interface SourceConfigKeys {
+  ADZUNA_APP_ID?: string;
+  ADZUNA_APP_KEY?: string;
+  ADZUNA_COUNTRY?: string;
+  USAJOBS_API_KEY?: string;
+  USAJOBS_EMAIL?: string;
+  THEMUSE_API_KEY?: string;
+}
+
+export interface SourceConfigBody {
+  enabled_sources?: string[];
+  keys?: SourceConfigKeys;
+}
+
+/** List all known job sources with their configuration status. */
+export function getSources(): Promise<{ sources: JobSourceStatus[] } | null> {
+  return getJSON<{ sources: JobSourceStatus[] } | null>("/api/sources", null);
+}
+
+/**
+ * Update enabled sources and/or API keys.
+ * Raw keys are never returned — response contains configured booleans only.
+ */
+export async function updateSourcesConfig(
+  body: SourceConfigBody,
+): Promise<{ sources: JobSourceStatus[] } | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/sources/config`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as { sources: JobSourceStatus[] };
+  } catch {
+    return null;
+  }
+}
+
+/** Search for jobs across enabled (or specified) sources. Results are ephemeral. */
+export async function searchJobs(query: JobQuery): Promise<SearchResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/sources/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(query),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as SearchResponse;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch all current openings from a company's public ATS board.
+ * @param ats  One of "greenhouse", "lever", "ashby".
+ * @param slug The company slug (e.g. "stripe", "linear").
+ */
+export async function fetchCompanyBoard(
+  ats: string,
+  slug: string,
+): Promise<{ results: JobPosting[] } | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/sources/company`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ ats, slug }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as { results: JobPosting[] };
+  } catch {
+    return null;
+  }
+}
+
 /** Build a cover-letter PDF and return the bytes. */
 export async function buildCover(
   jobDescription = "",
