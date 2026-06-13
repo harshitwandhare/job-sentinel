@@ -37,6 +37,7 @@ interface Item {
 
 const ITEMS: Item[] = [
   { label: "Home", hint: "Landing page", icon: Home, href: "/", group: "Navigate" },
+  { label: "Search", hint: "Find jobs across the web", icon: Search, href: "/search", group: "Navigate", keywords: "find jobs remote adzuna remoteok aggregate" },
   { label: "Chat", hint: "Ask Sentinel about your jobs", icon: MessageSquare, href: "/chat", group: "Navigate" },
   { label: "Profile", hint: "Your résumé, rendered live", icon: FileText, href: "/profile", group: "Navigate" },
   { label: "Studio", hint: "Tailor + score against a job description", icon: Wand2, href: "/studio", group: "Navigate" },

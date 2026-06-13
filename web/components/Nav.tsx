@@ -9,6 +9,7 @@ import { getAuthStatus, type AuthStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const links = [
+  { href: "/search", label: "Search" },
   { href: "/chat", label: "Chat" },
   { href: "/profile", label: "Profile" },
   { href: "/studio", label: "Studio" },
