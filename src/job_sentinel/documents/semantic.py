@@ -24,6 +24,7 @@ from job_sentinel.documents.tailor import KeywordTailor, TailorResult
 
 if TYPE_CHECKING:
     from job_sentinel.documents.embeddings import OllamaEmbedder
+    from job_sentinel.documents.providers import EmbedBackend
     from job_sentinel.documents.tailor import Tailor
     from job_sentinel.profile.models import Experience, Profile, Project
 
@@ -39,7 +40,7 @@ def _project_text(p: Project) -> str:
 class SemanticTailor:
     """Tailor that orders content by embedding similarity, atop the keyword tailor."""
 
-    def __init__(self, embedder: OllamaEmbedder, base: Tailor | None = None) -> None:
+    def __init__(self, embedder: OllamaEmbedder | EmbedBackend, base: Tailor | None = None) -> None:
         self._embedder = embedder
         self._base: Tailor = base or KeywordTailor()
 

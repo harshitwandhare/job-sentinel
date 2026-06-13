@@ -12,6 +12,7 @@ import {
   MessageSquare,
   Package,
   Search,
+  Settings,
   Wand2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -40,6 +41,7 @@ const ITEMS: Item[] = [
   { label: "Profile", hint: "Your résumé, rendered live", icon: FileText, href: "/profile", group: "Navigate" },
   { label: "Studio", hint: "Tailor + score against a job description", icon: Wand2, href: "/studio", group: "Navigate" },
   { label: "Jobs", hint: "Tracked postings & deadlines", icon: Briefcase, href: "/jobs", group: "Navigate", keywords: "deadlines tracked postings" },
+  { label: "Settings", hint: "LLM providers, API keys, model config", icon: Settings, href: "/settings", group: "Navigate", keywords: "llm model api key provider openrouter groq gemini ollama" },
   { label: "Sign in", hint: "Account / demo access", icon: LogIn, href: "/login", group: "Navigate", keywords: "login account" },
   {
     label: "GitHub",
@@ -154,7 +156,7 @@ export function CommandPalette() {
           animate={{ opacity: 1 }}
           exit={reduced ? undefined : { opacity: 0 }}
           transition={{ duration: 0.15 }}
-          className="fixed inset-0 z-[90] flex items-start justify-center bg-night/50 px-4 pt-[14vh] backdrop-blur-[3px]"
+          className="fixed inset-0 z-[90] flex items-start justify-center bg-night/70 px-4 pt-[14vh] backdrop-blur-sm"
           onMouseDown={() => setOpen(false)}
         >
           <motion.div
@@ -165,7 +167,7 @@ export function CommandPalette() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={reduced ? undefined : { opacity: 0, scale: 0.98, y: -10 }}
             transition={{ duration: 0.2, ease: [0.21, 0.65, 0.36, 1] }}
-            className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface/95 shadow-[0_24px_80px_-12px_rgba(12,10,9,0.45)] ring-1 ring-black/5 backdrop-blur-xl"
+            className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_24px_80px_-12px_rgba(12,10,9,0.55)] ring-1 ring-black/5"
             onMouseDown={(e) => e.stopPropagation()}
           >
             {/* Search header */}

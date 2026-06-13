@@ -344,6 +344,81 @@ export function stopWatcher(): Promise<StartResult> {
   return postJSON("/api/ops/watcher/stop", {});
 }
 
+// ── LLM provider config ──────────────────────────────────────────────────────
+
+export interface LlmSlotConfig {
+  provider: string;
+  model: string;
+  base_url: string;
+  api_key_set: boolean;
+  api_key_masked: string;
+}
+
+export interface LlmProviderInfo {
+  id: string;
+  label: string;
+  default_base_url: string;
+  requires_key: boolean;
+  supports_embeddings: boolean;
+}
+
+export interface LlmConfig {
+  chat: LlmSlotConfig;
+  embed: LlmSlotConfig;
+  providers: LlmProviderInfo[];
+}
+
+export interface LlmConfigBody {
+  chat: { provider: string; model: string; base_url: string; api_key?: string };
+  embed: { provider: string; model: string; base_url: string; api_key?: string };
+}
+
+export interface LlmTestResult {
+  ok: boolean;
+  detail: string;
+  latency_ms: number | null;
+}
+
+/** Fetch the current LLM provider config (chat + embed). Returns null if the API is down. */
+export function getLlmConfig(): Promise<LlmConfig | null> {
+  return getJSON<LlmConfig | null>("/api/llm/config", null);
+}
+
+/**
+ * Persist LLM provider config. Omit `api_key` to leave unchanged; pass `""` to clear.
+ * Returns the updated masked config, or null on failure.
+ */
+export async function putLlmConfig(body: LlmConfigBody): Promise<LlmConfig | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/llm/config`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as LlmConfig;
+  } catch {
+    return null;
+  }
+}
+
+/** Probe a chat or embedding slot. Returns {ok:false} on any transport failure. */
+export async function testLlm(target: "chat" | "embed"): Promise<LlmTestResult> {
+  try {
+    const res = await fetch(`${API_BASE}/api/llm/test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ target }),
+    });
+    if (!res.ok) return { ok: false, detail: `Request failed (${res.status})`, latency_ms: null };
+    return (await res.json()) as LlmTestResult;
+  } catch {
+    return { ok: false, detail: "Could not reach the API. Is `job-sentinel serve` running?", latency_ms: null };
+  }
+}
+
+// ── Auth ─────────────────────────────────────────────────────────────────────
+
 export interface AuthUser {
   username: string;
   is_admin: boolean;

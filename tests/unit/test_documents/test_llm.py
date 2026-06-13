@@ -34,6 +34,9 @@ class _FakeClient:
     def has_model(self) -> bool:
         return self._model
 
+    def ready(self) -> bool:
+        return self._model
+
     def chat_json(self, system: str, user: str) -> object:
         if isinstance(self._reply, Exception):
             raise self._reply

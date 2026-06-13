@@ -361,22 +361,182 @@ def create_app(
 
     @app.get("/api/llm/status")
     def llm_status() -> dict[str, Any]:
-        """Local-LLM health — the UI twin of `job-sentinel resume doctor`."""
+        """
+        LLM provider health snapshot.
+
+        Legacy keys (base_url, reachable, chat_model, chat_ready,
+        embed_model, embed_ready) are preserved for the existing web UI.
+        New keys (chat, embed sub-objects) expose the provider detail.
+        """
         from job_sentinel.config.settings import LLMSettings
-        from job_sentinel.documents.embeddings import OllamaEmbedder
-        from job_sentinel.documents.llm import OllamaClient
+        from job_sentinel.documents.providers import build_chat_backend, build_embed_backend
 
         cfg = LLMSettings()
-        client = OllamaClient(cfg.base_url, cfg.model)
-        reachable = client.available()
+        chat_be = build_chat_backend(cfg)
+        embed_be = build_embed_backend(cfg)
+
+        chat_reachable = chat_be.available()
+        chat_ready = chat_be.ready()
+        embed_reachable = embed_be.available()
+        embed_ready = embed_be.ready()
+
+        # Legacy keys — do NOT remove (web/studio uses them).
+        legacy_base = cfg.chat_base_url_resolved
         return {
-            "base_url": cfg.base_url,
-            "reachable": reachable,
-            "chat_model": cfg.model,
-            "chat_ready": reachable and client.has_model(),
-            "embed_model": cfg.embed_model,
-            "embed_ready": reachable and OllamaEmbedder(cfg.base_url, cfg.embed_model).available(),
+            "base_url": legacy_base,
+            "reachable": chat_reachable,
+            "chat_model": cfg.chat_model_resolved,
+            "chat_ready": chat_ready,
+            "embed_model": cfg.embed_model_resolved,
+            "embed_ready": embed_ready,
+            # New keys for the richer UI panel.
+            "chat": {
+                "provider": cfg.chat_provider,
+                "model": cfg.chat_model_resolved,
+                "base_url": cfg.chat_base_url_resolved,
+                "reachable": chat_reachable,
+                "ready": chat_ready,
+            },
+            "embed": {
+                "provider": cfg.embed_provider,
+                "model": cfg.embed_model_resolved,
+                "base_url": cfg.embed_base_url_resolved,
+                "reachable": embed_reachable,
+                "ready": embed_ready,
+            },
         }
+
+    @app.get("/api/llm/config")
+    def llm_config() -> dict[str, Any]:
+        """Return current LLM config (API keys masked, never raw)."""
+        from job_sentinel.config.settings import LLMSettings
+        from job_sentinel.documents.providers import PROVIDER_DEFAULTS
+
+        cfg = LLMSettings()
+        return {
+            "chat": {
+                "provider": cfg.chat_provider,
+                "model": cfg.chat_model_resolved,
+                "base_url": cfg.chat_base_url_resolved,
+                "api_key_set": bool(cfg.chat_api_key),
+                "api_key_masked": _mask_key(cfg.chat_api_key),
+            },
+            "embed": {
+                "provider": cfg.embed_provider,
+                "model": cfg.embed_model_resolved,
+                "base_url": cfg.embed_base_url_resolved,
+                "api_key_set": bool(cfg.embed_api_key),
+                "api_key_masked": _mask_key(cfg.embed_api_key),
+            },
+            "providers": [
+                {
+                    "id": pid,
+                    "label": info.label,
+                    "default_base_url": info.base_url,
+                    "requires_key": info.requires_key,
+                    "supports_embeddings": info.supports_embeddings,
+                }
+                for pid, info in PROVIDER_DEFAULTS.items()
+            ],
+        }
+
+    class _LLMSideInput(BaseModel):
+        provider: str = ""
+        model: str = ""
+        base_url: str = ""
+        api_key: str | None = None  # None = leave unchanged; "" = clear
+
+    class LLMConfigPutRequest(BaseModel):
+        chat: _LLMSideInput = _LLMSideInput()
+        embed: _LLMSideInput = _LLMSideInput()
+
+    class LLMTestRequest(BaseModel):
+        target: str  # "chat" | "embed"
+
+    @app.put("/api/llm/config")
+    def llm_config_put(req: LLMConfigPutRequest, request: Request) -> dict[str, Any]:
+        """
+        Persist LLM provider settings to .env (atomic write).
+
+        Only the LLM-related keys are touched; unrelated lines are preserved.
+        Clears the settings cache so the next request picks up the new values.
+        """
+        # Require auth for mutating config when auth is enabled.
+        if auth_mode != "off" and _bearer_user(request) is None:
+            raise HTTPException(status_code=401, detail="Login required to change LLM config.")
+        updates: dict[str, str] = {}
+        if req.chat.provider:
+            updates["CHAT_PROVIDER"] = req.chat.provider
+        if req.chat.model:
+            updates["CHAT_MODEL"] = req.chat.model
+        if req.chat.base_url is not None:
+            updates["CHAT_BASE_URL"] = req.chat.base_url
+        if req.chat.api_key is not None:
+            updates["CHAT_API_KEY"] = req.chat.api_key
+
+        if req.embed.provider:
+            updates["EMBED_PROVIDER"] = req.embed.provider
+        if req.embed.model:
+            updates["EMBED_MODEL"] = req.embed.model
+        if req.embed.base_url is not None:
+            updates["EMBED_BASE_URL"] = req.embed.base_url
+        if req.embed.api_key is not None:
+            updates["EMBED_API_KEY"] = req.embed.api_key
+
+        _update_env_file(updates)
+
+        from job_sentinel.config.settings import get_settings
+
+        get_settings.cache_clear()
+        return llm_config()
+
+    @app.post("/api/llm/test")
+    def llm_test(req: LLMTestRequest, request: Request) -> dict[str, Any]:
+        """
+        Live test of the configured chat or embed backend.
+
+        Builds the backend from the current saved config, makes a minimal
+        call, and returns {ok, detail, latency_ms}.  Never exposes secrets
+        in the detail message.
+        """
+        import time
+
+        if auth_mode != "off" and _bearer_user(request) is None:
+            raise HTTPException(status_code=401, detail="Login required to test LLM config.")
+        from job_sentinel.config.settings import LLMSettings
+        from job_sentinel.documents.providers import build_chat_backend, build_embed_backend
+
+        cfg = LLMSettings()
+        start = time.monotonic()
+        try:
+            if req.target == "chat":
+                backend = build_chat_backend(cfg)
+                if not backend.available():
+                    return {"ok": False, "detail": "Backend not reachable.", "latency_ms": None}
+                backend.chat(
+                    "You are a test assistant.", [{"role": "user", "content": "Say 'ok'."}]
+                )
+            elif req.target == "embed":
+                backend_e = build_embed_backend(cfg)
+                if not backend_e.available():
+                    return {
+                        "ok": False,
+                        "detail": "Embed backend not reachable.",
+                        "latency_ms": None,
+                    }
+                backend_e.embed(["ping"])
+            else:
+                return {
+                    "ok": False,
+                    "detail": "target must be 'chat' or 'embed'.",
+                    "latency_ms": None,
+                }
+        except Exception as exc:
+            # Never include the exception repr directly — it could contain API key fragments.
+            safe = type(exc).__name__
+            return {"ok": False, "detail": f"Request failed: {safe}", "latency_ms": None}
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        return {"ok": True, "detail": "ok", "latency_ms": elapsed_ms}
 
     @app.post("/api/resume/tailor", response_model=TailorResult)
     def tailor_resume(req: TailorRequest) -> TailorResult:
@@ -455,13 +615,19 @@ def create_app(
 
 
 def _resolve_ollama() -> OllamaClient | None:
-    """Return a ready OllamaClient if reachable with the model pulled, else None."""
+    """
+    Return a ready chat backend as an OllamaClient-compatible object, or None.
+
+    Uses the multi-provider factory so this path benefits from CHAT_PROVIDER /
+    CHAT_MODEL overrides while remaining backward-compatible with callers that
+    only need available() / has_model() / chat() / chat_json().
+    """
     from job_sentinel.config.settings import LLMSettings
-    from job_sentinel.documents.llm import OllamaClient
+    from job_sentinel.documents.providers import build_chat_backend
 
     cfg = LLMSettings()
-    client = OllamaClient(cfg.base_url, cfg.model)
-    return client if (client.available() and client.has_model()) else None
+    backend = build_chat_backend(cfg)
+    return backend if (backend.available() and backend.ready()) else None  # type: ignore[return-value]
 
 
 def _resolve_tailor(*, use_ai: bool) -> Tailor:
@@ -470,13 +636,69 @@ def _resolve_tailor(*, use_ai: bool) -> Tailor:
     if not use_ai:
         return base
     from job_sentinel.config.settings import LLMSettings
-    from job_sentinel.documents.llm import LLMTailor, OllamaClient
+    from job_sentinel.documents.llm import LLMTailor
+    from job_sentinel.documents.providers import build_chat_backend
 
     cfg = LLMSettings()
-    client = OllamaClient(cfg.base_url, cfg.model)
-    if client.available() and client.has_model():
-        return LLMTailor(client)
+    backend = build_chat_backend(cfg)
+    if backend.available() and backend.ready():
+        return LLMTailor(backend)
     return base
+
+
+def _mask_key(key: str) -> str:
+    """Return a masked representation: 'sk-…XXXX' or '' if unset."""
+    if not key:
+        return ""
+    if len(key) <= 8:
+        return "****"
+    return key[:3] + "…" + key[-4:]
+
+
+def _update_env_file(updates: dict[str, str]) -> None:
+    """
+    Atomically update or append LLM-related keys in the .env file.
+
+    Reads the existing file, updates only the specified keys, then writes
+    via a temp-file + rename to avoid partial writes.  Lines for unrelated
+    keys are preserved verbatim.
+    """
+    import os
+    import tempfile
+
+    from job_sentinel.config.settings import _ENV_FILE
+
+    env_path = Path(_ENV_FILE)
+    existing_lines: list[str] = []
+    if env_path.is_file():
+        existing_lines = env_path.read_text(encoding="utf-8").splitlines(keepends=True)
+
+    remaining = dict(updates)  # keys still to be written
+    new_lines: list[str] = []
+    for line in existing_lines:
+        stripped = line.strip()
+        if stripped.startswith("#") or "=" not in stripped:
+            new_lines.append(line)
+            continue
+        key = stripped.split("=", 1)[0].strip()
+        if key in remaining:
+            new_lines.append(f"{key}={remaining.pop(key)}\n")
+        else:
+            new_lines.append(line)
+
+    # Append any keys that weren't already in the file.
+    for key, value in remaining.items():
+        new_lines.append(f"{key}={value}\n")
+
+    # Atomic write via temp file in the same directory.
+    fd, tmp = tempfile.mkstemp(dir=env_path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.writelines(new_lines)
+        Path(tmp).replace(env_path)
+    except Exception:
+        Path(tmp).unlink(missing_ok=True)
+        raise
 
 
 app = create_app()

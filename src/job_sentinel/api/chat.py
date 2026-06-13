@@ -30,6 +30,7 @@ if TYPE_CHECKING:
 
     from job_sentinel.core.models import JobPosting
     from job_sentinel.documents.llm import OllamaClient
+    from job_sentinel.documents.providers import ChatBackend
     from job_sentinel.profile.models import Profile
 
 _MAX_CONTEXT_JOBS = 6
@@ -207,7 +208,7 @@ def answer(
     *,
     profile_path: Path,
     db_path: Path,
-    client_factory: Callable[[], OllamaClient | None] | None = None,
+    client_factory: Callable[[], OllamaClient | ChatBackend | None] | None = None,
 ) -> ChatReply:
     """
     Answer the latest user message. Deterministic for data; LLM for the rest.

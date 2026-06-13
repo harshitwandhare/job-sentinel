@@ -298,6 +298,19 @@ job-sentinel resume doctor --pull      # checks Ollama + pulls the model
 job-sentinel resume build --ai --job-text "paste a job description"
 ```
 
+### AI providers (bring your own key)
+
+Ollama is the zero-config default — no account, no key, fully offline. You can
+swap either the chat model or the embeddings model for any cloud provider
+(OpenRouter, Groq, Gemini, OpenAI) via the **Settings** page at
+`http://localhost:3000/settings` or by setting env vars in `.env`.
+Free tiers exist for OpenRouter, Groq, and Gemini. Groq is fast but does not
+support embeddings — pair it with Gemini or Ollama for that slot.
+
+See [docs/llm-providers.md](docs/llm-providers.md) for the full reference:
+env var names, per-provider setup, graceful-degradation behaviour, and the
+privacy/security posture.
+
 ---
 
 ## 🖥 Web UI
