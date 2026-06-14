@@ -589,9 +589,17 @@ def create_app(
         try:
             get_runner().start_login(timeout=req.timeout)
         except OpsConflictError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409,
+                detail="That operation can't run right now — another job is in progress "
+                "(or a login browser is open). Wait for it to finish, then retry.",
+            ) from exc
         except OpsConfigError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=503,
+                detail="Configuration error — check your .env (PORTAL_* / TELEGRAM_* "
+                "variables are required).",
+            ) from exc
         return {"started": True}
 
     @app.post("/api/ops/session/check")
@@ -600,9 +608,17 @@ def create_app(
         try:
             return get_runner().check_session()
         except OpsConflictError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409,
+                detail="That operation can't run right now — another job is in progress "
+                "(or a login browser is open). Wait for it to finish, then retry.",
+            ) from exc
         except OpsConfigError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=503,
+                detail="Configuration error — check your .env (PORTAL_* / TELEGRAM_* "
+                "variables are required).",
+            ) from exc
 
     @app.post("/api/ops/scrape")
     def ops_scrape(req: ScrapeRequest) -> dict[str, bool]:
@@ -610,9 +626,17 @@ def create_app(
         try:
             get_runner().start_scrape(send=req.send)
         except OpsConflictError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409,
+                detail="That operation can't run right now — another job is in progress "
+                "(or a login browser is open). Wait for it to finish, then retry.",
+            ) from exc
         except OpsConfigError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=503,
+                detail="Configuration error — check your .env (PORTAL_* / TELEGRAM_* "
+                "variables are required).",
+            ) from exc
         return {"started": True}
 
     @app.post("/api/ops/watcher/start")
@@ -621,9 +645,17 @@ def create_app(
         try:
             get_runner().start_watcher()
         except OpsConflictError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409,
+                detail="That operation can't run right now — another job is in progress "
+                "(or a login browser is open). Wait for it to finish, then retry.",
+            ) from exc
         except OpsConfigError as exc:
-            raise HTTPException(status_code=503, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=503,
+                detail="Configuration error — check your .env (PORTAL_* / TELEGRAM_* "
+                "variables are required).",
+            ) from exc
         return {"running": True}
 
     @app.post("/api/ops/watcher/stop")
@@ -632,7 +664,11 @@ def create_app(
         try:
             get_runner().stop_watcher()
         except OpsConflictError as exc:
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=409,
+                detail="That operation can't run right now — another job is in progress "
+                "(or a login browser is open). Wait for it to finish, then retry.",
+            ) from exc
         return {"running": False}
 
     @app.get("/api/llm/status")

@@ -9,22 +9,33 @@ extraction and ATS/match scoring (``href``, ``https``, ``h3`` showing up as
 "missing keywords"), and read badly in the UI. ``strip_html`` normalises text
 once, at the boundary, so everything downstream sees clean prose.
 
-URL removal is intentionally token-based (split on whitespace, drop link-ish
-tokens) rather than regex-based: a backtracking URL regex over attacker-
-controlled text is a ReDoS risk, and simple string checks are linear and clear.
+Implemented without regular expressions: tag stripping is a single linear scan
+and URL removal is token-based. Over attacker-controlled job text, that avoids
+any backtracking/ReDoS risk and keeps the behaviour obvious.
 """
 
 from __future__ import annotations
 
 import html
-import re
-
-# Negated char class — linear, no catastrophic backtracking.
-_TAG_RE = re.compile(r"<[^>]+>")
 
 # Bare-domain TLDs we treat as links. Deliberately omits ambiguous TLDs like
 # .net / .ai / .co so skills such as "asp.net" or "node.js" survive.
 _LINK_TLDS = (".com", ".org", ".io", ".app", ".dev", ".jobs")
+
+
+def _strip_tags(text: str) -> str:
+    """Remove ``<...>`` tags in one linear pass (no regex → no ReDoS)."""
+    out: list[str] = []
+    in_tag = False
+    for ch in text:
+        if ch == "<":
+            in_tag = True
+        elif ch == ">":
+            in_tag = False
+            out.append(" ")
+        elif not in_tag:
+            out.append(ch)
+    return "".join(out)
 
 
 def _is_urlish(token: str) -> bool:
@@ -32,7 +43,7 @@ def _is_urlish(token: str) -> bool:
     low = token.lower()
     if low.startswith(("http://", "https://", "www.")):
         return True
-    # A bare domain like "himalayas.app" — but not "node.js"/"asp.net".
+    # A bare domain like "himalayas.app" — but not "node.js" / "asp.net".
     core = low.rstrip(".,);:")
     return any(core.endswith(tld) for tld in _LINK_TLDS)
 
@@ -45,8 +56,7 @@ def strip_html(text: str) -> str:
     """
     if not text:
         return ""
-    no_tags = _TAG_RE.sub(" ", text)
-    unescaped = html.unescape(no_tags)
+    unescaped = html.unescape(_strip_tags(text))
     # str.split() with no args splits on any run of whitespace and drops empties,
     # so this both removes URL tokens and normalises whitespace in one pass.
     return " ".join(tok for tok in unescaped.split() if not _is_urlish(tok))
