@@ -40,4 +40,4 @@ Open <http://localhost:3000/jobs>.
 | **Tracking** | SQLite pipeline (new → seen → applied), deadline radar, keyword filters |
 | **Documents** | LaTeX → PDF résumés and cover letters, ATS keyword scoring, local-LLM tailoring, resume PDF import |
 | **Surfaces** | CLI, Telegram bot, FastAPI + Next.js web UI — full feature parity |
-| **Quality** | 280+ tests (≥80% gate), mypy --strict, ruff, ESLint + vitest, CodeQL, gitleaks, pip-audit, [OpenSSF Best Practices badge](https://www.bestpractices.dev/projects/13183) |
+| **Quality** | 450+ tests (≥80% gate), mypy --strict, ruff, ESLint + vitest, CodeQL, gitleaks, pip-audit, [OpenSSF Best Practices badge](https://www.bestpractices.dev/projects/13183) |

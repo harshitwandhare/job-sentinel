@@ -146,7 +146,7 @@ tested, and free, on hardware you already own.
 | **Session management** | `job-sentinel session` validity check; login prefills credentials from `.env` |
 | **Per-job documents** | One-click tailored résumé + cover letter PDFs from any tracked posting |
 | **Optional auth** | `AUTH_MODE=demo\|required`: PBKDF2 accounts, HMAC tokens, admin-managed invites |
-| **Production-grade** | `mypy --strict`, 280+ tests (80% gate), ESLint+vitest, OpenSSF Scorecard, reproducible `uv.lock` builds, Docker |
+| **Production-grade** | `mypy --strict`, 450+ tests (80% gate), ESLint+vitest, OpenSSF Scorecard, reproducible `uv.lock` builds, Docker |
 
 ---
 
@@ -511,7 +511,7 @@ job-sentinel/
 │   ├── components/            # AiMatch, DataTable, SearchResultCard, JobsExplorer,
 │   │                          #   ResumePaper, CommandPalette, Nav, ScraperControls…
 │   └── lib/                   # api.ts (typed client), demo.ts (NEXT_PUBLIC_DEMO)
-├── tests/                     # unit/ · integration/ · e2e/ (280+ tests)
+├── tests/                     # unit/ · integration/ · e2e/ (450+ tests)
 ├── docs/                      # MkDocs site: HLD, LLD, ADRs, llm-providers,
 │                              #   compliance, deployment, NORTH_STAR
 ├── .github/workflows/         # CI · Release · Docs · Scorecard
