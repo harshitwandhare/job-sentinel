@@ -1,0 +1,253 @@
+/* Job Sentinel — Clip to Track popup styles
+   Accent: emerald #059669 (matches the web app's Tailwind emerald-600).
+   Self-contained: no external fonts or frameworks. */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #1a1a1a;
+  background: #fff;
+  width: 320px;
+  min-height: 120px;
+}
+
+#app {
+  padding: 12px 14px 10px;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.logo {
+  border-radius: 4px;
+}
+
+.brand {
+  font-weight: 600;
+  font-size: 14px;
+  color: #059669;
+  letter-spacing: -0.01em;
+}
+
+/* ── States ─────────────────────────────────────────────── */
+
+.state {
+  margin-bottom: 6px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ── Loading ─────────────────────────────────────────────── */
+
+#state-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0 8px;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid #d1fae5;
+  border-top-color: #059669;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Source line ─────────────────────────────────────────── */
+
+.source-line {
+  font-size: 11px;
+  color: #6b7280;
+  margin-bottom: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Form fields ─────────────────────────────────────────── */
+
+.field {
+  margin-bottom: 7px;
+}
+
+.field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 2px;
+}
+
+.field input {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 13px;
+  color: #111827;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.field input:focus {
+  border-color: #059669;
+  box-shadow: 0 0 0 2px #d1fae5;
+}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+
+.btn-primary {
+  display: block;
+  width: 100%;
+  padding: 7px 0;
+  background: #059669;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background 0.15s;
+}
+
+.btn-primary:hover {
+  background: #047857;
+}
+
+.btn-primary:active {
+  background: #065f46;
+}
+
+.btn-primary:disabled {
+  background: #6ee7b7;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  display: inline-block;
+  padding: 6px 14px;
+  background: #f0fdf4;
+  color: #059669;
+  border: 1px solid #6ee7b7;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.btn-secondary:hover {
+  background: #d1fae5;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.btn-link:hover {
+  color: #374151;
+}
+
+/* ── Success state ───────────────────────────────────────── */
+
+#state-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0 8px;
+  text-align: center;
+}
+
+.success-icon {
+  width: 36px;
+  height: 36px;
+  background: #059669;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.success-msg {
+  font-weight: 600;
+  font-size: 14px;
+  color: #065f46;
+}
+
+/* ── Hint / error text ───────────────────────────────────── */
+
+.hint {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.error-msg {
+  font-size: 12px;
+  color: #dc2626;
+  margin-top: 5px;
+}
+
+/* ── Settings panel ──────────────────────────────────────── */
+
+.settings-row {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid #f3f4f6;
+  text-align: right;
+}
+
+.settings-panel {
+  margin-top: 6px;
+  padding: 8px 0 2px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.settings-panel .field {
+  margin-bottom: 6px;
+}
+
+#settings-saved {
+  margin-top: 4px;
+}

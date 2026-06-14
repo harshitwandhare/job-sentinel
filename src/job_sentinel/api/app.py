@@ -50,7 +50,13 @@ _DATA_DIR = Path(__file__).resolve().parents[3] / "data"
 # The local Next.js dev server (and a future packaged UI) call this API.
 # Next picks the next free port when 3000 is taken, so accept any localhost
 # port rather than a fixed list — the API still only binds to 127.0.0.1.
-_LOCAL_ORIGIN_REGEX = r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
+# Extension origins are also allowed so the browser extension can POST
+# directly to the local API without a CORS preflight failure.
+_LOCAL_ORIGIN_REGEX = (
+    r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
+    r"|chrome-extension://[a-p]{32}"
+    r"|moz-extension://[0-9a-f-]+"
+)
 
 
 class HealthResponse(BaseModel):
