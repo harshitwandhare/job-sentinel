@@ -3,6 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useMemo, useState } from "react";
 
+import { AiMatch } from "@/components/AiMatch";
 import { JobActions } from "@/components/JobActions";
 import { JobDocs } from "@/components/JobDocs";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
@@ -273,6 +274,8 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
                       .filter(Boolean)
                       .join("\n")}
                   />
+
+                  <AiMatch postingId={j.posting_id} />
 
                   {(d?.description || j.description_snippet) && (
                     <details className="group/details">

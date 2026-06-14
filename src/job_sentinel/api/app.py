@@ -36,6 +36,7 @@ from job_sentinel.core.models import (
     GeneratedDocument,
     JobPosting,
 )
+from job_sentinel.documents.match import MatchResult, match_profile_to_job
 from job_sentinel.documents.tailor import KeywordTailor, TailorResult
 from job_sentinel.profile import DEFAULT_PROFILE_PATH, Profile, load_profile, save_profile
 
@@ -81,6 +82,12 @@ class ProfileSummary(BaseModel):
 
 class TailorRequest(BaseModel):
     job_description: str = Field(min_length=1, description="The job text to tailor toward")
+
+
+class MatchRequest(BaseModel):
+    job_description: str | None = Field(default=None, description="Raw job-description text")
+    posting_id: str | None = Field(default=None, description="ID of a stored JobPosting to match")
+    ai: bool = Field(default=True, description="Generate an AI-grounded rationale (if available)")
 
 
 class BuildRequest(BaseModel):
@@ -939,6 +946,60 @@ def create_app(
     @app.post("/api/resume/tailor", response_model=TailorResult)
     def tailor_resume(req: TailorRequest) -> TailorResult:
         return KeywordTailor().tailor(load_profile(profile_path), req.job_description)
+
+    @app.post("/api/match", response_model=MatchResult)
+    def match_job(req: MatchRequest) -> MatchResult:
+        """
+        Score how well the stored profile fits a job.
+
+        Supply either ``job_description`` (raw text) or ``posting_id`` (loads
+        the stored JobPosting and extracts its description).  Returns a
+        :class:`MatchResult` with a blended ATS + semantic score, verdict,
+        and an optional AI-grounded rationale.
+        """
+        # ── Resolve job text ──────────────────────────────────────────────────
+        jd: str = ""
+        if req.posting_id:
+            from job_sentinel.db.repository import JobRepository
+
+            if not db_path.is_file():
+                raise HTTPException(status_code=404, detail="No job database yet.")
+            repo = JobRepository(db_path)
+            try:
+                job = repo.get_job(req.posting_id)
+            finally:
+                repo.close()
+            if job is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Posting {req.posting_id!r} not found.",
+                )
+            # Build text from all available fields — richer than snippet alone.
+            parts: list[str] = [job.title, job.employer, job.job_type]
+            raw_data = job.raw_data or {}
+            detail = raw_data.get("detail") or {}
+            if isinstance(detail, dict):
+                desc = detail.get("description") or ""
+                if desc:
+                    parts.append(str(desc))
+            if job.description_snippet:
+                parts.append(job.description_snippet)
+            jd = " ".join(p for p in parts if p)
+        elif req.job_description is not None:
+            jd = req.job_description.strip()
+
+        if not jd:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide a non-empty 'job_description' or a valid 'posting_id'.",
+            )
+
+        # ── Load profile ──────────────────────────────────────────────────────
+        profile = load_profile(profile_path)
+        if profile.is_empty():
+            raise HTTPException(status_code=400, detail="Profile is empty; create one first.")
+
+        return match_profile_to_job(profile, jd, use_ai=req.ai)
 
     @app.post("/api/resume/build")
     def build_resume(req: BuildRequest) -> FileResponse:
