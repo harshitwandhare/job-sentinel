@@ -57,7 +57,10 @@ def test_status_reports_config_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(ops_mod, "_load_settings", boom)
     snap = OpsRunner().status()
     assert snap["config_ok"] is False
-    assert "bad .env" in snap["config_error"]
+    # config_error is a fixed, safe hint (not the raw exception text) so the
+    # status endpoint never leaks exception detail.
+    assert ".env" in snap["config_error"]
+    assert "bad .env" not in snap["config_error"]
 
 
 # ── conflict rules ───────────────────────────────────────────────────────────
