@@ -25,6 +25,7 @@ import httpx
 from pydantic import BaseModel
 
 from job_sentinel.core.models import ApplicationStatus, JobPosting
+from job_sentinel.core.text import strip_html
 
 __all__ = ["JobPosting", "JobQuery", "JobSource", "SourceError"]
 
@@ -213,7 +214,7 @@ class JobSource(ABC):
             job_type=job_type or "",
             posted_date=posted_date or "",
             deadline=deadline or "",
-            description_snippet=description_snippet or "",
+            description_snippet=strip_html(description_snippet),
             portal_url=apply_url or "",
             status=ApplicationStatus.NEW,
             source_adapter=self.SOURCE_ID,

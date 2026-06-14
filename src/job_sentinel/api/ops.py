@@ -57,9 +57,12 @@ def _load_settings() -> Settings:
     try:
         settings = get_settings()
     except Exception as exc:  # pydantic ValidationError → readable message
+        # Log the underlying validation error server-side; keep the client
+        # message generic so internal detail/traces never reach the response.
+        logger.warning("Settings failed to load: {}", exc)
         msg = (
             "Settings could not load — check your .env (PORTAL_*/TELEGRAM_* "
-            f"variables are required). Underlying error: {exc}"
+            "variables are required)."
         )
         raise OpsConfigError(msg) from exc
 
