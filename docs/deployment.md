@@ -28,6 +28,30 @@ Cloudflare blocks. So the architecture is **local-first by design**:
 | Alerts                    | Telegram / email     | $0   |
 | AI tailoring / extraction | Ollama, local        | $0   |
 
+## One-command install
+
+After cloning the repo, a single script handles everything: Python version
+check, virtual-environment creation, `pip install -e ".[web]"`, Playwright
+Chromium download, `.env` bootstrap from `.env.example`, and (if Node is
+present) `npm install` for the web UI. It is idempotent — safe to re-run.
+
+**macOS / Linux**
+
+```bash
+bash scripts/install.sh
+```
+
+**Windows (PowerShell)**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+```
+
+Both scripts end with a next-steps banner covering `job-sentinel login`,
+`job-sentinel web`, and the URLs for the API and UI. The optional scraper
+extras (`[sources]`, `[apify]`) are *not* installed by default — the scripts
+tell you how to add them when needed.
+
 ## Your laptop as the server
 
 ```bash
