@@ -29,6 +29,23 @@ jobs:
       - name: Build sdist + wheel
         run: uv build
 
+      - name: Extract release notes from CHANGELOG
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # Pull the section for this version: lines between "## [x.y.z]" and the
+          # next "## [" heading. Uses index() (literal, no regex escaping) so it
+          # behaves the same across awk implementations. Falls back to a generic
+          # note if the section isn't found.
+          awk -v ver="$version" '
+            index($0, "## [" ver "]") == 1 { flag=1; next }
+            flag && index($0, "## [") == 1 { exit }
+            flag { print }
+          ' CHANGELOG.md | sed '/./,$!d' > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "Release $GITHUB_REF_NAME. See CHANGELOG.md for details." > RELEASE_NOTES.md
+          fi
+          echo "----- release notes -----"; cat RELEASE_NOTES.md
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -36,7 +53,7 @@ jobs:
           gh release create "${{ github.ref_name }}"
           dist/*
           --title "${{ github.ref_name }}"
-          --notes "Automated release for ${{ github.ref_name }}. See CHANGELOG.md for details."
+          --notes-file RELEASE_NOTES.md
 
       # Publishes to PyPI only when the PYPI_API_TOKEN secret is configured;
       # otherwise this step is skipped and the GitHub Release still succeeds.

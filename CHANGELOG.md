@@ -14,6 +14,76 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-06-14
+
+The release where Job Sentinel grows from a single-portal monitor into a full,
+local-first **career platform** — search, match, track, and tailor, end to end,
+on your own machine. Everything below ships typed (`mypy --strict`), tested
+(450+ tests), and CI-gated (lint, types, tests ×3, CodeQL, secret scan,
+supply-chain, license, web build).
+
+### Added
+
+- **Bring-your-own LLM providers.** Chat *and* embeddings now run on Ollama
+  (zero-config default) **or** any OpenAI-compatible provider — OpenAI,
+  OpenRouter, Groq, Gemini — configured independently. New `/settings` screen,
+  `GET/PUT /api/llm/config`, and `POST /api/llm/test`. Keys live only in your
+  local `.env`, are never logged, and are masked in the UI. No new runtime
+  dependency. See [`docs/llm-providers.md`](docs/llm-providers.md).
+- **Search jobs anywhere — a pluggable job-source layer.** Enabled by default
+  with no keys: RemoteOK, The Muse, Arbeitnow, Himalayas. Opt-in with a free
+  key: Adzuna, USAJobs. Opt-in scraper tier (off by default, ToS-disclaimed):
+  JobSpy. Plus **follow-companies** via public Greenhouse/Lever/Ashby boards.
+  Unified `JobQuery` filters, concurrent search with per-source failure
+  isolation + dedupe. New `/search` UI, `sources` CLI, and `/api/sources*`
+  routes. See [ADR 005](docs/adr/005-job-source-layer.md).
+- **Application tracker + document library.** New `applications` and
+  `generated_documents` tables (schema v2); a `/applications` pipeline table
+  (saved → applied → interviewing → offer → rejected → archived) with inline
+  stage editing, and a `/resumes` library of every generated résumé/cover letter
+  with ATS scores and provenance. `apps` and `docs` CLI groups; full CRUD API.
+- **RAG-grounded AI profile↔job match.** `POST /api/match` blends ATS keyword
+  coverage with semantic-embedding similarity and an optional, no-fabrication
+  LLM rationale (strengths/gaps), surfaced as an "AI match" affordance on job
+  cards. Personalization is retrieval over your own data — never fine-tuned into
+  weights, so it stays deletable. See [ADR 006](docs/adr/006-ai-personalization-and-data-strategy.md).
+- **Career dashboard** (`/dashboard`) — pipeline funnel, closing-soon deadlines,
+  source health, recent activity, quick actions.
+- **Clip-to-track browser extension** (Chrome/Firefox, Manifest V3, no build
+  step) — one click turns any posting into a tracked application via the local
+  API. Tracking only; never auto-submits. See [`extension/`](extension/).
+- **One-command installer** — `scripts/install.sh` and `scripts/install.ps1`
+  (venv, deps, Playwright Chromium, `.env` scaffold, next-steps banner).
+- **Hosted-demo mode** (`NEXT_PUBLIC_DEMO=1`) — every screen alive with bundled
+  sample data, so the public demo needs no backend.
+- **⌘K command palette**, the **profile rendered as a live résumé sheet**, and a
+  README screenshot gallery + launch-post drafts.
+- **Docs:** `compliance.md` (candidate-side tool; GDPR/CCPA posture), ADRs 005/006,
+  and refreshed README / CLAUDE / HLD / LLD / web-ui.
+
+### Changed
+
+- Packaging polished for PyPI: clearer description, `Development Status :: Beta`,
+  added Trove classifiers and keywords (twine-clean).
+- Navigation decluttered to four primary tabs + a "More" menu; all dropdowns
+  restyled to the theme; job cards reworked to a single action row.
+- Docs now publish via the GitHub Pages **artifact flow** (retired the
+  `gh-pages` branch, which was also breaking Vercel previews).
+- North Star refreshed — the v1.0 "intelligence & polish" scope is shipped.
+
+### Fixed
+
+- Vercel preview deployments no longer fail on the docs branch.
+- Command-palette cursor visibility and assorted UI spacing/polish.
+
+### Security
+
+- API responses and the ops status snapshot no longer surface exception/stack
+  text (closes `py/stack-trace-exposure`). HTML/text cleaner is regex-free
+  (no ReDoS). URL checks are host-anchored. CORS is tightened to localhost +
+  extension origins. Secrets are `repr`-hidden and never echoed. **CodeQL: 0
+  open alerts.**
+
 ## [0.8.0] — 2026-06-12
 
 ### Added
@@ -263,7 +333,11 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ---
 
-[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.8.0...v1.0.0
+[0.8.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/harshitwandhare/job-sentinel/compare/v0.3.1...v0.3.2
