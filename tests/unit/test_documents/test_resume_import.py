@@ -5,6 +5,8 @@ and the LLM-first path with a fake client.
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 import pytest
 
 from job_sentinel.documents.resume_import import (
@@ -73,7 +75,10 @@ def test_heuristic_extracts_basics() -> None:
     assert profile.basics.name == "Harshit Wandhare"
     assert profile.basics.email == "dal314006@utdallas.edu"
     assert "9307633967" in profile.basics.phone
-    assert any("linkedin.com" in link.url for link in profile.basics.links)
+    assert any(
+        urlparse(link.url).hostname in {"linkedin.com", "www.linkedin.com"}
+        for link in profile.basics.links
+    )
     assert profile.basics.links[0].url.startswith("https://")
     assert "Graduate student" in profile.basics.summary
 

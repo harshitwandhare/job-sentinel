@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING, Protocol
 
 from pydantic import BaseModel, Field
 
+from job_sentinel.core.text import strip_html
+
 # Runtime import (not TYPE_CHECKING): pydantic resolves the TailorResult.profile
 # field annotation at class-creation time, so the class must exist at runtime.
 from job_sentinel.profile.models import Profile  # noqa: TC001
@@ -44,8 +46,13 @@ _TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9+#.\-]{1,}")
 
 
 def extract_keywords(text: str) -> set[str]:
-    """Lowercased content tokens from ``text``, minus stopwords and short noise."""
-    tokens = (m.group(0).lower().strip(".-") for m in _TOKEN_RE.finditer(text or ""))
+    """Lowercased content tokens from ``text``, minus stopwords and short noise.
+
+    HTML/URLs are stripped first so markup tokens (``href``, ``https``, ``h3``)
+    from source descriptions never count as keywords.
+    """
+    cleaned = strip_html(text or "")
+    tokens = (m.group(0).lower().strip(".-") for m in _TOKEN_RE.finditer(cleaned))
     return {t for t in tokens if len(t) >= 2 and t not in _STOPWORDS}
 
 
