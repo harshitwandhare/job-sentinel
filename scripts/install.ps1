@@ -85,12 +85,13 @@ $npm = Get-Command "npm" -ErrorAction SilentlyContinue
 if ($npm) {
     $npmVer = & npm --version 2>&1
     Write-Info "npm found: $npmVer — installing web dependencies"
-    & npm --prefix (Join-Path $RepoRoot "web") install
+    # `npm ci` installs the exact locked versions from package-lock.json.
+    & npm --prefix (Join-Path $RepoRoot "web") ci
     Write-Info "web/ dependencies installed"
 } else {
     Write-Warn "npm not found — skipping web UI install."
     Write-Warn "Install Node.js 18+ from https://nodejs.org, then run:"
-    Write-Warn "  npm --prefix web install"
+    Write-Warn "  npm --prefix web ci"
     Write-Warn "(The CLI and API work without Node.)"
 }
 
