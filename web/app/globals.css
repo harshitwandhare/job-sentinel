@@ -19,11 +19,53 @@
 
 html {
   scroll-behavior: smooth;
+  /* Clip decorative overflow (hero glow, marquee, cursor) so phones never get a
+     horizontal scrollbar / blank gutter. `clip` (not `hidden`) keeps the sticky
+     nav working. */
+  overflow-x: clip;
 }
 
 body {
   @apply bg-bg text-ink antialiased;
   text-rendering: optimizeLegibility;
+  overflow-x: clip;
+  max-width: 100%;
+}
+
+/* Legal / policy page typography (no @tailwindcss/typography dependency). */
+.legal-prose {
+  @apply text-[15px] leading-relaxed text-muted;
+}
+.legal-prose h2 {
+  @apply mb-3 mt-10 text-xl font-semibold tracking-tight text-ink;
+}
+.legal-prose h3 {
+  @apply mb-2 mt-6 text-base font-semibold text-ink;
+}
+.legal-prose p {
+  @apply my-3;
+}
+.legal-prose ul {
+  @apply my-3 list-disc space-y-1.5 pl-5 marker:text-muted;
+}
+.legal-prose a {
+  @apply text-brand underline-offset-2 hover:underline;
+}
+.legal-prose strong {
+  @apply font-semibold text-ink;
+}
+.legal-prose code {
+  @apply rounded bg-bg px-1.5 py-0.5 font-mono text-[13px] text-ink;
+}
+.legal-prose table {
+  @apply my-4 w-full border-collapse text-sm;
+}
+.legal-prose th,
+.legal-prose td {
+  @apply border border-line px-3 py-2 text-left align-top;
+}
+.legal-prose th {
+  @apply bg-bg font-medium text-ink;
 }
 
 /* Accessible focus everywhere (keyboard users) */
