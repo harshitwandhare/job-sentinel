@@ -4,7 +4,7 @@
 
 # Job Sentinel
 
-> **Site-agnostic job-portal monitor with pluggable adapters and instant Telegram alerts.**
+> **Local-first career platform: multi-source job search, AI profile↔job match, application tracker, and ATS-tuned résumé generation — all on your own hardware.**
 
 [![CI](https://github.com/harshitwandhare/job-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/harshitwandhare/job-sentinel/actions/workflows/ci.yml)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13183/badge)](https://www.bestpractices.dev/projects/13183)
@@ -25,13 +25,16 @@
   <img src=".github/assets/demo-hero.gif" alt="Job Sentinel landing page with a live terminal replay of a real session: session check, scrape, AI resume build" width="800" />
 </p>
 
-Job Sentinel watches your university job portals, alerts you on Telegram the
-moment a posting appears, and generates **ATS-ready résumés and cover letters
-tailored to each role by a local LLM** — no API keys, no data leaving your
-machine.
+Job Sentinel watches your university job portals, aggregates listings from
+public job APIs, tracks your applications, and generates **ATS-ready résumés
+and cover letters tailored to each role** — entirely on your own machine. No
+API keys required for the defaults, no data leaving your hardware.
 
-It ships with adapters for **UTD 12twenty** and **Handshake**; adding a new
-portal takes one file and ~50 lines of Python.
+It ships with adapters for **UTD 12twenty** and **Handshake**, four no-key job
+sources (RemoteOK, The Muse, Arbeitnow, Himalayas), two opt-in keyed sources
+(Adzuna, USAJobs), company-board fetchers (Greenhouse/Lever/Ashby), and a
+multi-provider LLM layer you can point at Ollama, OpenRouter, Groq, Gemini, or
+OpenAI. Adding a new portal adapter takes one file and ~50 lines of Python.
 
 > **🌐 Hosted demo vs. running locally** — the
 > [live demo](https://job-sentinel.vercel.app) shows the interface, but the
@@ -61,6 +64,9 @@ opposite architecture:
 | Open source | ✅ MIT | ❌ | partly | ✅ |
 | Data stays on your machine | ✅ by design | ❌ | ❌ cloud LLM keys | ❌ usually |
 | Portal monitoring + alerts | ✅ | ❌ | ❌ | ❌ |
+| Multi-source job search | ✅ 7+ sources | ❌ or limited | ❌ | ❌ |
+| Application tracker | ✅ full CRUD | ✅ cloud | ❌ | ❌ |
+| AI profile↔job match | ✅ local + BYO | ✅ cloud | ✅ cloud | ❌ |
 | Tailored ATS documents | ✅ local LLM | ✅ cloud | ✅ cloud | ✅ cloud |
 | Account-ban risk | none — you apply | none | **high** (ToS) | none |
 | Cost | $0 forever | freemium | API costs | $0 + API keys |
@@ -78,6 +84,7 @@ tested, and free, on hardware you already own.
 - [Configuration](#%EF%B8%8F-configuration)
 - [Bot Commands](#-bot-commands)
 - [Résumé Generator](#-résumé-generator)
+- [AI Providers](#optional-ai-providers-bring-your-own-key)
 - [Web UI](#-web-ui)
 - [Adding a New Portal](#-adding-a-new-portal)
 - [Development](#-development)
@@ -94,11 +101,17 @@ tested, and free, on hardware you already own.
 
 | Feature | Details |
 |---|---|
-| **Pluggable adapters** | One Python file per portal — no core changes needed |
+| **Pluggable portal adapters** | One Python file per portal — no core changes needed |
+| **Multi-source job search** | Aggregate across RemoteOK, The Muse, Arbeitnow, Himalayas (no key); Adzuna, USAJobs (opt-in keyed); JobSpy scraper; Greenhouse/Lever/Ashby company boards |
+| **AI profile↔job match** | Blended ATS keyword + semantic embedding + optional LLM rationale; `POST /api/match` |
+| **Application tracker** | Kanban-style pipeline (saved → applied → interviewing → offer/rejected); full CRUD via CLI, API, and web |
+| **Document library** | Generated résumés and cover letters persisted with ATS scores; browse, download, or delete from the UI |
+| **Dashboard** | At-a-glance funnel stats, recent activity, and quick-action cards |
 | **Telegram bot** | Rich alerts + commands (`/jobs`, `/applied`, `/stats`, `/deadlines`, …) |
 | **Résumé engine** | Universal profile → ATS-friendly LaTeX/PDF, tailored per posting |
-| **Local-LLM tailoring** | Optional Ollama rephrasing — no API key, nothing leaves your machine |
-| **Web UI** | Next.js + Tailwind app: profile editor, résumé studio, jobs board |
+| **BYO-LLM providers** | Ollama (local, default), OpenAI, OpenRouter, Groq, Gemini, or any custom OpenAI-compatible endpoint — swap per `.env` or the Settings page |
+| **Web UI** | Next.js + Tailwind app: dashboard, job search, applications, résumé library, settings, profile editor, studio, jobs board, chat, ⌘K palette |
+| **Hosted demo mode** | `NEXT_PUBLIC_DEMO=1` — every screen alive with realistic sample data; no backend needed |
 | **One-command web app** | `job-sentinel web` starts FastAPI + Next.js together |
 | **Local API** | FastAPI layer (`job-sentinel serve`) the UI consumes — one source of truth |
 | **Email + Telegram alerts** | Two notifier channels; email is optional SMTP |
@@ -116,23 +129,37 @@ tested, and free, on hardware you already own.
 ## 🏗 Architecture
 
 ```
-┌────────────────────────────────────────────────────────────────┐
-│                        Job Sentinel                            │
-│                                                                │
-│  ┌──────────────┐    ┌─────────────┐    ┌──────────────────┐  │
-│  │   Scheduler  │───▶│   Adapter   │───▶│  JobRepository   │  │
-│  │  (APScheduler│    │  (Playwright│    │  (sqlite-utils)  │  │
-│  │   background)│    │   + site    │    │                  │  │
-│  └──────┬───────┘    │   plugin)   │    └──────────────────┘  │
-│         │            └─────────────┘             │            │
-│         │                                        │            │
-│         ▼                                        ▼            │
-│  ┌──────────────┐                    ┌──────────────────────┐ │
-│  │   Telegram   │◀───────────────────│   Bot Handlers       │ │
-│  │   Notifier   │   alerts + cmds    │  (python-telegram-   │ │
-│  │   (httpx)    │                    │   bot v21, async)    │ │
-│  └──────────────┘                    └──────────────────────┘ │
-└────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                             Job Sentinel                                │
+│                                                                         │
+│  ┌──────────────┐   ┌───────────────┐   ┌──────────────────────────┐   │
+│  │   Scheduler  │──▶│  SiteAdapter  │──▶│     JobRepository        │   │
+│  │ (APScheduler)│   │  (Playwright) │   │  (sqlite-utils, SQLite)  │   │
+│  └──────┬───────┘   └───────────────┘   │  job_postings            │   │
+│         │                               │  applications            │   │
+│         ▼                               │  generated_documents     │   │
+│  ┌──────────────┐                       └──────────────────────────┘   │
+│  │  Notifiers   │  ┌────────────────────────────────────────────────┐  │
+│  │ Telegram/    │  │              FastAPI (local API)               │  │
+│  │ Email        │  │  profile · jobs · match · applications ·       │  │
+│  └──────────────┘  │  documents · sources · llm/config · ops        │  │
+│                    └────────────────┬───────────────────────────────┘  │
+│  ┌──────────────┐                   │                                  │
+│  │ Job Sources  │                   ▼                                  │
+│  │ (HTTP/JSON)  │   ┌──────────────────────────────────────────────┐  │
+│  │ RemoteOK     │   │         Next.js Web UI (localhost:3000)      │  │
+│  │ The Muse     │   │  dashboard · search · applications · resumes │  │
+│  │ Arbeitnow    │   │  settings · jobs · profile · studio · chat   │  │
+│  │ Himalayas    │   └──────────────────────────────────────────────┘  │
+│  │ Adzuna …     │                                                      │
+│  └──────────────┘   ┌──────────────────────────────────────────────┐  │
+│                     │     LLM Provider Layer (documents/providers)  │  │
+│  ┌──────────────┐   │  OllamaBackend · OpenAICompatClient           │  │
+│  │ Company ATS  │   │  (OpenAI / OpenRouter / Groq / Gemini /      │  │
+│  │ Greenhouse   │   │   custom) · build_chat_backend/embed_backend  │  │
+│  │ Lever · Ashby│   └──────────────────────────────────────────────┘  │
+│  └──────────────┘                                                      │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 See [docs/design/HLD.md](docs/design/HLD.md) for the full High-Level Design
@@ -328,11 +355,24 @@ job-sentinel serve                     # API only — Swagger at /docs
 cd web && npm install && npm run dev   # UI only
 ```
 
-Pages: an animated landing (with a self-typing terminal replay of a real
-session), a **profile editor** with resume-PDF import, a **résumé studio**
-(paste a JD → live ATS coverage → tailored PDF, local-LLM toggle), a **jobs
-board** with per-posting résumé/cover-letter generation, scraper controls and
-session checks, and the **Sentinel chat assistant**.
+| Page | URL | What it does |
+|---|---|---|
+| Landing | `/` | Animated intro with a self-typing terminal session replay |
+| Dashboard | `/dashboard` | Funnel stats, recent applications, and quick-action cards |
+| Job Search | `/search` | Keyword search across enabled job sources; track results with one click |
+| Applications | `/applications` | Kanban-style application pipeline (saved → offer/rejected) |
+| Résumé Library | `/resumes` | Browse, download, and delete generated résumés and cover letters |
+| Settings | `/settings` | BYO-LLM provider config + job-source management; live test buttons |
+| Profile | `/profile` | View and edit your universal profile (education, experience, projects…) |
+| Profile Edit | `/profile/edit` | Full section editor + résumé-PDF import |
+| Jobs Board | `/jobs` | Tracked portal postings; per-posting résumé/cover-letter generation |
+| Résumé Studio | `/studio` | Paste a JD → live ATS coverage + AI match → tailored PDF |
+| Chat | `/chat` | Sentinel assistant: answers from your real data, local LLM for the rest |
+| Login | `/login` | Auth gate (when `AUTH_MODE=demo\|required`) |
+
+The **⌘K command palette** (`CommandPalette`) is always available for fast
+navigation. **Hosted-demo mode** (`NEXT_PUBLIC_DEMO=1`) populates every screen
+with realistic sample data so visitors can explore without a running backend.
 
 | Jobs board — real scraped postings, one-click tailored documents | Résumé studio — paste a JD, get ATS coverage + a one-page PDF |
 |---|---|
@@ -424,19 +464,32 @@ job-sentinel/
 ├── src/job_sentinel/
 │   ├── adapters/              # Plugin system: base interface, registry,
 │   │   └── sites/             #   12twenty + Handshake adapters
-│   ├── api/                   # FastAPI layer: routes, ops runner, auth
+│   ├── api/                   # FastAPI layer: routes, ops runner, auth, chat
 │   ├── bot/                   # Telegram command handlers
 │   ├── config/                # pydantic-settings config + loguru setup
-│   ├── core/                  # Browser, models, scheduler, session workflows
-│   ├── db/                    # sqlite-utils repository
+│   ├── core/                  # Browser, models (JobPosting/Application/
+│   │                          #   GeneratedDocument), scheduler, session, text
+│   ├── db/                    # sqlite-utils repository (schema v2)
 │   ├── documents/             # Resume engine: LaTeX, tailoring, LLM,
-│   │                          #   embeddings, cover letters, PDF import
+│   │                          #   embeddings, cover letters, PDF import,
+│   │                          #   providers (ChatBackend/EmbedBackend), match
 │   ├── notifiers/             # Telegram (MarkdownV2) + SMTP email
 │   ├── profile/               # Universal profile models + YAML store
+│   ├── sources/               # Pluggable job-source layer: JobSource ABC,
+│   │                          #   registry, aggregate_search; RemoteOK / The Muse /
+│   │                          #   Arbeitnow / Himalayas / Adzuna / USAJobs / JobSpy;
+│   │                          #   company_boards (Greenhouse/Lever/Ashby)
 │   └── __main__.py            # Typer CLI entry-point
 ├── web/                       # Next.js UI (App Router, Tailwind, vitest)
+│   ├── app/                   # page.tsx per route (landing, dashboard, search,
+│   │                          #   applications, resumes, settings, jobs, profile,
+│   │                          #   studio, chat, login)
+│   ├── components/            # AiMatch, DataTable, SearchResultCard, JobsExplorer,
+│   │                          #   ResumePaper, CommandPalette, Nav, ScraperControls…
+│   └── lib/                   # api.ts (typed client), demo.ts (NEXT_PUBLIC_DEMO)
 ├── tests/                     # unit/ · integration/ · e2e/ (280+ tests)
-├── docs/                      # MkDocs site: HLD, LLD, ADRs, deployment
+├── docs/                      # MkDocs site: HLD, LLD, ADRs, llm-providers,
+│                              #   compliance, deployment, NORTH_STAR
 ├── .github/workflows/         # CI · Release · Docs · Scorecard
 ├── pyproject.toml             # Single source of truth (uv + hatchling)
 └── uv.lock                    # Reproducible builds (CI uses --locked)
@@ -458,7 +511,13 @@ job-sentinel/
 - [x] Session validity checks + credential-prefilled login
 - [x] Optional multi-user auth (demo/required modes, admin invites)
 - [x] Hosted demo (Vercel) + docs site (GitHub Pages) — both $0
-- [ ] More portal adapters (Greenhouse, Workday, public boards via JobSpy)
+- [x] Multi-source job search — RemoteOK, The Muse, Arbeitnow, Himalayas, Adzuna, USAJobs, JobSpy; Greenhouse/Lever/Ashby company boards (see [ADR 005](docs/adr/005-job-source-layer.md))
+- [x] BYO-LLM providers — OpenAI, OpenRouter, Groq, Gemini alongside Ollama; configurable from Settings UI (see [docs/llm-providers.md](docs/llm-providers.md))
+- [x] AI profile↔job match — blended ATS + semantic + grounded LLM rationale (`POST /api/match`)
+- [x] Application tracker — full CRUD pipeline (saved → interviewing → offer/rejected), CLI + API + web
+- [x] Document library — persisted generated résumés and cover letters with ATS scores
+- [x] Dashboard — funnel stats, recent activity, quick actions
+- [x] ⌘K command palette
 - [ ] Deeper ATS scoring — parser-style simulation of the big enterprise ATSes,
       beyond keyword coverage
 - [ ] Ghost-job signals — flag stale/repost patterns before you sink hours in

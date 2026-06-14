@@ -1,7 +1,8 @@
 # CLAUDE.md — Job Sentinel
 
-Site-agnostic job-portal monitor: Playwright scraping + Typer CLI + FastAPI local API +
-Next.js web UI + Telegram/email alerts + LaTeX resume engine (Ollama-optional AI tailoring).
+Local-first career platform: Playwright portal scraping + pluggable public job-source APIs +
+multi-provider LLM layer + AI profile↔job match + application tracker + document library +
+Typer CLI + FastAPI local API + Next.js web UI + Telegram/email alerts + LaTeX résumé engine.
 Python 3.11+, src layout, SQLite via sqlite-utils. **Read AGENTS.md first** — it is the
 authorship/quality contract (owner-authored commits, NO AI co-author trailers or notices).
 
@@ -18,7 +19,9 @@ cd web; npm run dev | build | typecheck            # no eslint configured
 CLI commands: `run` (scheduler+bot), `scrape` (one cycle, default --dry-run), `login`
 (manual portal login → data/session.json), `session` (headless validity check), `serve`
 (FastAPI), `web` (API + Next.js together), `adapters`, `db stats|list`,
-`resume init|import <pdf>|show|build|cover|doctor`.
+`resume init|import <pdf>|show|build|cover|doctor`,
+`apps list|add|stage|note|rm`, `docs list|rm`,
+`sources list|search|company`, `users add|list|remove`.
 
 ## Layout
 
@@ -29,19 +32,34 @@ src/job_sentinel/
                    CUSTOM_ADAPTER_PATH loads external adapters); sites/twelve_twenty.py,
                    sites/handshake.py
   api/             FastAPI: app.py (routes), ops.py (login/scrape/watcher/session ops),
-                   chat.py (grounded local-LLM chat)
+                   chat.py (grounded local-LLM chat), auth.py (optional auth layer)
   bot/handlers.py  python-telegram-bot v21 commands (/jobs /applied /stats /deadlines)
-  config/          settings.py (pydantic-settings, .env), logging.py (loguru)
+  config/          settings.py (pydantic-settings, .env — CHAT_*/EMBED_* + legacy OLLAMA_*),
+                   logging.py (loguru)
   core/            browser.py (Playwright), scheduler.py (APScheduler), models.py
-                   (JobPosting etc.), deadlines.py, session.py (storage-state checks)
-  db/repository.py sqlite-utils wrapper (only module allowed untyped calls)
+                   (JobPosting, Application, GeneratedDocument, ApplicationStage,
+                   DocumentKind…), deadlines.py, session.py (storage-state checks),
+                   text.py (strip_html cleaner — shared by sources + résumé engine)
+  db/repository.py sqlite-utils wrapper; schema v2 with job_postings + applications +
+                   generated_documents tables; (only module allowed untyped calls)
   documents/       latex.py + renderer.py (LaTeX→PDF), tailor.py, llm.py (Ollama),
-                   coverletter.py, embeddings.py/semantic.py, resume_import.py (PDF→profile)
+                   coverletter.py, embeddings.py/semantic.py, resume_import.py (PDF→profile),
+                   providers.py (ChatBackend/EmbedBackend protocols + OllamaBackend +
+                   OpenAICompatClient + build_chat_backend/build_embed_backend factories),
+                   match.py (MatchResult, match_profile_to_job — ATS + semantic + LLM blend)
   notifiers/       telegram.py (httpx), email.py (optional SMTP)
   profile/         models.py + store.py (data/profile.yaml universal profile)
-web/               Next.js 15 / React 19 / Tailwind 3. app/{jobs,profile,profile/edit,
-                   studio,chat}/page.tsx; components/ (Nav, ScraperControls, JobActions…);
-                   lib/api.ts (typed client for ALL API routes — keep in sync)
+  sources/         base.py (JobSource ABC, JobQuery, SourceError), registry.py + search.py
+                   (aggregate_search, build_enabled_sources); no-key sources: remoteok.py,
+                   themuse.py, arbeitnow.py, himalayas.py; keyed: adzuna.py, usajobs.py;
+                   scraper: jobspy_source.py; company_boards.py (Greenhouse/Lever/Ashby)
+web/               Next.js 15 / React 19 / Tailwind 3.
+                   app/page.tsx (landing), app/{dashboard,search,applications,resumes,
+                   settings,jobs,profile,profile/edit,studio,chat,login}/page.tsx;
+                   components/ (Nav, AiMatch, DataTable, SearchResultCard, JobsExplorer,
+                   ResumePaper, CommandPalette, ScraperControls, JobActions…);
+                   lib/api.ts (typed client for ALL API routes — keep in sync);
+                   lib/demo.ts (NEXT_PUBLIC_DEMO=1 — every screen alive with sample data)
 tests/             unit/ mirrors src tree; integration/test_scheduler_cycle.py; e2e/ empty
 docs/              design/{HLD,LLD,adapter-authoring,web-ui}.md, adr/, NORTH_STAR.md, RELEASING.md
 scripts/           check_licenses.py (CI); diagnose_*.py are untracked one-off debug scripts
@@ -66,9 +84,17 @@ scripts/           check_licenses.py (CI); diagnose_*.py are untracked one-off d
 - `mypy --strict`; `from __future__ import annotations` everywhere; type-only imports
   under `TYPE_CHECKING`. Ruff: line-length 100, select includes S (bandit), PTH, SIM, N.
 - **UI/CLI parity rule**: every CLI feature needs an API route in `api/app.py` AND a web
-  surface; `web/lib/api.ts` is the single typed client. API routes today: profile CRUD +
-  import-resume, jobs + status, stats, ops/{status,login,session/check,scrape,watcher/*},
-  llm/status, resume/{tailor,build,cover}, chat, health.
+  surface; `web/lib/api.ts` is the single typed client. API routes today:
+  - `profile` CRUD + import-resume, `profile/summary`
+  - `jobs` + `jobs/{id}/status`, `stats`
+  - `ops/{status,login,session/check,scrape,watcher/start,watcher/stop}`
+  - `llm/status`, `llm/config` (GET/PUT), `llm/test`
+  - `match` (POST — ATS + semantic + LLM blend)
+  - `resume/{tailor,build,cover}`, `chat`
+  - `applications` (CRUD: GET/POST list, GET/PATCH/DELETE `/{id}`, GET `/stats`)
+  - `documents` (GET list, GET `/{id}/file`, DELETE `/{id}`)
+  - `sources` (GET status), `sources/config` (PUT), `sources/search` (POST), `sources/company` (POST)
+  - `auth/{status,login,users}`, `health`
 - Adapters are plugins: subclass `SiteAdapter` in `adapters/sites/`, register in registry;
   external adapters load via `CUSTOM_ADAPTER_PATH`. ~50 lines per portal (see
   docs/design/adapter-authoring.md).
