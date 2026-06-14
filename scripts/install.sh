@@ -82,12 +82,14 @@ fi
 step "Web UI (Node.js)"
 if command -v npm &>/dev/null; then
     info "npm found: $(npm --version) — installing web dependencies"
-    npm --prefix "${REPO_ROOT}/web" install
+    # `npm ci` installs the exact locked versions from package-lock.json
+    # (reproducible + pinned) rather than re-resolving like `npm install`.
+    npm --prefix "${REPO_ROOT}/web" ci
     info "web/ dependencies installed"
 else
     warn "npm not found — skipping web UI install."
     warn "Install Node.js 18+ from https://nodejs.org, then run:"
-    warn "  npm --prefix web install"
+    warn "  npm --prefix web ci"
     warn "(The CLI and API work without Node.)"
 fi
 
