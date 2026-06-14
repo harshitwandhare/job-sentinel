@@ -42,6 +42,30 @@ OpenAI. Adding a new portal adapter takes one file and ~50 lines of Python.
 > your portal credentials, your data, and the model never leave it. Follow the
 > [Quick Start](#-quick-start) below to run the real thing — about 5 minutes.
 
+### ⚡ One-command setup
+
+```bash
+git clone https://github.com/harshitwandhare/job-sentinel && cd job-sentinel
+bash scripts/install.sh        # macOS / Linux  (Windows: powershell -ExecutionPolicy Bypass -File scripts\install.ps1)
+job-sentinel web               # API + web UI at http://localhost:3000
+```
+
+There's also a [**clip-to-track browser extension**](extension/) — one click on any
+job posting (LinkedIn, Greenhouse, Lever, Indeed…) drops it straight into your tracker.
+
+## 📸 What it looks like
+
+|  |  |
+|---|---|
+| **Dashboard** — pipeline, deadlines, source health | **Find jobs anywhere** — multi-source search + filters |
+| [![Dashboard](.github/assets/screens/dashboard.png)](.github/assets/screens/dashboard.png) | [![Job search](.github/assets/screens/search.png)](.github/assets/screens/search.png) |
+| **Your profile *is* your résumé** — rendered live, exports to ATS PDF | **Application tracker** — saved → applied → offer |
+| [![Profile résumé](.github/assets/screens/profile.png)](.github/assets/screens/profile.png) | [![Applications](.github/assets/screens/applications.png)](.github/assets/screens/applications.png) |
+| **Résumé studio** — tailor + ATS score against any JD | **Settings** — bring your own LLM (or local Ollama) |
+| [![Studio](.github/assets/screens/studio.png)](.github/assets/screens/studio.png) | [![Settings](.github/assets/screens/settings.png)](.github/assets/screens/settings.png) |
+
+<sub>Screens shown with the bundled demo dataset. Run locally for your real jobs, profile, and a private model.</sub>
+
 ## 🧭 Why this exists
 
 The 2026 job market is brutal for students: the average opening now draws
@@ -535,6 +559,17 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
 All commits must follow [Conventional Commits](https://conventionalcommits.org).
 Run `uv run pre-commit install` to enforce this automatically.
+
+---
+
+## 👤 Author
+
+Built and maintained by **Harshit Wandhare** — a CS student who got tired of the
+2026 job grind and decided to engineer a way through it. If this project is
+useful, a ⭐ helps; if you're hiring, I'd love to talk.
+
+- GitHub — [@harshitwandhare](https://github.com/harshitwandhare)
+- LinkedIn — [in/harshit-wandhare](https://www.linkedin.com/in/harshit-wandhare)
 
 ---
 
