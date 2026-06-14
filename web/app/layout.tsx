@@ -70,30 +70,44 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
         <footer className="border-t border-line bg-surface">
-          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-6 py-8 text-sm text-muted sm:flex-row">
-            <p className="flex items-center gap-2">
-              <img
-                src="/brand/sentinel.png"
-                alt=""
-                className="h-7 w-7 rounded-md object-cover"
-                aria-hidden="true"
-              />
-              <span>
-              <span className="font-semibold text-ink">Job Sentinel</span> — local-first, open
-              source. Your data stays on your machine.
-              </span>
-            </p>
-            <div className="flex items-center gap-5">
-              <a
-                href="https://github.com/harshitwandhare/job-sentinel"
-                className="hover:text-ink"
-              >
-                GitHub
-              </a>
-              <a href="https://pypi.org/project/job-sentinel/" className="hover:text-ink">
-                PyPI
-              </a>
-              <span aria-hidden="true">MIT License</span>
+          <div className="mx-auto max-w-6xl px-6 py-10">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+              <p className="flex max-w-xs items-center gap-2 text-sm text-muted">
+                <img
+                  src="/brand/sentinel.png"
+                  alt=""
+                  className="h-7 w-7 shrink-0 rounded-md object-cover"
+                  aria-hidden="true"
+                />
+                <span>
+                  <span className="font-semibold text-ink">Job Sentinel</span> — local-first, open
+                  source. Your data stays on your machine.
+                </span>
+              </p>
+              <div className="grid grid-cols-2 gap-x-10 gap-y-2 text-sm sm:grid-cols-3">
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted/60">Product</span>
+                  <a href="https://github.com/harshitwandhare/job-sentinel" className="text-muted hover:text-ink">GitHub</a>
+                  <a href="https://pypi.org/project/job-sentinel/" className="text-muted hover:text-ink">PyPI</a>
+                  <a href="https://harshitwandhare.github.io/job-sentinel/" className="text-muted hover:text-ink">Docs</a>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted/60">Legal</span>
+                  <a href="/legal/privacy" className="text-muted hover:text-ink">Privacy</a>
+                  <a href="/legal/terms" className="text-muted hover:text-ink">Terms</a>
+                  <a href="/legal/compliance" className="text-muted hover:text-ink">Compliance</a>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-medium uppercase tracking-wider text-muted/60">Resources</span>
+                  <a href="/legal/trust" className="text-muted hover:text-ink">Trust &amp; Security</a>
+                  <a href="/legal" className="text-muted hover:text-ink">Legal center</a>
+                  <a href="https://github.com/harshitwandhare/job-sentinel/security" className="text-muted hover:text-ink">Report an issue</a>
+                </div>
+              </div>
+            </div>
+            <div className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-line pt-6 text-xs text-muted sm:flex-row">
+              <span>© 2026 Job Sentinel · MIT License</span>
+              <span>Built by Harshit Wandhare · Private by design — no telemetry, no tracking.</span>
             </div>
           </div>
         </footer>
