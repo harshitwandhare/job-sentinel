@@ -111,9 +111,11 @@ class OpsRunner:
                 session["saved_at"] = datetime.fromtimestamp(
                     path.stat().st_mtime, tz=UTC
                 ).isoformat()
-        except OpsConfigError as exc:
+        except OpsConfigError:
+            # Surface a fixed, safe hint (the exception text is logged at the
+            # raise site) so /api/ops/status never returns exception-derived text.
             config_ok = False
-            config_error = str(exc)
+            config_error = "Settings could not load — check your .env (PORTAL_* / TELEGRAM_*)."
 
         from job_sentinel.adapters.registry import list_adapters
 
@@ -236,8 +238,10 @@ class OpsRunner:
                     detail=detail,
                 )
         except Exception as exc:
+            # Full detail goes to the server log; the status surfaced via
+            # /api/ops/status stays generic so no exception text leaks to a client.
             logger.exception("Scrape op failed: {}", exc)
-            self._fail("scrape", f"Scrape failed: {exc}")
+            self._fail("scrape", "Scrape failed — check the portal session and the server logs.")
         finally:
             if repo is not None:
                 repo.close()
