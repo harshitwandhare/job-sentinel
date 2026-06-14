@@ -121,6 +121,22 @@ export interface TailorResult {
   profile: Profile;
 }
 
+export interface MatchResult {
+  /** Blended fit score (0..1); multiply by 100 for percentage. */
+  score: number;
+  /** ATS keyword coverage (0..1). */
+  coverage: number;
+  /** Embedding cosine similarity (0..1); null when embedder unavailable. */
+  semantic: number | null;
+  matched_keywords: string[];
+  missing_keywords: string[];
+  /** "strong" | "moderate" | "weak" */
+  verdict: string;
+  rationale: string;
+  strengths: string[];
+  gaps: string[];
+}
+
 const TOKEN_KEY = "sentinel_token";
 
 /** Bearer-token header from localStorage (no-op during SSR / when logged out). */
@@ -163,6 +179,31 @@ export async function tailorResume(jobDescription: string): Promise<TailorResult
     });
     if (!res.ok) return null;
     return (await res.json()) as TailorResult;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Score how well the stored profile fits a job.
+ *
+ * Pass either `job_description` (raw text) or `posting_id` (looks up a stored
+ * JobPosting).  `ai` defaults to true — set to false to skip the LLM rationale.
+ * Returns null on any transport or server failure.
+ */
+export async function matchJob(body: {
+  job_description?: string;
+  posting_id?: string;
+  ai?: boolean;
+}): Promise<MatchResult | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/match`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as MatchResult;
   } catch {
     return null;
   }

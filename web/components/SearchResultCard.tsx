@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { useState } from "react";
 
+import { AiMatch } from "@/components/AiMatch";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { createApplication, type JobPosting } from "@/lib/api";
 import { cn, externalUrl } from "@/lib/utils";
@@ -119,6 +120,12 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
           </button>
           {error && <span className="text-xs text-amber-600">{error}</span>}
         </div>
+
+        <AiMatch
+          jobText={[job.title, job.employer, job.job_type, job.description_snippet]
+            .filter(Boolean)
+            .join("\n")}
+        />
       </Card>
     </motion.div>
   );
