@@ -74,9 +74,12 @@ demo. Steps:
 
 1. Import the GitHub repo at vercel.com → framework auto-detects Next.js,
    set the **Root Directory** to `web/`.
-2. Leave `NEXT_PUBLIC_API_BASE` unset (no backend) for a static demo, or
-   point it at a tunnel URL of your laptop running `AUTH_MODE=demo` for a
-   *live* demo where visitors can browse your tracked jobs but not act.
+2. Set **`NEXT_PUBLIC_DEMO=1`** so every screen is populated with bundled
+   sample data (no backend needed) — the public demo then shows the dashboard,
+   search, applications, résumé library, AI match, and chat fully alive, with a
+   "Live demo — sample data" banner. (Alternatively leave it unset and point
+   `NEXT_PUBLIC_API_BASE` at a tunnel to your laptop running `AUTH_MODE=demo`
+   for a *live* demo over your real data.)
 
 Every push to `main` auto-deploys — that's the CD half, free.
 
