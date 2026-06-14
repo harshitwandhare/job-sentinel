@@ -562,6 +562,17 @@ Run `uv run pre-commit install` to enforce this automatically.
 
 ---
 
+## 👤 Author
+
+Built and maintained by **Harshit Wandhare** — a CS student who got tired of the
+2026 job grind and decided to engineer a way through it. If this project is
+useful, a ⭐ helps; if you're hiring, I'd love to talk.
+
+- GitHub — [@harshitwandhare](https://github.com/harshitwandhare)
+- LinkedIn — [in/harshit-wandhare](https://www.linkedin.com/in/harshit-wandhare)
+
+---
+
 ## 📄 License
 
 MIT © [Harshit Wandhare](https://github.com/harshitwandhare) — see [LICENSE](LICENSE).
