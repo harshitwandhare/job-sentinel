@@ -569,7 +569,7 @@ Built and maintained by **Harshit Wandhare** — a CS student who got tired of t
 useful, a ⭐ helps; if you're hiring, I'd love to talk.
 
 - GitHub — [@harshitwandhare](https://github.com/harshitwandhare)
-- LinkedIn — [in/harshit-wandhare](https://www.linkedin.com/in/harshit-wandhare)
+- LinkedIn — [in/harshit-wandhare](https://www.linkedin.com/in/harshit-wandhare-a088201aa/)
 
 ---
 

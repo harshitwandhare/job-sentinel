@@ -7,6 +7,7 @@ import { SearchResultCard } from "@/components/SearchResultCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   fetchCompanyBoard,
   getSources,
@@ -37,9 +38,6 @@ const DATE_OPTIONS = [
 
 const JOB_TYPES = ["", "Full-time", "Part-time", "Contract", "Internship", "Temporary"];
 const SENIORITY = ["", "Internship", "Entry", "Mid", "Senior", "Director", "Executive"];
-
-const selectClass =
-  "h-10 w-full rounded-lg border border-line bg-surface px-2.5 text-sm text-ink shadow-sm focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30";
 
 export default function SearchPage() {
   const [mode, setMode] = useState<Mode>("search");
@@ -191,28 +189,28 @@ export default function SearchPage() {
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                 />
-                <select className={selectClass} value={remote} onChange={(e) => setRemote(e.target.value as typeof remote)}>
+                <Select value={remote} onChange={(e) => setRemote(e.target.value as typeof remote)}>
                   {REMOTE_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>{o.label}</option>
                   ))}
-                </select>
+                </Select>
                 <div className="grid grid-cols-2 gap-2">
-                  <select className={selectClass} value={jobType} onChange={(e) => setJobType(e.target.value)}>
+                  <Select value={jobType} onChange={(e) => setJobType(e.target.value)}>
                     {JOB_TYPES.map((t) => (
                       <option key={t} value={t}>{t || "Any type"}</option>
                     ))}
-                  </select>
-                  <select className={selectClass} value={seniority} onChange={(e) => setSeniority(e.target.value)}>
+                  </Select>
+                  <Select value={seniority} onChange={(e) => setSeniority(e.target.value)}>
                     {SENIORITY.map((s) => (
                       <option key={s} value={s}>{s || "Any level"}</option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
-                <select className={selectClass} value={datePosted} onChange={(e) => setDatePosted(e.target.value)}>
+                <Select value={datePosted} onChange={(e) => setDatePosted(e.target.value)}>
                   {DATE_OPTIONS.map((d) => (
                     <option key={d.value} value={d.value}>{d.label}</option>
                   ))}
-                </select>
+                </Select>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="number"
@@ -230,11 +228,11 @@ export default function SearchPage() {
                 </div>
                 <Input placeholder="Company" value={company} onChange={(e) => setCompany(e.target.value)} />
                 <div className="flex items-center gap-2">
-                  <select className={cn(selectClass, "w-24")} value={limit} onChange={(e) => setLimit(e.target.value)}>
+                  <Select className="w-24" value={limit} onChange={(e) => setLimit(e.target.value)}>
                     {["25", "50", "100"].map((n) => (
                       <option key={n} value={n}>{n}</option>
                     ))}
-                  </select>
+                  </Select>
                   <Button type="submit" disabled={searching || selected.size === 0} className="flex-1">
                     {searching ? "Searching…" : "Search"}
                   </Button>
@@ -289,11 +287,11 @@ export default function SearchPage() {
                 void runCompany();
               }}
             >
-              <select className={cn(selectClass, "w-40")} value={ats} onChange={(e) => setAts(e.target.value)}>
+              <Select className="w-40" value={ats} onChange={(e) => setAts(e.target.value)}>
                 <option value="greenhouse">Greenhouse</option>
                 <option value="lever">Lever</option>
                 <option value="ashby">Ashby</option>
-              </select>
+              </Select>
               <Input
                 className="max-w-xs flex-1"
                 placeholder="company slug (e.g. stripe)"

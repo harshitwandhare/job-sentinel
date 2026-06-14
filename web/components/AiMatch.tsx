@@ -63,11 +63,11 @@ export function AiMatch({ jobText, postingId }: { jobText?: string; postingId?: 
 
   if (!result) {
     return (
-      <div className="flex flex-wrap items-center gap-2">
+      <>
         <button
           onClick={run}
           disabled={busy}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand transition-colors hover:bg-brand/20 disabled:opacity-60"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-brand/30 bg-brand/10 px-3 text-xs font-medium text-brand transition-colors hover:bg-brand/20 disabled:opacity-60"
         >
           {busy ? (
             <>
@@ -78,8 +78,8 @@ export function AiMatch({ jobText, postingId }: { jobText?: string; postingId?: 
             <>✦ AI match</>
           )}
         </button>
-        {error && <span className="text-xs text-amber-600">{error}</span>}
-      </div>
+        {error && <span className="ml-2 text-xs text-amber-600">{error}</span>}
+      </>
     );
   }
 
@@ -88,7 +88,7 @@ export function AiMatch({ jobText, postingId }: { jobText?: string; postingId?: 
       <motion.div
         initial={reduced ? false : { opacity: 0, height: 0 }}
         animate={{ opacity: 1, height: "auto" }}
-        className="overflow-hidden rounded-xl border border-line bg-bg p-3"
+        className="w-full overflow-hidden rounded-xl border border-line bg-bg p-3"
       >
         <div className="flex items-start gap-3">
           <Ring pct={Math.round(result.score * 100)} />
