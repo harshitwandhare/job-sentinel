@@ -1,0 +1,71 @@
+name: Security Scan
+
+# A compulsory security heartbeat independent of PRs: runs every 3 days (and on
+# demand) so newly-disclosed dependency CVEs, leaked secrets, or license drift
+# are caught even when nobody is pushing code. CodeQL (SAST) and the OpenSSF
+# Scorecard run on their own weekly schedules; this covers secrets + supply chain
+# on a tighter cadence.
+on:
+  schedule:
+    - cron: "0 6 */3 * *" # 06:00 UTC, every 3rd day
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/security-scan.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 0 # full history for gitleaks
+
+      - name: Install gitleaks
+        run: |
+          v=8.21.2
+          base=https://github.com/gitleaks/gitleaks/releases/download
+          curl -sSL "$base/v$v/gitleaks_${v}_linux_x64.tar.gz" | tar -xz gitleaks
+          sudo install gitleaks /usr/local/bin/gitleaks
+
+      - name: Scan for secrets
+        run: gitleaks detect --source . --redact --no-banner --verbose
+
+  supply-chain:
+    name: Dependency audit + licenses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --locked --all-extras
+
+      - name: Audit dependencies for known vulnerabilities
+        # CVE-2025-46656: markdownify 0.13.x is pulled in only by the optional
+        # `sources` extra (opt-in JobSpy scraper), which hard-pins
+        # markdownify<0.14, so the fix is unreachable. Lazy-imported, never in the
+        # default install, only converts job HTML locally. Revisit when JobSpy
+        # relaxes its pin, then drop this ignore.
+        run: uv run pip-audit --skip-editable --ignore-vuln CVE-2025-46656
+
+      - name: Check dependency license compliance
+        run: uv run python scripts/check_licenses.py

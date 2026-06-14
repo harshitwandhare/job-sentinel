@@ -38,6 +38,7 @@ nav:
       - Releasing: RELEASING.md
   - Design:
       - North star: NORTH_STAR.md
+      - Growth & competitive strategy: GROWTH.md
       - High-level design: design/HLD.md
       - Low-level design: design/LLD.md
       - Web UI: design/web-ui.md
