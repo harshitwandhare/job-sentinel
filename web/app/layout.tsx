@@ -51,6 +51,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ScrollProgress />
         <CustomCursor />
         <CommandPalette />
+        {process.env.NEXT_PUBLIC_DEMO === "1" && (
+          <div className="bg-brand px-4 py-1.5 text-center text-xs font-medium text-white">
+            Live demo — showing sample data.{" "}
+            <a
+              href="https://github.com/harshitwandhare/job-sentinel#-quick-start"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2"
+            >
+              Run it locally
+            </a>{" "}
+            for your real jobs, profile, and a private local model.
+          </div>
+        )}
         <Nav />
         <main id="content" className="min-h-screen">
           {children}

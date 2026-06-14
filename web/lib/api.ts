@@ -2,7 +2,12 @@
  * Typed client for the local Job Sentinel API (see src/job_sentinel/api/app.py).
  * Every call degrades gracefully: on any failure it returns a safe empty value
  * instead of throwing, so pages render an empty state rather than a crash.
+ *
+ * In the hosted demo (NEXT_PUBLIC_DEMO=1) the client returns bundled sample
+ * data from lib/demo instead of calling a backend, so every screen is alive.
  */
+
+import * as demo from "@/lib/demo";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
 
@@ -163,14 +168,17 @@ async function getJSON<T>(path: string, fallback: T): Promise<T> {
 }
 
 export function getProfile(): Promise<Profile | null> {
+  if (demo.DEMO) return Promise.resolve(demo.demoProfile);
   return getJSON<Profile | null>("/api/profile", null);
 }
 
 export function getJobs(limit = 20): Promise<JobPosting[]> {
+  if (demo.DEMO) return Promise.resolve(demo.demoJobs.slice(0, limit));
   return getJSON<JobPosting[]>(`/api/jobs?limit=${limit}`, []);
 }
 
 export async function tailorResume(jobDescription: string): Promise<TailorResult | null> {
+  if (demo.DEMO) return demo.demoTailor;
   try {
     const res = await fetch(`${API_BASE}/api/resume/tailor`, {
       method: "POST",
@@ -196,6 +204,7 @@ export async function matchJob(body: {
   posting_id?: string;
   ai?: boolean;
 }): Promise<MatchResult | null> {
+  if (demo.DEMO) return new Promise((r) => setTimeout(() => r(demo.demoMatch), 600));
   try {
     const res = await fetch(`${API_BASE}/api/match`, {
       method: "POST",
@@ -220,6 +229,7 @@ export interface ChatReply {
 
 /** Ask the Sentinel assistant. Returns null on any transport failure. */
 export async function sendChat(messages: ChatTurn[]): Promise<ChatReply | null> {
+  if (demo.DEMO) return demo.demoChatReply();
   try {
     const res = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
@@ -235,6 +245,7 @@ export async function sendChat(messages: ChatTurn[]): Promise<ChatReply | null> 
 
 /** Update a posting's tracking status. Returns true on success. */
 export async function setJobStatus(postingId: string, status: string): Promise<boolean> {
+  if (demo.DEMO) return true;
   try {
     const res = await fetch(`${API_BASE}/api/jobs/${encodeURIComponent(postingId)}/status`, {
       method: "POST",
@@ -255,6 +266,7 @@ export interface ImportResult {
 
 /** Upload a resume PDF and get back a parsed Profile draft (nothing is saved). */
 export async function importResume(file: File, ai = true): Promise<ImportResult> {
+  if (demo.DEMO) return { ok: true, profile: demo.demoProfile };
   try {
     const form = new FormData();
     form.append("file", file);
@@ -275,6 +287,7 @@ export async function importResume(file: File, ai = true): Promise<ImportResult>
 
 /** Persist the full profile. Returns the saved (validated) profile, or null. */
 export async function putProfile(profile: Profile): Promise<Profile | null> {
+  if (demo.DEMO) return profile;
   try {
     const res = await fetch(`${API_BASE}/api/profile`, {
       method: "PUT",
@@ -320,16 +333,19 @@ export interface StartResult {
 
 /** Snapshot of session/login/scrape/watcher state. Null if the API is down. */
 export function getOpsStatus(): Promise<OpsStatus | null> {
+  if (demo.DEMO) return Promise.resolve(demo.demoOps);
   return getJSON<OpsStatus | null>("/api/ops/status", null);
 }
 
 /** Counts per tracking status (db stats). */
 export function getStats(): Promise<Record<string, number>> {
+  if (demo.DEMO) return Promise.resolve(demo.demoStats);
   return getJSON<Record<string, number>>("/api/stats", {});
 }
 
 /** Local-LLM health (resume doctor). */
 export function getLlmStatus(): Promise<LlmStatus | null> {
+  if (demo.DEMO) return Promise.resolve(demo.demoLlmStatus);
   return getJSON<LlmStatus | null>("/api/llm/status", null);
 }
 
@@ -350,6 +366,8 @@ async function postJSON(path: string, body: unknown): Promise<StartResult> {
 
 /** Open the interactive portal login (a browser opens on the API machine). */
 export function startLogin(timeout = 300): Promise<StartResult> {
+  if (demo.DEMO)
+    return Promise.resolve({ ok: false, detail: "Portal login runs locally on your machine." });
   return postJSON("/api/ops/login", { timeout });
 }
 
@@ -362,6 +380,8 @@ export interface SessionCheck {
 
 /** Headless probe: is the saved portal session still valid? Null = API down/conflict. */
 export async function checkSession(): Promise<SessionCheck | null> {
+  if (demo.DEMO)
+    return { valid: true, user: "alex.rivera (demo)", detail: "Session valid", checked: true };
   try {
     const res = await fetch(`${API_BASE}/api/ops/session/check`, {
       method: "POST",
@@ -376,11 +396,14 @@ export async function checkSession(): Promise<SessionCheck | null> {
 
 /** Run one scrape cycle. `send` actually sends alerts (default dry-run). */
 export function startScrape(send = false): Promise<StartResult> {
+  if (demo.DEMO)
+    return Promise.resolve({ ok: false, detail: "Scraping runs locally — clone the repo to try it." });
   return postJSON("/api/ops/scrape", { send });
 }
 
 /** Start / stop the continuous watcher (scrape on an interval + alerts). */
 export function startWatcher(): Promise<StartResult> {
+  if (demo.DEMO) return Promise.resolve({ ok: false, detail: "The watcher runs locally." });
   return postJSON("/api/ops/watcher/start", {});
 }
 export function stopWatcher(): Promise<StartResult> {
@@ -474,6 +497,7 @@ export interface AuthStatus {
 
 /** Current auth mode and (if a valid token is held) the logged-in user. */
 export function getAuthStatus(): Promise<AuthStatus | null> {
+  if (demo.DEMO) return Promise.resolve(demo.demoAuth);
   return getJSON<AuthStatus | null>("/api/auth/status", null);
 }
 
@@ -513,6 +537,8 @@ export interface BuildResult {
 
 /** Build a (optionally tailored / LLM) résumé PDF and return the bytes. */
 export async function buildResume(jobDescription = "", ai = false): Promise<BuildResult> {
+  if (demo.DEMO)
+    return { ok: false, detail: "PDF generation runs locally — clone the repo to build real PDFs." };
   try {
     const res = await fetch(`${API_BASE}/api/resume/build`, {
       method: "POST",
@@ -612,6 +638,10 @@ export function getApplications(
   stage?: ApplicationStage,
   limit = 200,
 ): Promise<Application[]> {
+  if (demo.DEMO)
+    return Promise.resolve(
+      stage ? demo.demoApplications.filter((a) => a.stage === stage) : demo.demoApplications,
+    );
   const params = new URLSearchParams();
   if (stage) params.set("stage", stage);
   params.set("limit", String(limit));
@@ -620,6 +650,17 @@ export function getApplications(
 
 /** Create a new tracked application (from a posting or manually). */
 export async function createApplication(body: ApplicationCreateBody): Promise<Application | null> {
+  if (demo.DEMO)
+    return {
+      ...demo.demoApplications[0],
+      id: `demo-${Date.now()}`,
+      title: body.title ?? "Tracked role",
+      employer: body.employer ?? "",
+      location: body.location ?? "",
+      url: body.url ?? "",
+      source: body.source ?? "",
+      stage: body.stage ?? "saved",
+    };
   try {
     const res = await fetch(`${API_BASE}/api/applications`, {
       method: "POST",
@@ -643,6 +684,10 @@ export async function updateApplication(
   id: string,
   patch: ApplicationPatch,
 ): Promise<Application | null> {
+  if (demo.DEMO) {
+    const found = demo.demoApplications.find((a) => a.id === id) ?? demo.demoApplications[0];
+    return { ...found, ...patch };
+  }
   try {
     const res = await fetch(`${API_BASE}/api/applications/${encodeURIComponent(id)}`, {
       method: "PATCH",
@@ -658,6 +703,7 @@ export async function updateApplication(
 
 /** Delete a tracked application. Returns true on success. */
 export async function deleteApplication(id: string): Promise<boolean> {
+  if (demo.DEMO) return true;
   try {
     const res = await fetch(`${API_BASE}/api/applications/${encodeURIComponent(id)}`, {
       method: "DELETE",
@@ -671,11 +717,14 @@ export async function deleteApplication(id: string): Promise<boolean> {
 
 /** Count of applications per stage plus total. */
 export function getApplicationStats(): Promise<Record<string, number>> {
+  if (demo.DEMO) return Promise.resolve(demo.demoStats);
   return getJSON<Record<string, number>>("/api/applications/stats", {});
 }
 
 /** List generated documents, optionally filtered by kind. */
 export function getDocuments(kind?: DocumentKind, limit = 200): Promise<GeneratedDocument[]> {
+  if (demo.DEMO)
+    return Promise.resolve(kind ? demo.demoDocuments.filter((d) => d.kind === kind) : demo.demoDocuments);
   const params = new URLSearchParams();
   if (kind) params.set("kind", kind);
   params.set("limit", String(limit));
@@ -689,6 +738,7 @@ export function documentFileUrl(id: string): string {
 
 /** Delete a generated document record (and its file on disk). Returns true on success. */
 export async function deleteDocument(id: string): Promise<boolean> {
+  if (demo.DEMO) return true;
   try {
     const res = await fetch(`${API_BASE}/api/documents/${encodeURIComponent(id)}`, {
       method: "DELETE",
@@ -754,6 +804,7 @@ export interface SourceConfigBody {
 
 /** List all known job sources with their configuration status. */
 export function getSources(): Promise<{ sources: JobSourceStatus[] } | null> {
+  if (demo.DEMO) return Promise.resolve({ sources: demo.demoSources });
   return getJSON<{ sources: JobSourceStatus[] } | null>("/api/sources", null);
 }
 
@@ -764,6 +815,7 @@ export function getSources(): Promise<{ sources: JobSourceStatus[] } | null> {
 export async function updateSourcesConfig(
   body: SourceConfigBody,
 ): Promise<{ sources: JobSourceStatus[] } | null> {
+  if (demo.DEMO) return { sources: demo.demoSources };
   try {
     const res = await fetch(`${API_BASE}/api/sources/config`, {
       method: "PUT",
@@ -779,6 +831,7 @@ export async function updateSourcesConfig(
 
 /** Search for jobs across enabled (or specified) sources. Results are ephemeral. */
 export async function searchJobs(query: JobQuery): Promise<SearchResponse | null> {
+  if (demo.DEMO) return demo.demoSearch;
   try {
     const res = await fetch(`${API_BASE}/api/sources/search`, {
       method: "POST",
@@ -801,6 +854,7 @@ export async function fetchCompanyBoard(
   ats: string,
   slug: string,
 ): Promise<{ results: JobPosting[] } | null> {
+  if (demo.DEMO) return { results: demo.demoJobs.slice(0, 3) };
   try {
     const res = await fetch(`${API_BASE}/api/sources/company`, {
       method: "POST",
@@ -821,6 +875,8 @@ export async function buildCover(
   company = "",
   ai = false,
 ): Promise<BuildResult> {
+  if (demo.DEMO)
+    return { ok: false, detail: "PDF generation runs locally — clone the repo to build real PDFs." };
   try {
     const res = await fetch(`${API_BASE}/api/resume/cover`, {
       method: "POST",
