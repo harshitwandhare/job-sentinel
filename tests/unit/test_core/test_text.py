@@ -18,17 +18,19 @@ def test_removes_tags_and_unescapes_entities() -> None:
 
 def test_strips_urls_and_bare_domains() -> None:
     out = strip_html("Apply at https://example.com/jobs via himalayas.app or www.foo.com now")
-    assert "https" not in out
-    assert "himalayas.app" not in out
-    assert "www.foo.com" not in out
-    assert "Apply at" in out and "now" in out
+    tokens = out.split()
+    # No link-ish tokens survive; surrounding words do.
+    assert not any(t.startswith(("http", "www.")) for t in tokens)
+    assert "himalayas.app" not in tokens
+    assert "www.foo.com" not in tokens
+    assert tokens[0] == "Apply" and tokens[-1] == "now"
 
 
 def test_keeps_dotted_skill_names() -> None:
     # Ambiguous TLDs are intentionally excluded so skills survive.
-    out = strip_html("Experience with node.js and asp.net required")
-    assert "node.js" in out
-    assert "asp.net" in out
+    tokens = strip_html("Experience with node.js and asp.net required").split()
+    assert "node.js" in tokens
+    assert "asp.net" in tokens
 
 
 def test_collapses_whitespace_and_is_idempotent() -> None:
