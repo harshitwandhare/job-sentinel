@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { type Column, DataTable } from "@/components/DataTable";
@@ -98,20 +99,27 @@ export default function ApplicationsPage() {
       header: "Stage",
       sortValue: (a) => STAGES.indexOf(a.stage),
       render: (a) => (
-        <select
-          value={a.stage}
-          onChange={(e) => onStage(a.id, e.target.value as ApplicationStage)}
-          className={cn(
-            "rounded-full border-0 px-2.5 py-1 text-xs font-medium capitalize outline-none focus-visible:ring-2 focus-visible:ring-brand/40",
-            STAGE_STYLES[a.stage],
-          )}
-        >
-          {STAGES.map((s) => (
-            <option key={s} value={s} className="bg-surface text-ink">
-              {s}
-            </option>
-          ))}
-        </select>
+        <div className="relative inline-block">
+          <select
+            value={a.stage}
+            onChange={(e) => onStage(a.id, e.target.value as ApplicationStage)}
+            aria-label={`Stage for ${a.title}`}
+            className={cn(
+              "cursor-pointer appearance-none rounded-full border-0 py-1 pl-3 pr-7 text-xs font-medium capitalize outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-brand/40",
+              STAGE_STYLES[a.stage],
+            )}
+          >
+            {STAGES.map((s) => (
+              <option key={s} value={s} className="bg-surface text-ink">
+                {s}
+              </option>
+            ))}
+          </select>
+          <ChevronDown
+            aria-hidden="true"
+            className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-60"
+          />
+        </div>
       ),
     },
     {

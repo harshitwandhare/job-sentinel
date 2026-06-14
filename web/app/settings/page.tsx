@@ -7,6 +7,7 @@ import { SentinelLoader } from "@/components/SentinelLoader";
 import { Button } from "@/components/ui/button";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import {
   getLlmConfig,
   putLlmConfig,
@@ -82,23 +83,6 @@ const PRESETS: Preset[] = [
 
 // ── Styled select (matches Input) ────────────────────────────────────────────
 
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  className?: string;
-}
-
-function Select({ className, children, ...props }: SelectProps) {
-  return (
-    <select
-      className={cn(
-        "flex h-10 w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink shadow-sm focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 disabled:pointer-events-none disabled:opacity-50",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </select>
-  );
-}
 
 // ── Per-slot form state ───────────────────────────────────────────────────────
 

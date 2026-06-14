@@ -158,10 +158,15 @@ body {
   .has-custom-cursor a,
   .has-custom-cursor button,
   .has-custom-cursor [role="button"],
-  .has-custom-cursor input,
-  .has-custom-cursor textarea,
   .has-custom-cursor label {
     cursor: none;
+  }
+  /* Text fields keep a real I-beam + blinking caret so typing is never
+     "where's my cursor?" — the dot still leads everywhere else. */
+  .has-custom-cursor input,
+  .has-custom-cursor textarea,
+  .has-custom-cursor select {
+    cursor: auto;
   }
 }
 

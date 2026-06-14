@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { AiMatch } from "@/components/AiMatch";
 import { JobActions } from "@/components/JobActions";
 import { JobDocs } from "@/components/JobDocs";
+import { Select } from "@/components/ui/select";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import type { JobDetail, JobPosting } from "@/lib/api";
 import { cn, externalUrl } from "@/lib/utils";
@@ -154,16 +155,17 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
               className="h-10 w-full rounded-lg border border-line bg-surface pl-9 pr-3 text-sm text-ink shadow-sm placeholder:text-muted/70 focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
             />
           </div>
-          <label className="flex items-center gap-2 text-sm text-muted">
+          <label className="flex shrink-0 items-center gap-2 text-sm text-muted">
             Sort
-            <select
+            <Select
               value={sort}
               onChange={(e) => setSort(e.target.value as "newest" | "deadline")}
-              className="h-10 rounded-lg border border-line bg-surface px-2.5 text-sm text-ink shadow-sm focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+              aria-label="Sort tracked jobs"
+              className="w-36"
             >
               <option value="newest">Newest</option>
               <option value="deadline">Deadline</option>
-            </select>
+            </Select>
           </label>
         </div>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">

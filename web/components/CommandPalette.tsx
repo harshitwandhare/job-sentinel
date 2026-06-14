@@ -190,7 +190,7 @@ export function CommandPalette() {
                 onKeyDown={onKeyDown}
                 placeholder="Search pages, docs, actions…"
                 aria-label="Search pages and actions"
-                className="h-14 w-full bg-transparent text-[15px] text-ink outline-none placeholder:text-muted/60"
+                className="h-14 w-full cursor-text bg-transparent text-[15px] text-ink caret-brand outline-none selection:bg-brand/20 placeholder:text-muted/60"
               />
               <kbd className="hidden rounded-md border border-line bg-bg px-2 py-1 font-mono text-[10px] font-medium text-muted sm:block">
                 ESC
