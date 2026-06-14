@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Job Sentinel — Clip to Track</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="header">
+      <img src="icons/icon-48.png" alt="" class="logo" width="24" height="24" />
+      <span class="brand">Job Sentinel</span>
+    </header>
+
+    <!-- Loading state -->
+    <div id="state-loading" class="state">
+      <div class="spinner"></div>
+      <p class="hint">Extracting job details…</p>
+    </div>
+
+    <!-- Error state: extraction failed -->
+    <div id="state-error-page" class="state hidden">
+      <p class="error-msg">Could not find a job posting on this page.</p>
+      <p class="hint">Navigate to a job posting on LinkedIn, Greenhouse, Lever, Indeed, or similar and try again.</p>
+    </div>
+
+    <!-- Form state -->
+    <div id="state-form" class="state hidden">
+      <p id="source-line" class="source-line"></p>
+
+      <div class="field">
+        <label for="f-title">Job title</label>
+        <input id="f-title" type="text" placeholder="Software Engineer" />
+      </div>
+      <div class="field">
+        <label for="f-employer">Company</label>
+        <input id="f-employer" type="text" placeholder="Acme Corp" />
+      </div>
+      <div class="field">
+        <label for="f-location">Location</label>
+        <input id="f-location" type="text" placeholder="Austin, TX" />
+      </div>
+      <div class="field">
+        <label for="f-salary">Salary</label>
+        <input id="f-salary" type="text" placeholder="(optional)" />
+      </div>
+      <div class="field">
+        <label for="f-url">URL</label>
+        <input id="f-url" type="url" placeholder="https://…" />
+      </div>
+
+      <button id="btn-track" class="btn-primary">Track this job</button>
+      <p id="track-error" class="error-msg hidden"></p>
+    </div>
+
+    <!-- Success state -->
+    <div id="state-success" class="state hidden">
+      <div class="success-icon">✓</div>
+      <p class="success-msg">Tracked!</p>
+      <a id="link-app" href="http://localhost:3000" target="_blank" class="btn-secondary">
+        View in Job Sentinel →
+      </a>
+    </div>
+
+    <!-- Settings toggle -->
+    <div class="settings-row">
+      <button id="btn-settings-toggle" class="btn-link">Settings</button>
+    </div>
+    <div id="settings-panel" class="settings-panel hidden">
+      <div class="field">
+        <label for="f-api-base">API base URL</label>
+        <input id="f-api-base" type="url" placeholder="http://127.0.0.1:8000" />
+      </div>
+      <button id="btn-save-settings" class="btn-secondary btn-sm">Save</button>
+      <p id="settings-saved" class="hint hidden">Saved.</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
