@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import { AiMatch } from "@/components/AiMatch";
 import { JobActions } from "@/components/JobActions";
 import { JobDocs } from "@/components/JobDocs";
-import { Select } from "@/components/ui/select";
+import { PopoverSelect } from "@/components/ui/popover-select";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import type { JobDetail, JobPosting } from "@/lib/api";
 import { cn, externalUrl } from "@/lib/utils";
@@ -157,15 +157,16 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
           </div>
           <label className="flex shrink-0 items-center gap-2 text-sm text-muted">
             Sort
-            <Select
+            <PopoverSelect
               value={sort}
-              onChange={(e) => setSort(e.target.value as "newest" | "deadline")}
+              onChange={(v) => setSort(v as "newest" | "deadline")}
               aria-label="Sort tracked jobs"
               className="w-36"
-            >
-              <option value="newest">Newest</option>
-              <option value="deadline">Deadline</option>
-            </Select>
+              options={[
+                { value: "newest", label: "Newest" },
+                { value: "deadline", label: "Deadline" },
+              ]}
+            />
           </label>
         </div>
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
@@ -213,7 +214,8 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
                 exit={reduced ? undefined : { opacity: 0, scale: 0.98 }}
                 transition={{ duration: 0.3, delay: Math.min(idx * 0.03, 0.3) }}
               >
-                <Card className="group relative mb-4 space-y-2 overflow-hidden pl-6">
+                <Card className="group relative overflow-hidden pl-6">
+                  {/* Status accent bar */}
                   <span
                     aria-hidden="true"
                     className={cn(
@@ -221,38 +223,44 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
                       ACCENT[statusOf(j)] ?? "bg-stone-300",
                     )}
                   />
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex min-w-0 flex-1 gap-3.5">
-                      <Monogram name={j.employer || j.title} />
-                      <div className="min-w-0 flex-1">
-                        <CardTitle>{j.title}</CardTitle>
-                        <CardSub>
-                          {[j.employer, j.location, j.job_type].filter(Boolean).join(" · ")}
-                        </CardSub>
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                          {j.posted_date && <CardSub>Posted {j.posted_date}</CardSub>}
-                          {j.deadline && <DeadlineChip deadline={j.deadline} />}
-                          {d?.salary && (
-                            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                              {d.salary}
-                            </span>
-                          )}
-                          {typeof d?.num_applicants === "number" && (
-                            <CardSub>{d.num_applicants} applicants</CardSub>
-                          )}
-                        </div>
-                        {j.portal_url && (
-                          <a
-                            href={externalUrl(j.portal_url)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-1 inline-block text-sm text-brand hover:underline"
-                          >
-                            View posting →
-                          </a>
+
+                  {/* Header — monogram + title/meta/chips */}
+                  <div className="flex min-w-0 gap-3.5">
+                    <Monogram name={j.employer || j.title} />
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="leading-snug">{j.title}</CardTitle>
+                      <CardSub className="mt-0.5">
+                        {[j.employer, j.location, j.job_type].filter(Boolean).join(" · ")}
+                      </CardSub>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {j.posted_date && (
+                          <span className="text-[11px] text-muted">Posted {j.posted_date}</span>
+                        )}
+                        {j.deadline && <DeadlineChip deadline={j.deadline} />}
+                        {d?.salary && (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                            {d.salary}
+                          </span>
+                        )}
+                        {typeof d?.num_applicants === "number" && (
+                          <span className="text-[11px] text-muted">{d.num_applicants} applicants</span>
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* Footer — all actions in one row, matching SearchResultCard */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                    {j.portal_url && (
+                      <a
+                        href={externalUrl(j.portal_url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-8 items-center rounded-lg border border-line px-3 text-xs font-medium text-ink transition-colors hover:border-ink/30 hover:bg-bg"
+                      >
+                        View posting ↗
+                      </a>
+                    )}
                     <JobActions
                       postingId={j.posting_id}
                       status={statusOf(j)}
@@ -262,6 +270,8 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
                     />
                   </div>
 
+                  {/* AI match + doc generation */}
+                  <AiMatch postingId={j.posting_id} />
                   <JobDocs
                     title={j.title}
                     employer={j.employer}
@@ -277,10 +287,9 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
                       .join("\n")}
                   />
 
-                  <AiMatch postingId={j.posting_id} />
-
+                  {/* Expandable job details */}
                   {(d?.description || j.description_snippet) && (
-                    <details className="group/details">
+                    <details className="mt-1">
                       <summary className="cursor-pointer select-none text-sm font-medium text-brand">
                         Job details
                       </summary>

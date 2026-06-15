@@ -7,7 +7,7 @@ import { SearchResultCard } from "@/components/SearchResultCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { PopoverSelect, type SelectOption } from "@/components/ui/popover-select";
 import {
   fetchCompanyBoard,
   getSources,
@@ -36,8 +36,33 @@ const DATE_OPTIONS = [
   { label: "Past month", value: "30" },
 ];
 
-const JOB_TYPES = ["", "Full-time", "Part-time", "Contract", "Internship", "Temporary"];
-const SENIORITY = ["", "Internship", "Entry", "Mid", "Senior", "Director", "Executive"];
+const JOB_TYPE_OPTIONS: SelectOption[] = [
+  { value: "", label: "Any type" },
+  { value: "Full-time", label: "Full-time" },
+  { value: "Part-time", label: "Part-time" },
+  { value: "Contract", label: "Contract" },
+  { value: "Internship", label: "Internship" },
+  { value: "Temporary", label: "Temporary" },
+];
+const SENIORITY_OPTIONS: SelectOption[] = [
+  { value: "", label: "Any level" },
+  { value: "Internship", label: "Internship" },
+  { value: "Entry", label: "Entry" },
+  { value: "Mid", label: "Mid" },
+  { value: "Senior", label: "Senior" },
+  { value: "Director", label: "Director" },
+  { value: "Executive", label: "Executive" },
+];
+const LIMIT_OPTIONS: SelectOption[] = [
+  { value: "25", label: "25 results" },
+  { value: "50", label: "50 results" },
+  { value: "100", label: "100 results" },
+];
+const ATS_OPTIONS: SelectOption[] = [
+  { value: "greenhouse", label: "Greenhouse" },
+  { value: "lever", label: "Lever" },
+  { value: "ashby", label: "Ashby" },
+];
 
 export default function SearchPage() {
   const [mode, setMode] = useState<Mode>("search");
@@ -189,28 +214,32 @@ export default function SearchPage() {
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                 />
-                <Select value={remote} onChange={(e) => setRemote(e.target.value as typeof remote)}>
-                  {REMOTE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </Select>
+                <PopoverSelect
+                  value={remote}
+                  onChange={(v) => setRemote(v as typeof remote)}
+                  options={[...REMOTE_OPTIONS]}
+                  aria-label="Work location"
+                />
                 <div className="grid grid-cols-2 gap-2">
-                  <Select value={jobType} onChange={(e) => setJobType(e.target.value)}>
-                    {JOB_TYPES.map((t) => (
-                      <option key={t} value={t}>{t || "Any type"}</option>
-                    ))}
-                  </Select>
-                  <Select value={seniority} onChange={(e) => setSeniority(e.target.value)}>
-                    {SENIORITY.map((s) => (
-                      <option key={s} value={s}>{s || "Any level"}</option>
-                    ))}
-                  </Select>
+                  <PopoverSelect
+                    value={jobType}
+                    onChange={setJobType}
+                    options={JOB_TYPE_OPTIONS}
+                    aria-label="Job type"
+                  />
+                  <PopoverSelect
+                    value={seniority}
+                    onChange={setSeniority}
+                    options={SENIORITY_OPTIONS}
+                    aria-label="Seniority level"
+                  />
                 </div>
-                <Select value={datePosted} onChange={(e) => setDatePosted(e.target.value)}>
-                  {DATE_OPTIONS.map((d) => (
-                    <option key={d.value} value={d.value}>{d.label}</option>
-                  ))}
-                </Select>
+                <PopoverSelect
+                  value={datePosted}
+                  onChange={setDatePosted}
+                  options={[...DATE_OPTIONS]}
+                  aria-label="Date posted"
+                />
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     type="number"
@@ -228,11 +257,13 @@ export default function SearchPage() {
                 </div>
                 <Input placeholder="Company" value={company} onChange={(e) => setCompany(e.target.value)} />
                 <div className="flex items-center gap-2">
-                  <Select className="w-24" value={limit} onChange={(e) => setLimit(e.target.value)}>
-                    {["25", "50", "100"].map((n) => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </Select>
+                  <PopoverSelect
+                    value={limit}
+                    onChange={setLimit}
+                    options={LIMIT_OPTIONS}
+                    aria-label="Result limit"
+                    className="w-32"
+                  />
                   <Button type="submit" disabled={searching || selected.size === 0} className="flex-1">
                     {searching ? "Searching…" : "Search"}
                   </Button>
@@ -287,11 +318,13 @@ export default function SearchPage() {
                 void runCompany();
               }}
             >
-              <Select className="w-40" value={ats} onChange={(e) => setAts(e.target.value)}>
-                <option value="greenhouse">Greenhouse</option>
-                <option value="lever">Lever</option>
-                <option value="ashby">Ashby</option>
-              </Select>
+              <PopoverSelect
+                value={ats}
+                onChange={setAts}
+                options={ATS_OPTIONS}
+                aria-label="ATS provider"
+                className="w-40"
+              />
               <Input
                 className="max-w-xs flex-1"
                 placeholder="company slug (e.g. stripe)"
