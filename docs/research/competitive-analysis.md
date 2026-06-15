@@ -1,7 +1,7 @@
 # Competitive Analysis — Job Sentinel vs. the Landscape
 
-**Status:** living document · **Last updated:** 2026-06 · **Owner:** Harshit Wandhare  
-**Source:** 124 adversarially-verified claims from multi-source deep-research sweep, June 2026.
+**Status:** living document · **Last updated:** 2026-06-15 · **Owner:** Harshit Wandhare  
+**Source:** 124 adversarially-verified claims from multi-source deep-research sweep, June 2026. Architecture deep-dive corrections applied same date (Career-Ops license, install, data model; eliornl/ApplyPilot added).
 
 ---
 
@@ -9,38 +9,88 @@
 
 ### Career-Ops ⭐ 53,800 stars — PRIMARY THREAT
 
-**Repo:** (multiple forks; primary via the composiodev article ecosystem)  
+**Repo:** `@santifer/career-ops` (npm) · primary via composiodev article ecosystem  
 **Stars:** ~53,800 · **Forks:** ~10,700 · **Language:** TypeScript 98.8%  
-**Deploy:** Docker Compose · **AI providers:** OpenAI, Gemini, OpenRouter, OpenAI-compatible endpoints  
-**Latest release:** v0.9.1 — June 9, 2026
+**License:** **MIT** (fully open — not AGPL or Commons Clause)  
+**Install:** `npx @santifer/career-ops init` (no Docker — slash commands added to Claude Code / Gemini CLI)  
+**Latest release:** v1.10.0 — June 11, 2026
+
+**Critical architecture note:** Career-Ops is NOT a standalone app. It is a set of 14 slash-command skills that run _inside_ the Claude Code CLI (or Gemini CLI). The user must already have Claude Code (and a Claude subscription) installed. All data is stored in markdown/YAML/TSV flat files in the project directory — there is no database and no persistent API.
+
+**14 skill modes:**
+`oferta` (score+negotiate), `pdf` (CV builder), `cover` (cover letter), `scan` (job scan),
+`batch` (multi-company scan), `tracker` (pipeline), `apply` (application), `pipeline` (stage view),
+`contacto` (LinkedIn outreach), `deep` (company research), `training` (skill gap analysis),
+`project` (portfolio match), `_shared` (core utilities)
+
+**What it does well:**
+- Scans Ashby, Greenhouse, Lever, Wellfound, Workable for open roles
+- 10-dimension A–F letter-grade scoring per job (not just a number)
+- ATS-optimized CV generation per application, PDF via HTML+Playwright
+- Negotiation scripts (oferta), interview story bank, LinkedIn outreach drafts (contacto)
+- Deep company research on demand (deep skill)
+- Portfolio/project fit analysis (project skill), skill gap → training path (training skill)
+- Visa sponsorship check for UK roles; Gmail integration for interview/rejection detection
+- 45+ pre-configured target-company list as a starter pack
+- Works with any Claude/Gemini/Qwen/OpenCode model via Claude Code's model flag
+
+**Where Career-Ops beats us (gaps we must close):**
+- **Richer scoring** — A–F letter grades across 10 labeled dimensions, not just a single numeric score
+- **Negotiation workflow** — built-in salary negotiation scripts per offer; we have none
+- **Interview prep** — story bank generator linked to the specific job context; we have none
+- **LinkedIn outreach** — contacto skill drafts cold-message sequences; we have none
+- **Company deep research** — deep skill pulls company Intel before the user applies; we have none
+- **Skill gap → training plan** — training skill maps profile to job, outputs a learning path; we have none
+- **Wellfound source** — they scan it by default; we don't have it yet
+- **45+ company starter list** — lowers time-to-first-result for new users; we have no preset list
+
+**Where we beat Career-Ops — our hard advantages:**
+1. **Web UI** — they have zero browser surface; everything is terminal text output
+2. **Structured database** — SQLite with a typed schema, full REST API, queryable history; they use flat markdown/YAML/TSV files with no query layer
+3. **Real-time monitoring + Telegram push alerts** — they have no notification system at all; users run scans manually
+4. **Portal auth scraping** — 12twenty, Handshake (gated university/corporate portals); Career-Ops cannot authenticate or scrape these
+5. **LaTeX/Tectonic PDF** — publication-quality typesetting; they use HTML template + Playwright (browser screenshot PDF)
+6. **No subscription required** — `pip install job-sentinel` + free Ollama works end-to-end; Career-Ops requires Claude Code CLI which implies a Claude subscription
+7. **Application CRM** — full lifecycle stages, notes, doc history per application; they have a basic tracker in TSV files
+8. **AI chat assistant** — `/chat` page grounded on local state (jobs/profile/deadlines); they have no chat interface
+9. **Multi-source discovery** — RemoteOK, TheMuse, Arbeitnow, Himalayas, Adzuna, USAJobs, JobSpy, Greenhouse/Lever/Ashby; not just ATS boards
+10. **Extension self-contained** — our MV3 browser extension posts to our local API; Career-Ops has no browser extension
+
+---
+
+### eliornl/ApplyPilot ⭐ 35 stars — "ApplyKit" (BYOK AI, résumé convergence)
+
+**Repo:** https://github.com/eliornl/ApplyPilot  
+**Stars:** ~35 · **License:** MIT · **Language:** Python (FastAPI) + LangGraph  
+**Stack:** FastAPI + PostgreSQL + Redis + LangGraph + Chrome extension  
+**AI:** Gemini only (BYOK — user provides Gemini API key); no Ollama/local LLM  
+**Status:** Active, small community, focused on the résumé tailoring loop
 
 **What it does:**
-- Terminal-based AI agent that scans 10+ job boards: **Ashby, Greenhouse, Lever, Wellfound, Workable** (same boards as our company_boards.py)
-- Scores every job 0–100 against a user profile using AI reasoning
-- Generates ATS-optimized CVs / résumés per application
-- **No auto-submit** — manual applications only (same stance as us)
-- Creator personally used it to evaluate 740+ offers, generate 100+ tailored CVs, and land a Head of Applied AI role
-- Visa sponsorship checking for UK roles
-- Gmail integration to auto-detect interview invitations, offers, and rejections post-application
+- User pastes a job URL; 5 LangGraph agents run in ~30 seconds:
+  `Researcher` (scrape JD) → `JD Analyst` (extract requirements) → `CV Analyst` (gap assessment) → `CV Writer` (tailored draft) → `CV Evaluator` (score + iterate until ≥90% fit)
+- Convergence loop: if score < 90, the evaluator feeds back to the writer and iterates automatically
+- CV output: `.odt` / `.docx` (no LaTeX, no native PDF — user exports from LibreOffice/Word)
+- Chrome extension for one-click job capture
+- Multi-user support with encrypted API key storage
+- Company research as a dedicated agent step
 
-**Weaknesses:**
-- Terminal-only — no web UI at all
-- Significant onboarding friction: early scores are inaccurate until the model learns the user's profile
-- Deployed via Docker (heavier than `pip install job-sentinel`)
-- **AGPL-3.0 + Commons Clause** restricts commercial hosting; our plan keeps core MIT/Apache-friendly
-- No Telegram/email alerts, no portal login (12twenty, Handshake)
-- No tracked-job lifecycle or application CRM beyond basic pipeline
-- No LaTeX/PDF résumé engine (generates text CVs, not publication-quality PDFs)
+**Where eliornl/ApplyPilot beats us (gaps we must close):**
+- **LangGraph convergence loop** — automated revise-until-90% cycle; our tailor.py runs once and returns
+- **Dedicated company research agent** — runs before CV tailoring; we have no pre-apply company Intel step
+- **Fit gating** — if the job is a poor fit, the pipeline exits early; we don't auto-filter low-fit jobs
+- **Multi-user architecture** — designed for teams/families to share one instance; our DB schema is single-user
 
-**How we beat it:**
-1. **Web UI** — they have zero browser surface; we have full Next.js dashboard
-2. **Application CRM** — kanban pipeline, stages, docs history
-3. **Portal scraping** — university/corporate portals behind auth (12twenty, Handshake) that public ATS boards don't cover
-4. **Telegram alerts** — instant push on new postings, not manual runs
-5. **LaTeX/Tectonic PDF** — print-quality résumés, not plain text
-6. **Profile-as-YAML** — diffable, versionable, portable
-7. **Easier install** — `pip install job-sentinel` vs Docker Compose
-8. **No Commons Clause** — fully open for community hosting
+**Where we beat eliornl/ApplyPilot — our hard advantages:**
+1. **LaTeX/Tectonic PDF** — print-quality output; they produce `.odt`/`.docx` requiring LibreOffice export
+2. **Multi-LLM** — Ollama, any OpenAI-compatible endpoint; they are hard-coded to Gemini API
+3. **Job discovery built in** — multi-source scraping, monitoring, Telegram alerts; they require manual URL paste for every job
+4. **Real-time monitoring** — APScheduler polls portals on a schedule; they have no monitoring concept
+5. **Simpler infra** — SQLite (zero-install); they require PostgreSQL + Redis to be running
+6. **Structured test suite** — 79%+ coverage, mypy --strict, ruff, CI gates; they have minimal testing
+7. **Application pipeline CRM** — full stage history, notes, generated docs per application; they track nothing post-CV
+8. **profile.yaml** — structured, versionable, portable single source of truth for all résumé generation; their profile model is tied to the app DB
+9. **University portal coverage** — 12twenty/Handshake scraping; completely out of scope for them
 
 ---
 
@@ -64,7 +114,7 @@
 
 ---
 
-### ApplyPilot ⭐ ~1,100 stars
+### Pickle-Pixel/ApplyPilot ⭐ ~1,100 stars — auto-submit bot (different from eliornl/ApplyPilot above)
 
 **Repo:** https://github.com/Pickle-Pixel/ApplyPilot  
 **Stars:** ~1,100 · **Forks:** ~398 · **Latest:** v0.3.0 (February 21, 2026) · **Open issues:** 34  
@@ -219,22 +269,27 @@ Greenhouse: 220k+ companies. Workday: 10k+ companies (39% of Fortune 500). Lever
 
 ## 5. Competitive Gaps We Must Close (P0/P1 ranking)
 
-### P0 — Table stakes
-- [ ] **Workday company board support** — 10k+ companies, 39% of Fortune 500. Add to company_boards.py
+### P0 — Table stakes (beat Career-Ops directly)
+- [ ] **Wellfound/AngelList source** — Career-Ops scans it by default; we don't have it yet (public API exists)
+- [ ] **Workday company board support** — 10k+ companies, 39% of Fortune 500; add to company_boards.py
 - [ ] **India market (Naukri via JobSpy)** — explicitly surface in UI and docs
-- [ ] **AIHawk user capture** — add landing page section "for ex-AIHawk users"; Hacker News/Reddit positioning
+- [ ] **AIHawk user capture** — add landing page section "for ex-AIHawk users"; HN/Reddit positioning
+- [ ] **CV convergence loop** — eliornl/ApplyPilot's killer feature: run tailor.py in a loop (LLM evaluates → revises) until ATS score ≥ threshold; single-pass is our current weakness
 
 ### P1 — Meaningful differentiators
+- [ ] **Multi-dimension scoring** — expand match.py to output A–F letter grades across labeled dimensions (role fit, skill gap, culture signals, growth potential, compensation range, visa status, location, etc.) instead of a single number; this is Career-Ops' visual differentiator
+- [ ] **Pre-apply company research** — before tailoring, run a quick LLM + web search to surface company Intel (recent news, culture notes, known stack, hiring freeze signals); eliornl/ApplyPilot has this as an agent step
+- [ ] **Negotiation scripts** — after applying, generate a salary negotiation brief tied to the specific offer; Career-Ops' oferta skill
 - [ ] **Gmail/email integration** (job-ops has it) — detect interview invitations/rejections, auto-update application stage
-- [ ] **Ghost job signal** — use LLM to score job postings for "ghost job" probability (no date, vague requirements, old posting re-posted)
-- [ ] **Response rate analytics** — show user their personal apply→interview rate vs. industry benchmarks
-- [ ] **Wellfound/AngelList source** — Career-Ops scans it; we should too (public API exists)
-- [ ] **ATS platform detection** — tell user which ATS a company uses (Jobscan's moat; we can do open-source version)
+- [ ] **Ghost job signal** — LLM flag on job cards (vague reqs, no date, old re-posts)
+- [ ] **Response rate analytics** — personal apply→interview rate vs. industry benchmarks
+- [ ] **ATS platform detection** — tell user which ATS a company uses (Jobscan's moat; we can open-source it)
 
 ### P2 — Growth
-- [ ] **Docker image on Docker Hub** — Career-Ops uses Docker; target their users with `docker pull job-sentinel`
-- [ ] **"Ethical auto-apply" comparison page** — explain AIHawk's archival, why quality > volume
+- [ ] **Interview story bank** — Career-Ops generates STAR-format stories per job context; we could surface this in /studio
+- [ ] **LinkedIn outreach drafts** — contacto-style cold-message generator tied to the application
 - [ ] **OpenRouter as default LLM** — remove friction for users without Ollama
+- [ ] **"Ethical alternative" comparison page** — explain AIHawk archival + Career-Ops Claude subscription requirement; position us as the no-barrier path
 
 ---
 
@@ -253,22 +308,28 @@ Best-in-class patterns from the landscape:
 
 ## 7. Where Job Sentinel Wins — Updated Thesis (2026)
 
-1. **The only open-source tool with a web UI + portal scraping + résumé engine + CRM** — Career-Ops (53k stars) has none of these; AIHawk is dead; ApplyPilot has no web UI or privacy
-2. **Local-first privacy** — zero keys required; your data never leaves your machine; GDPR-safe by design
-3. **Quality over volume** — 4–6% response rates vs bots' 0.1–0.5%; our AI match + tailoring positions users in the winning cohort
-4. **Ethical & durable** — no CAPTCHA bypass, no fake accounts, no ToS Russian roulette
-5. **Profile-as-code** — YAML + LaTeX/Tectonic = reproducible, diffable, version-controlled career history; no vendor lock-in
-6. **University portal coverage** — gated portals (12twenty, Handshake) are completely underserved; no competitor touches this
-7. **Engineering quality** — mypy --strict, 79% coverage, CI, ADRs, HLD/LLD; most OSS job tools are single-file scripts
-8. **Free to install forever** — `pip install job-sentinel`; no freemium gate, no free-tier caps
+1. **The only open-source tool combining web UI + portal auth scraping + LaTeX résumé engine + application CRM + real-time alerts** — Career-Ops (53k stars) has none of these; it requires a Claude subscription and stores data in flat text files; AIHawk is dead; eliornl/ApplyPilot has no discovery/monitoring and outputs .docx only
+2. **Zero-barrier install** — `pip install job-sentinel` + free Ollama; Career-Ops requires Claude Code CLI (subscription); commercial tools charge $30–50/mo
+3. **Real-time monitoring + push alerts** — APScheduler + Telegram; no OSS competitor has this; you find out about new postings before most applicants
+4. **University portal coverage** — 12twenty, Handshake (auth-gated); Career-Ops and every SaaS competitor cannot scrape these at all
+5. **Local-first privacy** — zero cloud keys required; your data never leaves your machine; GDPR-safe by design
+6. **Quality over volume** — 4–6% response rates vs bots' 0.1–0.5%; our AI match + tailoring positions users in the winning cohort
+7. **Ethical & durable** — no CAPTCHA bypass, no fake accounts, no ToS Russian roulette; we will not get archived like AIHawk
+8. **Profile-as-code** — YAML + LaTeX/Tectonic = reproducible, diffable, version-controlled career history; no vendor lock-in
+9. **Engineering quality** — mypy --strict, ~80% coverage, CI gates (lint/mypy/tests/gitleaks/supply-chain/web), ADRs; most OSS job tools are single-file scripts
+10. **Feature surface** — web UI + CLI + REST API + browser extension + Telegram bot; Career-Ops is terminal text only
+
+**Gaps that close over time (in priority order):** Wellfound source → CV convergence loop → multi-dimension scoring → pre-apply company research → negotiation scripts → Gmail integration → ghost job signal.
 
 ---
 
 ### Sources (primary)
-- Career-Ops: https://dev.to/composiodev/9-must-know-open-source-tools-to-land-your-dream-job-in-2025-iki
+- Career-Ops (architecture verified): `npx @santifer/career-ops`, README + skill source, June 2026
+- Career-Ops community: https://dev.to/composiodev/9-must-know-open-source-tools-to-land-your-dream-job-in-2025-iki
+- eliornl/ApplyPilot: https://github.com/eliornl/ApplyPilot (35 stars, README + LangGraph agents)
+- Pickle-Pixel/ApplyPilot: https://github.com/Pickle-Pixel/ApplyPilot
 - JobSpy: https://github.com/speedyapply/JobSpy (v1.1.79, March 2025)
 - ResumeLM: https://github.com/olyaiy/resume-lm
-- ApplyPilot: https://github.com/Pickle-Pixel/ApplyPilot
 - AIHawk archived: https://github.com/feder-cr/linkedIn_auto_jobs_applier_with_AI (May 17, 2026)
 - ProxyCurl shutdown: July 4, 2025 (post LinkedIn/Microsoft lawsuit Jan 2025)
 - hiQ v. LinkedIn: 9th Circuit 2022 ruling
