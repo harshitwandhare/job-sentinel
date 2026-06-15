@@ -1,11 +1,11 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { type Column, DataTable } from "@/components/DataTable";
 import { LocalSetupGuide } from "@/components/LocalSetupGuide";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
+import { PopoverSelect } from "@/components/ui/popover-select";
 import {
   type Application,
   type ApplicationStage,
@@ -99,27 +99,16 @@ export default function ApplicationsPage() {
       header: "Stage",
       sortValue: (a) => STAGES.indexOf(a.stage),
       render: (a) => (
-        <div className="relative inline-block">
-          <select
-            value={a.stage}
-            onChange={(e) => onStage(a.id, e.target.value as ApplicationStage)}
-            aria-label={`Stage for ${a.title}`}
-            className={cn(
-              "cursor-pointer appearance-none rounded-full border-0 py-1 pl-3 pr-7 text-xs font-medium capitalize outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-brand/40",
-              STAGE_STYLES[a.stage],
-            )}
-          >
-            {STAGES.map((s) => (
-              <option key={s} value={s} className="bg-surface text-ink">
-                {s}
-              </option>
-            ))}
-          </select>
-          <ChevronDown
-            aria-hidden="true"
-            className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-60"
-          />
-        </div>
+        <PopoverSelect
+          value={a.stage}
+          onChange={(v) => onStage(a.id, v as ApplicationStage)}
+          aria-label={`Stage for ${a.title}`}
+          options={STAGES.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }))}
+          className={cn(
+            "h-8 min-w-[110px] border-0 px-3 pr-8 text-xs font-medium capitalize shadow-none",
+            STAGE_STYLES[a.stage],
+          )}
+        />
       ),
     },
     {
