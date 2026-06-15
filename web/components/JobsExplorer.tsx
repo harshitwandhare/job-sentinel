@@ -225,7 +225,7 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
                   />
 
                   {/* Header — monogram + title/meta/chips */}
-                  <div className="flex min-w-0 gap-3.5">
+                  <div className="flex min-w-0 gap-3.5 pb-3">
                     <Monogram name={j.employer || j.title} />
                     <div className="min-w-0 flex-1">
                       <CardTitle className="leading-snug">{j.title}</CardTitle>
@@ -249,8 +249,8 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
                     </div>
                   </div>
 
-                  {/* Footer — all actions in one row, matching SearchResultCard */}
-                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
+                  {/* Row 1 — primary actions: view + status management */}
+                  <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
                     {j.portal_url && (
                       <a
                         href={externalUrl(j.portal_url)}
@@ -270,30 +270,40 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
                     />
                   </div>
 
-                  {/* AI match + doc generation */}
-                  <AiMatch postingId={j.posting_id} />
-                  <JobDocs
-                    title={j.title}
-                    employer={j.employer}
-                    jobText={[
-                      j.title,
-                      j.employer,
-                      j.job_type,
-                      d?.job_function ?? "",
-                      d?.industry ?? "",
-                      d?.description || j.description_snippet,
-                    ]
-                      .filter(Boolean)
-                      .join("\n")}
-                  />
+                  {/* Row 2 — document generation */}
+                  <div className="border-t border-line pt-3">
+                    <JobDocs
+                      title={j.title}
+                      employer={j.employer}
+                      jobText={[
+                        j.title,
+                        j.employer,
+                        j.job_type,
+                        d?.job_function ?? "",
+                        d?.industry ?? "",
+                        d?.description || j.description_snippet,
+                      ]
+                        .filter(Boolean)
+                        .join("\n")}
+                    />
+                  </div>
 
-                  {/* Expandable job details */}
+                  {/* AI match — full-width collapsible */}
+                  <AiMatch postingId={j.posting_id} />
+
+                  {/* Job details — full-width collapsible */}
                   {(d?.description || j.description_snippet) && (
-                    <details className="mt-1">
-                      <summary className="cursor-pointer select-none text-sm font-medium text-brand">
+                    <details className="group/details border-t border-line">
+                      <summary className="flex cursor-pointer list-none items-center gap-2 py-2 text-xs font-medium text-muted transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
                         Job details
+                        <span
+                          aria-hidden="true"
+                          className="ml-auto transition-transform duration-200 group-open/details:rotate-180"
+                        >
+                          ▾
+                        </span>
                       </summary>
-                      <div className="mt-2 space-y-2 border-l-2 border-line pl-3">
+                      <div className="space-y-2 pb-2">
                         <div className="space-y-0.5">
                           <FactRow label="Job function" value={d?.job_function} />
                           <FactRow label="Industry" value={d?.industry} />
@@ -326,7 +336,7 @@ export function JobsExplorer({ jobs }: { jobs: JobPosting[] }) {
                             }
                           />
                         </div>
-                        <p className="whitespace-pre-line text-sm text-muted">
+                        <p className="whitespace-pre-line text-sm leading-relaxed text-muted">
                           {d?.description || j.description_snippet}
                         </p>
                       </div>

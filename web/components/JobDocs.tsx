@@ -70,7 +70,7 @@ export function JobDocs({ title, employer, jobText, ai = true }: JobDocsProps) {
       <button
         onClick={onResume}
         disabled={busy !== ""}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-brand-500 disabled:opacity-50"
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-brand px-3 text-xs font-medium text-white transition-colors hover:bg-brand-500 disabled:opacity-50"
         title="Tailor your profile to this posting and download the PDF"
       >
         {busy === "resume" ? (
@@ -84,7 +84,7 @@ export function JobDocs({ title, employer, jobText, ai = true }: JobDocsProps) {
       <button
         onClick={onCover}
         disabled={busy !== ""}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/30 hover:bg-surface disabled:opacity-50"
+        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line px-3 text-xs font-medium text-ink transition-colors hover:border-ink/30 hover:bg-surface disabled:opacity-50"
         title="Generate a cover letter for this posting and download the PDF"
       >
         {busy === "cover" ? (
