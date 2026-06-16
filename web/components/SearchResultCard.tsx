@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useState } from "react";
 
 import { AiMatch } from "@/components/AiMatch";
@@ -55,6 +55,8 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
     else setError("Couldn't save — is the local API running?");
   }
 
+  const jobText = [job.title, job.employer, job.job_type, description].filter(Boolean).join("\n");
+
   return (
     <motion.div
       layout={!reduced}
@@ -62,8 +64,9 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, delay: Math.min(index * 0.025, 0.25) }}
     >
-      <Card className="space-y-3">
-        <div className="flex items-start gap-3.5">
+      <Card className="space-y-0">
+        {/* Header — monogram + title/meta/chips */}
+        <div className="flex items-start gap-3.5 pb-3">
           <Monogram name={job.employer || job.title} />
           <div className="min-w-0 flex-1">
             <CardTitle className="leading-snug">{job.title}</CardTitle>
@@ -89,10 +92,7 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
             {tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
                 {(tags as string[]).slice(0, 5).map((t) => (
-                  <span
-                    key={t}
-                    className="rounded border border-line px-1.5 py-0.5 text-[11px] text-muted"
-                  >
+                  <span key={t} className="rounded border border-line px-1.5 py-0.5 text-[11px] text-muted">
                     {t}
                   </span>
                 ))}
@@ -101,7 +101,7 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
           </div>
         </div>
 
-        {/* Footer — all actions on one row; panels expand below */}
+        {/* Action row — primary actions only */}
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
           <button
             onClick={onTrack}
@@ -125,11 +125,6 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
               View posting ↗
             </a>
           )}
-          <AiMatch
-            jobText={[job.title, job.employer, job.job_type, description]
-              .filter(Boolean)
-              .join("\n")}
-          />
           {description && (
             <button
               onClick={() => setShowDetails((v) => !v)}
@@ -137,7 +132,7 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
               className="inline-flex h-8 items-center gap-1 rounded-lg border border-line px-3 text-xs font-medium text-muted transition-colors hover:border-ink/30 hover:text-ink"
             >
               Job details
-              <span aria-hidden="true" className={cn("transition-transform", showDetails && "rotate-180")}>
+              <span aria-hidden="true" className={cn("transition-transform duration-200", showDetails && "rotate-180")}>
                 ▾
               </span>
             </button>
@@ -145,11 +140,25 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
           {error && <span className="w-full text-xs text-amber-600">{error}</span>}
         </div>
 
-        {showDetails && description && (
-          <p className="whitespace-pre-line border-l-2 border-line pl-3 text-sm leading-relaxed text-muted">
-            {description}
-          </p>
-        )}
+        {/* Description panel — animated */}
+        <AnimatePresence initial={false}>
+          {showDetails && description && (
+            <motion.div
+              initial={reduced ? false : { height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={reduced ? undefined : { height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <p className="border-l-2 border-line pl-3 pt-2 pb-1 text-sm leading-relaxed text-muted">
+                {description}
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* AI match — full-width collapsible section */}
+        <AiMatch jobText={jobText} />
       </Card>
     </motion.div>
   );
