@@ -77,10 +77,7 @@ def test_wellfound_http_error_returns_empty() -> None:
 
 @respx.mock
 def test_wellfound_limit_respected() -> None:
-    many_listings = [
-        {"id": f"wf-{i}", "title": f"Role {i}", "remote": False}
-        for i in range(20)
-    ]
+    many_listings = [{"id": f"wf-{i}", "title": f"Role {i}", "remote": False} for i in range(20)]
     resp = {
         "data": {"jobListings": {"startups": [{"name": "BigCo", "jobListings": many_listings}]}}
     }

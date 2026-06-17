@@ -120,9 +120,8 @@ class WellfoundSource(JobSource):
 
                 role = item.get("startupRole") or {}
                 apply_url = (
-                    (role.get("url") if isinstance(role, dict) else None)
-                    or f"https://wellfound.com/jobs/{item.get('slug', '')}"
-                )
+                    role.get("url") if isinstance(role, dict) else None
+                ) or f"https://wellfound.com/jobs/{item.get('slug', '')}"
 
                 posting = self._posting(
                     native_id=str(item.get("id") or item.get("slug") or ""),
