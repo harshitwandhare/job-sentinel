@@ -253,7 +253,7 @@ class JobSourceSettings(BaseSettings):
 
     # NoDecode so pydantic-settings doesn't try JSON-decode a CSV value first
     enabled_sources: Annotated[list[str], NoDecode] = Field(
-        default=["remoteok", "themuse", "arbeitnow", "himalayas"],
+        default=["remoteok", "themuse", "arbeitnow", "himalayas", "wellfound"],
         description="Comma-separated list of enabled job source IDs",
         validation_alias="JOB_SOURCES_ENABLED",
     )
@@ -263,12 +263,12 @@ class JobSourceSettings(BaseSettings):
     def _parse_sources_csv(cls, v: object) -> list[str]:
         """Accept 'a,b,c' string OR a real list from the environment."""
         if v is None or v == "":
-            return ["remoteok", "themuse", "arbeitnow", "himalayas"]
+            return ["remoteok", "themuse", "arbeitnow", "himalayas", "wellfound"]
         if isinstance(v, str):
             return [s.strip() for s in v.split(",") if s.strip()]
         if isinstance(v, Iterable):
             return [str(item) for item in v]
-        return ["remoteok", "themuse", "arbeitnow", "himalayas"]
+        return ["remoteok", "themuse", "arbeitnow", "himalayas", "wellfound"]
 
     # ── Adzuna (free key — https://developer.adzuna.com) ─────────────────────
     adzuna_app_id: str = Field(

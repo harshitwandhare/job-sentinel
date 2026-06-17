@@ -49,6 +49,7 @@ def test_list_sources_includes_builtins() -> None:
     assert "adzuna" in ids
     assert "usajobs" in ids
     assert "himalayas" in ids
+    assert "wellfound" in ids
 
 
 def test_builtin_remoteok_lazy_loads() -> None:
