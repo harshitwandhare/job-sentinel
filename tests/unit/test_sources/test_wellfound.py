@@ -81,7 +81,9 @@ def test_wellfound_limit_respected() -> None:
         {"id": f"wf-{i}", "title": f"Role {i}", "remote": False}
         for i in range(20)
     ]
-    resp = {"data": {"jobListings": {"startups": [{"name": "BigCo", "jobListings": many_listings}]}}}
+    resp = {
+        "data": {"jobListings": {"startups": [{"name": "BigCo", "jobListings": many_listings}]}}
+    }
     respx.post(_GQL_URL).mock(return_value=httpx.Response(200, json=resp))
 
     results = WellfoundSource().search(JobQuery(limit=5))
