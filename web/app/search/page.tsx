@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { LocalSetupGuide } from "@/components/LocalSetupGuide";
 import { SearchResultCard } from "@/components/SearchResultCard";
@@ -94,6 +94,40 @@ export default function SearchPage() {
   // Company mode
   const [ats, setAts] = useState("greenhouse");
   const [slug, setSlug] = useState("");
+
+  const keywordsRef = useRef<HTMLInputElement>(null);
+
+  // Press "/" anywhere on the page to jump to the keywords field
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (
+        e.key === "/" &&
+        document.activeElement?.tagName !== "INPUT" &&
+        document.activeElement?.tagName !== "TEXTAREA"
+      ) {
+        e.preventDefault();
+        keywordsRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const hasActiveFilters =
+    keywords || location || remote !== "any" || jobType || seniority || salaryMin || datePosted || radiusKm || company;
+
+  function clearFilters() {
+    setKeywords("");
+    setLocation("");
+    setRemote("any");
+    setJobType("");
+    setSeniority("");
+    setSalaryMin("");
+    setDatePosted("");
+    setRadiusKm("");
+    setCompany("");
+    setLimit("50");
+  }
 
   useEffect(() => {
     getSources().then((s) => {
@@ -204,11 +238,19 @@ export default function SearchPage() {
                 }}
                 className="space-y-3"
               >
-                <Input
-                  placeholder="Keywords (e.g. python, ML)"
-                  value={keywords}
-                  onChange={(e) => setKeywords(e.target.value)}
-                />
+                <div className="relative">
+                  <Input
+                    ref={keywordsRef}
+                    placeholder="Keywords — press / to focus"
+                    value={keywords}
+                    onChange={(e) => setKeywords(e.target.value)}
+                  />
+                  {!keywords && (
+                    <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-line bg-surface px-1.5 font-mono text-[10px] text-muted">
+                      /
+                    </kbd>
+                  )}
+                </div>
                 <Input
                   placeholder="Location (city, country)"
                   value={location}
@@ -268,6 +310,15 @@ export default function SearchPage() {
                     {searching ? "Searching…" : "Search"}
                   </Button>
                 </div>
+                {hasActiveFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+                  >
+                    Clear filters
+                  </button>
+                )}
                 {selected.size === 0 && (
                   <p className="text-xs text-amber-600">Enable at least one source below.</p>
                 )}
