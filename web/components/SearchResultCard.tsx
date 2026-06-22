@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AiMatch } from "@/components/AiMatch";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { createApplication, type JobPosting } from "@/lib/api";
+import { detectGhostSignal, GHOST_LABELS } from "@/lib/ghostSignal";
 import { cn, externalUrl } from "@/lib/utils";
 
 /** Initial-letter monogram used as a lightweight employer "logo". */
@@ -55,6 +56,13 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
     else setError("Couldn't save — is the local API running?");
   }
 
+  const ghostSignal = detectGhostSignal({
+    postedDate: job.posted_date,
+    descriptionLength: description.length,
+    hasSalary: Boolean(salary),
+    tagCount: tags.length,
+  });
+
   const jobText = [job.title, job.employer, job.job_type, description].filter(Boolean).join("\n");
 
   return (
@@ -88,6 +96,14 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
                 {job.source_adapter || "source"}
               </span>
               {job.posted_date && <span className="text-[11px] text-muted">· {job.posted_date}</span>}
+              {ghostSignal && (
+                <span
+                  title={GHOST_LABELS[ghostSignal].title}
+                  className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200"
+                >
+                  ⚠ {GHOST_LABELS[ghostSignal].short}
+                </span>
+              )}
             </div>
             {tags.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
