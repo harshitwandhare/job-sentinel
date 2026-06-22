@@ -1,8 +1,8 @@
-{
+﻿{
   "name": "job-sentinel-web",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Local-first web UI for Job Sentinel — profile, jobs, and résumé studio.",
+  "description": "Local-first web UI for Job Sentinel â€” profile, jobs, and rÃ©sumÃ© studio.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -40,3 +40,4 @@
     "vitest": "^4.1.8"
   }
 }
+
