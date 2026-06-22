@@ -7,7 +7,7 @@ import { TiltCard } from "@/components/TiltCard";
 
 const qualityBadges = [
   "mypy --strict",
-  "240+ tests",
+  "450+ tests",
   "eslint + vitest",
   "reproducible builds (uv.lock)",
   "ruff lint + format",
@@ -98,6 +98,14 @@ const comparison: {
     free: "Freemium",
     monitoring: false,
     note: "Cloud SaaS — your career data lives on their servers",
+  },
+  {
+    name: "AIHawk (archived May 2026)",
+    openSource: true,
+    local: false,
+    free: "Cloud API keys",
+    monitoring: false,
+    note: "Auto-apply bot — project archived; LinkedIn ToS ban risk",
   },
   {
     name: "AI auto-apply bots",
@@ -295,6 +303,67 @@ export default function HomePage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* AIHawk alternative — capture archived-project users */}
+      <section id="aihawk-alternative" className="border-b border-line bg-bg">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
+          <Reveal>
+            <p className="font-mono text-sm font-medium uppercase tracking-widest text-brand">
+              Migrating from AIHawk?
+            </p>
+            <h2 className="mt-3 max-w-2xl text-2xl font-bold tracking-tight text-ink sm:text-4xl">
+              AIHawk was archived. Your job search shouldn&rsquo;t be.
+            </h2>
+            <p className="mt-4 max-w-2xl leading-relaxed text-muted">
+              AIHawk (29.9k stars) shut down in May 2026 after LinkedIn aggressively blocked
+              mass auto-apply bots. Job Sentinel takes the opposite bet: quality over volume,
+              local-first privacy, and a workflow that doesn&rsquo;t risk your account.
+            </p>
+          </Reveal>
+          <div className="mt-12 grid gap-5 sm:grid-cols-3">
+            {[
+              {
+                heading: "No auto-apply, by design",
+                body: "AIHawk tried to submit hundreds of applications for you — and got burned. Job Sentinel helps you apply smarter: AI-tailored résumés, ATS scoring, and deadline radar so every application counts.",
+              },
+              {
+                heading: "Your data, your machine",
+                body: "AIHawk required cloud API keys and sent your résumé data through third-party services. Job Sentinel runs entirely on your hardware — SQLite locally, Ollama locally, no cloud.",
+              },
+              {
+                heading: "A tool that won't disappear",
+                body: "Open-source (MIT), published on PyPI, typed end-to-end, and built for longevity. No corporate dependency, no sudden shutdown — fork it, audit it, run it forever.",
+              },
+            ].map((item, i) => (
+              <Reveal key={item.heading} delay={i * 0.08}>
+                <div className="h-full rounded-2xl border border-line bg-surface p-6 shadow-card">
+                  <div className="mb-3 inline-flex items-center gap-2">
+                    <span className="inline-flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs font-bold text-brand">
+                      {i + 1}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-semibold tracking-tight text-ink">{item.heading}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{item.body}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+          <Reveal delay={0.2}>
+            <div className="mt-10 flex flex-wrap items-center gap-4">
+              <a
+                href="https://github.com/harshitwandhare/job-sentinel"
+                className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-500"
+              >
+                Switch to Job Sentinel ↗
+              </a>
+              <span className="text-sm text-muted">
+                <code className="mr-1.5 rounded bg-surface px-1.5 py-0.5 font-mono text-xs">pip install job-sentinel</code>
+                — no sign-up required
+              </span>
             </div>
           </Reveal>
         </div>
