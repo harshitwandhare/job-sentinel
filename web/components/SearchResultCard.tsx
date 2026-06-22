@@ -6,6 +6,7 @@ import { useState } from "react";
 import { AiMatch } from "@/components/AiMatch";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import { createApplication, type JobPosting } from "@/lib/api";
+import { ATS_COLORS, detectAts } from "@/lib/atsDetect";
 import { detectGhostSignal, GHOST_LABELS } from "@/lib/ghostSignal";
 import { cn, externalUrl } from "@/lib/utils";
 
@@ -62,6 +63,7 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
     hasSalary: Boolean(salary),
     tagCount: tags.length,
   });
+  const atsPlatform = detectAts(job.portal_url);
 
   const jobText = [job.title, job.employer, job.job_type, description].filter(Boolean).join("\n");
 
@@ -96,6 +98,17 @@ export function SearchResultCard({ job, index }: { job: JobPosting; index: numbe
                 {job.source_adapter || "source"}
               </span>
               {job.posted_date && <span className="text-[11px] text-muted">· {job.posted_date}</span>}
+              {atsPlatform && (
+                <span
+                  title={`Apply via ${atsPlatform}`}
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[11px] font-medium ring-1",
+                    ATS_COLORS[atsPlatform],
+                  )}
+                >
+                  {atsPlatform}
+                </span>
+              )}
               {ghostSignal && (
                 <span
                   title={GHOST_LABELS[ghostSignal].title}
