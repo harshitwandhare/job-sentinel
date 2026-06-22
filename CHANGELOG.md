@@ -14,6 +14,46 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-06-22
+
+Five new quality-of-life features across the job-search experience, shipped as
+independent PRs over the week of June 17–22.
+
+### Added
+
+- **Wellfound job source** (`wellfound`). Public GraphQL endpoint — no API key
+  required. Startup and tech jobs from AngelList/Wellfound enabled by default
+  alongside RemoteOK, The Muse, Arbeitnow, and Himalayas. Salary text stripped
+  of HTML before display. Covered by 5 unit tests (happy path, empty response,
+  GraphQL error, HTTP 503, limit).
+
+- **Ghost job signals on search cards.** Client-side heuristics flag postings
+  that are likely stale (`⚠ Stale — posted 45+ days ago`) or suspiciously thin
+  (`⚠ Thin listing — no salary, tags, or description`). Computed entirely
+  in-browser from existing search data; no extra API calls.
+
+- **ATS platform detection.** Apply-URL patterns identify 11 ATS platforms —
+  Greenhouse, Lever, Ashby, Workday, SmartRecruiters, BambooHR, Jobvite, iCIMS,
+  Taleo, Rippling, Breezy — and surface a colour-coded chip on every job card.
+  14 tests cover all platforms, null/empty inputs, and unknown URLs.
+
+- **Visa sponsorship detection.** Job description text is scanned for 6
+  sponsorship-positive patterns and 7 negative patterns (negative checked first).
+  Results surface as `Sponsors Visa` (green) or `No Sponsorship` (red) chips.
+  10 unit tests covering signal priority and case-insensitivity.
+
+- **Search keyboard shortcut + clear filters.** Press `/` from anywhere on the
+  search page to focus the keywords field. A `⌘/` hint appears in the input.
+  An inline "Clear filters" link appears whenever any filter is active.
+
+### Fixed
+
+- Supply-chain CI gate: patched msgpack 1.2.0→1.2.1, pydantic-settings
+  2.14.1→2.14.2, pypdf 6.13.2→6.14.0 to resolve pre-existing CVEs that were
+  blocking all Dependabot PRs.
+
+- Landing page quality badge corrected to `450+ tests` (was `240+`).
+
 ## [1.0.0] — 2026-06-14
 
 The release where Job Sentinel grows from a single-portal monitor into a full,
