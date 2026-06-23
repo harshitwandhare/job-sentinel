@@ -378,6 +378,93 @@ class JobRepository:
         counts["total"] = sum(counts.values())
         return counts
 
+    def application_analytics(self) -> dict[str, object]:
+        """
+        Compute richer application analytics over the local tracker data.
+
+        Returns a dict with three sections:
+        - ``funnel``: stage → count + pct_of_applied for the conversion funnel
+        - ``by_source``: source → {applied, responded, response_rate}
+        - ``weekly_volume``: list of {week, count} for the last 8 ISO weeks
+        """
+        # ── Funnel ────────────────────────────────────────────────────────
+        stage_counts: dict[str, int] = {s.value: 0 for s in ApplicationStage}
+        for row in self._db.execute(
+            f"SELECT stage, COUNT(*) AS cnt FROM {_APP_TABLE} GROUP BY stage"  # noqa: S608
+        ).fetchall():
+            stage_counts[row[0]] = row[1]
+
+        applied = stage_counts.get(ApplicationStage.APPLIED, 0)
+        funnel: list[dict[str, object]] = []
+        downstream = [
+            ApplicationStage.INTERVIEWING,
+            ApplicationStage.OFFER,
+            ApplicationStage.REJECTED,
+        ]
+        for stage in ApplicationStage:
+            cnt = stage_counts[stage.value]
+            pct: float | None = None
+            if stage in downstream and applied > 0:
+                pct = round(cnt / applied * 100, 1)
+            funnel.append({"stage": stage.value, "count": cnt, "pct_of_applied": pct})
+
+        # Response = interviewing + offer (any non-silence after applying)
+        responded = stage_counts.get(ApplicationStage.INTERVIEWING, 0) + stage_counts.get(
+            ApplicationStage.OFFER, 0
+        )
+        overall_response_rate: float | None = (
+            round(responded / applied * 100, 1) if applied > 0 else None
+        )
+
+        # ── By source ─────────────────────────────────────────────────────
+        source_rows = self._db.execute(
+            f"""
+            SELECT
+                source,
+                COUNT(*) AS total,
+                SUM(CASE WHEN stage IN ('interviewing','offer') THEN 1 ELSE 0 END) AS responded
+            FROM {_APP_TABLE}
+            WHERE stage NOT IN ('saved','archived')
+            GROUP BY source
+            ORDER BY total DESC
+            """  # noqa: S608
+        ).fetchall()
+        by_source: list[dict[str, object]] = []
+        for src_row in source_rows:
+            src, total, src_responded = src_row
+            rr: float | None = round(src_responded / total * 100, 1) if total > 0 else None
+            by_source.append(
+                {
+                    "source": src or "manual",
+                    "applied": total,
+                    "responded": src_responded,
+                    "response_rate": rr,
+                }
+            )
+
+        # ── Weekly volume (last 8 weeks) ───────────────────────────────────
+        weekly_rows = self._db.execute(
+            f"""
+            SELECT
+                strftime('%Y-W%W', applied_date) AS week,
+                COUNT(*) AS cnt
+            FROM {_APP_TABLE}
+            WHERE applied_date != ''
+              AND applied_date IS NOT NULL
+              AND date(applied_date) >= date('now', '-56 days')
+            GROUP BY week
+            ORDER BY week ASC
+            """  # noqa: S608
+        ).fetchall()
+        weekly_volume = [{"week": r[0], "count": r[1]} for r in weekly_rows]
+
+        return {
+            "funnel": funnel,
+            "overall_response_rate": overall_response_rate,
+            "by_source": by_source,
+            "weekly_volume": weekly_volume,
+        }
+
     # ─────────────────────────────────────────────────────────────────────
     # GeneratedDocument CRUD
     # ─────────────────────────────────────────────────────────────────────

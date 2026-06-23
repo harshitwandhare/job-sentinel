@@ -721,6 +721,63 @@ export function getApplicationStats(): Promise<Record<string, number>> {
   return getJSON<Record<string, number>>("/api/applications/stats", {});
 }
 
+export interface ApplicationFunnelEntry {
+  stage: string;
+  count: number;
+  pct_of_applied: number | null;
+}
+
+export interface ApplicationSourceStat {
+  source: string;
+  applied: number;
+  responded: number;
+  response_rate: number | null;
+}
+
+export interface ApplicationWeekVolume {
+  week: string;
+  count: number;
+}
+
+export interface ApplicationAnalytics {
+  funnel: ApplicationFunnelEntry[];
+  overall_response_rate: number | null;
+  by_source: ApplicationSourceStat[];
+  weekly_volume: ApplicationWeekVolume[];
+}
+
+/** Richer analytics: funnel conversion, response rate by source, weekly volume. */
+export function getApplicationAnalytics(): Promise<ApplicationAnalytics> {
+  if (demo.DEMO)
+    return Promise.resolve({
+      funnel: [
+        { stage: "saved", count: 5, pct_of_applied: null },
+        { stage: "applied", count: 12, pct_of_applied: null },
+        { stage: "interviewing", count: 3, pct_of_applied: 25.0 },
+        { stage: "offer", count: 1, pct_of_applied: 8.3 },
+        { stage: "rejected", count: 4, pct_of_applied: 33.3 },
+        { stage: "archived", count: 2, pct_of_applied: null },
+      ],
+      overall_response_rate: 33.3,
+      by_source: [
+        { source: "adzuna", applied: 6, responded: 2, response_rate: 33.3 },
+        { source: "wellfound", applied: 4, responded: 1, response_rate: 25.0 },
+        { source: "manual", applied: 2, responded: 1, response_rate: 50.0 },
+      ],
+      weekly_volume: [
+        { week: "2026-W23", count: 3 },
+        { week: "2026-W24", count: 5 },
+        { week: "2026-W25", count: 4 },
+      ],
+    });
+  return getJSON<ApplicationAnalytics>("/api/applications/analytics", {
+    funnel: [],
+    overall_response_rate: null,
+    by_source: [],
+    weekly_volume: [],
+  });
+}
+
 /** List generated documents, optionally filtered by kind. */
 export function getDocuments(kind?: DocumentKind, limit = 200): Promise<GeneratedDocument[]> {
   if (demo.DEMO)

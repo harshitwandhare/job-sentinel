@@ -257,6 +257,95 @@ def test_document_file_returns_pdf(tmp_path: Path) -> None:
     assert resp.headers["content-type"] == "application/pdf"
 
 
+# ── GET /api/applications/analytics ──────────────────────────────────────────
+
+
+def test_analytics_empty_db(tmp_path: Path) -> None:
+    resp = _client(tmp_path).get("/api/applications/analytics")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "funnel" in body
+    assert "by_source" in body
+    assert "weekly_volume" in body
+    assert body["overall_response_rate"] is None
+    assert body["by_source"] == []
+    assert body["weekly_volume"] == []
+
+
+def test_analytics_funnel_counts(tmp_path: Path) -> None:
+    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date="2026-06-01")
+    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date="2026-06-02")
+    _seed_app(tmp_path, stage=ApplicationStage.INTERVIEWING, applied_date="2026-06-03")
+    _seed_app(tmp_path, stage=ApplicationStage.OFFER, applied_date="2026-06-04")
+    _seed_app(tmp_path, stage=ApplicationStage.REJECTED, applied_date="2026-06-05")
+
+    resp = _client(tmp_path).get("/api/applications/analytics")
+    assert resp.status_code == 200
+    body = resp.json()
+
+    stage_map = {e["stage"]: e for e in body["funnel"]}
+    assert stage_map["applied"]["count"] == 2
+    assert stage_map["interviewing"]["count"] == 1
+    assert stage_map["offer"]["count"] == 1
+    assert stage_map["rejected"]["count"] == 1
+
+    # pct_of_applied: interviewing = 1/2 = 50%, offer = 1/2 = 50%
+    assert stage_map["interviewing"]["pct_of_applied"] == 50.0
+    assert stage_map["offer"]["pct_of_applied"] == 50.0
+    # saved/archived have no pct
+    assert stage_map["saved"]["pct_of_applied"] is None
+
+
+def test_analytics_overall_response_rate(tmp_path: Path) -> None:
+    # 4 applied, 1 interviewing, 1 offer → 2 responded / 4 applied = 50%
+    for _ in range(4):
+        _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date="2026-06-10")
+    _seed_app(tmp_path, stage=ApplicationStage.INTERVIEWING)
+    _seed_app(tmp_path, stage=ApplicationStage.OFFER)
+
+    resp = _client(tmp_path).get("/api/applications/analytics")
+    body = resp.json()
+    assert body["overall_response_rate"] == 50.0
+
+
+def test_analytics_by_source(tmp_path: Path) -> None:
+    db = tmp_path / "j.db"
+    repo = JobRepository(db)
+    repo.create_application(
+        Application(title="A", employer="X", source="adzuna", stage=ApplicationStage.APPLIED)
+    )
+    repo.create_application(
+        Application(title="B", employer="X", source="adzuna", stage=ApplicationStage.INTERVIEWING)
+    )
+    repo.create_application(
+        Application(title="C", employer="X", source="wellfound", stage=ApplicationStage.APPLIED)
+    )
+    repo.close()
+
+    resp = _client(tmp_path).get("/api/applications/analytics")
+    body = resp.json()
+    src_map = {s["source"]: s for s in body["by_source"]}
+
+    assert src_map["adzuna"]["applied"] == 2
+    assert src_map["adzuna"]["responded"] == 1
+    assert src_map["adzuna"]["response_rate"] == 50.0
+    assert src_map["wellfound"]["applied"] == 1
+    assert src_map["wellfound"]["response_rate"] == 0.0
+
+
+def test_analytics_weekly_volume(tmp_path: Path) -> None:
+    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date="2026-06-15")
+    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date="2026-06-16")
+    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date="2026-06-22")
+
+    resp = _client(tmp_path).get("/api/applications/analytics")
+    body = resp.json()
+
+    # All three dates are within 56 days of test run (2026-06-23), so all appear.
+    total_vol = sum(w["count"] for w in body["weekly_volume"])
+    assert total_vol == 3
+
+
 # ── DELETE /api/documents/{id} ────────────────────────────────────────────────
 
 

@@ -404,6 +404,23 @@ def create_app(
         finally:
             repo.close()
 
+    @app.get("/api/applications/analytics")
+    def applications_analytics() -> dict[str, object]:
+        """
+        Richer analytics over the local application tracker:
+        - funnel: stage counts + pct_of_applied conversion rates
+        - overall_response_rate: % of applied that reached interviewing/offer
+        - by_source: per-source response rates (which boards convert best)
+        - weekly_volume: application cadence over the last 8 weeks
+        """
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            return repo.application_analytics()
+        finally:
+            repo.close()
+
     @app.get("/api/applications")
     def list_applications(
         stage: ApplicationStage | None = None,
