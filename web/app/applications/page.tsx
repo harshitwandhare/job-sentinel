@@ -131,6 +131,39 @@ export default function ApplicationsPage() {
       render: (a) => <span className="text-muted">{a.applied_date || "—"}</span>,
     },
     {
+      key: "deadline",
+      header: "Deadline",
+      sortValue: (a) => a.deadline || "9999",
+      render: (a) => {
+        if (!a.deadline) return <span className="text-muted">—</span>;
+        const t = Date.parse(a.deadline);
+        if (Number.isNaN(t)) return <span className="text-muted text-xs">{a.deadline}</span>;
+        const days = Math.ceil((t - Date.now()) / 86_400_000);
+        if (days < 0)
+          return (
+            <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-500">
+              passed
+            </span>
+          );
+        return (
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-xs font-medium",
+              days === 0
+                ? "bg-red-100 text-red-700"
+                : days <= 3
+                  ? "bg-red-50 text-red-600"
+                  : days <= 7
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-stone-100 text-stone-600",
+            )}
+          >
+            {days === 0 ? "today" : `${days}d`}
+          </span>
+        );
+      },
+    },
+    {
       key: "updated_at",
       header: "Updated",
       sortValue: (a) => a.updated_at,
