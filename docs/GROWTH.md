@@ -73,17 +73,20 @@ Turn these into GitHub issues as they're picked up:
 - **Deeper ATS scoring** — parser-style simulation of the big enterprise ATSes,
   beyond keyword coverage (learn from open ATS-screener projects).
 - **Ghost-job / repost signals** — flag stale or recycled listings before the
-  user sinks hours in (a top 2026 pain point).
+  user sinks hours in (a top 2026 pain point). *(client-side heuristics shipped in v1.1.0)*
 - **Application analytics** — response-rate by source/role/time over the user's
-  own history (no SaaS competitor does this on private data).
+  own history (no SaaS competitor does this on private data). *(shipped v1.1.0: funnel +
+  response-rate endpoint; dashboard panel wired June 2026)*
 - **Browser-extension autofill assist** — prefill/copy helpers (never
   auto-submit) to match Simplify's convenience without the ban risk.
 - **Local email/Gmail status parsing** — detect "applied/interview/reject"
   updates from the inbox, on-device.
 - **Interview prep** — local-LLM mock questions from the JD + your profile.
 - **More sources & notifiers** — additional legal APIs; Discord webhook.
-- **Visa-sponsorship detection** — LLM-label postings (big for intl. students).
+- **Visa-sponsorship detection** — LLM-label postings (big for intl. students). *(shipped v1.1.0)*
 - **Mobile/PWA polish** and broader accessibility.
+- **ATS deadline urgency in the tracker** — deadline countdown column in
+  the Applications table so users know when a tracked role closes. *(shipped June 2026)*
 
 ## Recording findings
 
