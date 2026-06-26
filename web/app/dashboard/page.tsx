@@ -7,8 +7,10 @@ import { LocalSetupGuide } from "@/components/LocalSetupGuide";
 import { Card, CardSub, CardTitle } from "@/components/ui/card";
 import {
   type Application,
+  type ApplicationAnalytics,
   type ApplicationStage,
   type GeneratedDocument,
+  getApplicationAnalytics,
   getApplications,
   getApplicationStats,
   getDocuments,
@@ -41,6 +43,7 @@ export default function DashboardPage() {
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [docs, setDocs] = useState<GeneratedDocument[]>([]);
   const [sources, setSources] = useState<JobSourceStatus[]>([]);
+  const [analytics, setAnalytics] = useState<ApplicationAnalytics | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [apiDown, setApiDown] = useState(false);
 
@@ -51,14 +54,16 @@ export default function DashboardPage() {
       getJobs(100),
       getDocuments(undefined, 100),
       getSources(),
+      getApplicationAnalytics(),
     ])
-      .then(([st, ap, jb, dc, sr]) => {
+      .then(([st, ap, jb, dc, sr, an]) => {
         if (sr === null && Object.keys(st).length === 0) setApiDown(true);
         setStats(st);
         setApps(ap);
         setJobs(jb);
         setDocs(dc);
         setSources(sr?.sources ?? []);
+        setAnalytics(an);
       })
       .finally(() => setLoaded(true));
   }, []);
@@ -122,6 +127,105 @@ export default function DashboardPage() {
           ))}
         </div>
       </Card>
+
+      {/* Analytics band — only shown when there's data */}
+      {analytics && (analytics.funnel.length > 0 || analytics.weekly_volume.length > 0) && (
+        <div className="mb-6 grid gap-4 sm:grid-cols-3">
+          {/* Overall response rate */}
+          <Card className="flex flex-col items-center justify-center py-5 text-center">
+            <div className="text-4xl font-bold text-ink">
+              {analytics.overall_response_rate !== null
+                ? `${analytics.overall_response_rate.toFixed(0)}%`
+                : "—"}
+            </div>
+            <div className="mt-1 text-xs text-muted">Overall response rate</div>
+            <div className="mt-0.5 text-[11px] text-muted/70">
+              interviewing + offers ÷ applied
+            </div>
+          </Card>
+
+          {/* Funnel conversion bars */}
+          <Card className="sm:col-span-2">
+            <CardTitle className="text-base">Funnel conversion</CardTitle>
+            <div className="mt-3 space-y-2">
+              {analytics.funnel
+                .filter((e) => e.pct_of_applied !== null)
+                .map((e) => (
+                  <div key={e.stage}>
+                    <div className="mb-0.5 flex items-center justify-between text-xs">
+                      <span className="capitalize text-ink">{e.stage}</span>
+                      <span className="text-muted">
+                        {e.pct_of_applied!.toFixed(0)}% of applied
+                        <span className="ml-1.5 text-muted/60">({e.count})</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-line">
+                      <div
+                        className={cn(
+                          "h-full rounded-full",
+                          e.stage === "offer"
+                            ? "bg-emerald-500"
+                            : e.stage === "rejected"
+                              ? "bg-red-400"
+                              : "bg-brand",
+                        )}
+                        style={{ width: `${Math.min(e.pct_of_applied!, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+            </div>
+            {analytics.funnel.filter((e) => e.pct_of_applied !== null).length === 0 && (
+              <CardSub className="mt-3">Apply to roles to see conversion rates.</CardSub>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Weekly volume sparkline — only shown when data exists */}
+      {analytics && analytics.weekly_volume.length > 1 && (
+        <Card className="mb-6">
+          <CardTitle className="text-base">Applications per week</CardTitle>
+          <WeeklySparkline data={analytics.weekly_volume} />
+        </Card>
+      )}
+
+      {/* Response rate by source — only shown when data exists */}
+      {analytics && analytics.by_source.length > 0 && (
+        <Card className="mb-6">
+          <CardTitle className="text-base">Response rate by source</CardTitle>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {analytics.by_source
+              .filter((s) => s.applied > 0)
+              .sort((a, b) => (b.response_rate ?? 0) - (a.response_rate ?? 0))
+              .map((s) => (
+                <div
+                  key={s.source}
+                  className="flex items-center justify-between rounded-lg border border-line bg-bg px-3 py-2"
+                >
+                  <div>
+                    <div className="text-sm capitalize text-ink">{s.source}</div>
+                    <div className="text-[11px] text-muted">
+                      {s.responded}/{s.applied} responded
+                    </div>
+                  </div>
+                  <div
+                    className={cn(
+                      "text-lg font-bold",
+                      (s.response_rate ?? 0) >= 30
+                        ? "text-emerald-600"
+                        : (s.response_rate ?? 0) >= 10
+                          ? "text-amber-600"
+                          : "text-muted",
+                    )}
+                  >
+                    {s.response_rate !== null ? `${s.response_rate.toFixed(0)}%` : "—"}
+                  </div>
+                </div>
+              ))}
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Deadlines */}
@@ -251,5 +355,46 @@ function Stat({
       <div className={cn("text-3xl font-bold text-ink", accent)}>{value}</div>
       <div className="mt-1 text-xs text-muted">{label}</div>
     </Card>
+  );
+}
+
+function WeeklySparkline({ data }: { data: { week: string; count: number }[] }) {
+  const max = Math.max(...data.map((d) => d.count), 1);
+  const W = 40; // bar slot width px
+  const H = 64; // chart height px
+  const GAP = 6;
+  const BAR_W = W - GAP;
+
+  return (
+    <div className="mt-3 overflow-x-auto">
+      <div className="flex items-end gap-0" style={{ height: H + 24 }}>
+        {data.map((d, i) => {
+          const barH = Math.max(4, Math.round((d.count / max) * H));
+          return (
+            <div
+              key={d.week}
+              className="flex flex-col items-center"
+              style={{ width: W, flexShrink: 0 }}
+            >
+              <span className="mb-1 text-[10px] text-muted">{d.count}</span>
+              <div
+                className={cn(
+                  "rounded-t-sm",
+                  i === data.length - 1 ? "bg-brand" : "bg-brand/40",
+                )}
+                style={{ width: BAR_W, height: barH }}
+                title={`${d.week}: ${d.count}`}
+              />
+              <span
+                className="mt-1 text-[9px] text-muted/70"
+                style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", maxHeight: 36 }}
+              >
+                {d.week.replace(/^\d{4}-/, "")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
