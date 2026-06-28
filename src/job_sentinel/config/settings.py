@@ -360,6 +360,20 @@ class JobSourceSettings(BaseSettings):
         return []
 
 
+class DiscordSettings(BaseSettings):
+    """Optional Discord webhook notifier (a third alert channel)."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="DISCORD_", extra="ignore", env_file=_ENV_FILE, env_file_encoding="utf-8"
+    )
+
+    webhook_url: str = Field(
+        default="",
+        repr=False,
+        description="Incoming Webhook URL from a Discord channel's Integration settings",
+    )
+
+
 class EmailSettings(BaseSettings):
     """Optional SMTP email notifier (a second alert channel alongside Telegram)."""
 
@@ -433,6 +447,7 @@ class Settings(BaseSettings):
     scraper: ScraperSettings = Field(default_factory=ScraperSettings)
     filters: FilterSettings = Field(default_factory=FilterSettings)
     email: EmailSettings = Field(default_factory=EmailSettings)
+    discord: DiscordSettings = Field(default_factory=DiscordSettings)
     logging: LogSettings = Field(default_factory=LogSettings)
     job_sources: JobSourceSettings = Field(default_factory=JobSourceSettings)
 
