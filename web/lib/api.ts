@@ -949,3 +949,49 @@ export async function buildCover(
     return { ok: false, detail: String(e) };
   }
 }
+
+export interface InterviewQuestion {
+  category: string;
+  question: string;
+}
+
+export interface InterviewQuestionsResponse {
+  questions: InterviewQuestion[];
+  source: "llm" | "deterministic";
+  role_hint: string;
+}
+
+export interface InterviewQuestionsRequest {
+  job_description?: string;
+  role?: string;
+  count?: number;
+  ai?: boolean;
+}
+
+export async function getInterviewQuestions(
+  req: InterviewQuestionsRequest,
+): Promise<InterviewQuestionsResponse | null> {
+  if (demo.DEMO) {
+    return {
+      questions: [
+        { category: "Behavioural", question: "Tell me about a time you learned a new technology quickly." },
+        { category: "Technical", question: "How would you design a scalable API for this role?" },
+        { category: "Role-specific", question: "What's the most complex project you shipped end-to-end?" },
+        { category: "Culture fit", question: "Why are you interested in this company specifically?" },
+      ],
+      source: "deterministic",
+      role_hint: req.role ?? "Software Engineer",
+    };
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/interview/questions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as InterviewQuestionsResponse;
+  } catch {
+    return null;
+  }
+}

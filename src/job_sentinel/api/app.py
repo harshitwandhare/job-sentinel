@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+from loguru import logger
 from pydantic import BaseModel, Field
 
 from job_sentinel.api.chat import ChatMessage, ChatReply
@@ -122,6 +123,24 @@ class CoverRequest(BaseModel):
     role: str = Field(default="", description="Role title for the opening line")
     company: str = Field(default="", description="Company / department name")
     ai: bool = Field(default=False, description="Polish with the local LLM (if available)")
+
+
+class InterviewQuestionsRequest(BaseModel):
+    job_description: str = Field(default="", description="Job description text to tailor questions")
+    role: str = Field(default="", description="Role title (used when no JD is supplied)")
+    count: int = Field(default=10, ge=1, le=30, description="Number of questions to generate")
+    ai: bool = Field(default=True, description="Use local LLM when available")
+
+
+class InterviewQuestion(BaseModel):
+    category: str  # e.g. "Behavioural", "Technical", "Role-specific", "Culture fit"
+    question: str
+
+
+class InterviewQuestionsResponse(BaseModel):
+    questions: list[InterviewQuestion]
+    source: str  # "llm" | "deterministic"
+    role_hint: str  # the role / JD title we detected
 
 
 class _SourceConfigKeys(BaseModel):
@@ -1128,6 +1147,18 @@ def create_app(
             client_factory=_resolve_ollama,
         )
 
+    @app.post("/api/interview/questions", response_model=InterviewQuestionsResponse)
+    def interview_questions(req: InterviewQuestionsRequest) -> InterviewQuestionsResponse:
+        """
+        Generate mock interview questions for a given job description + profile.
+
+        Uses the local LLM if available; falls back to a curated set of
+        universal questions derived from role keywords so the endpoint is
+        always useful even without Ollama running.
+        """
+        profile = load_profile(profile_path)
+        return _generate_interview_questions(req, profile)
+
     @app.post("/api/resume/cover")
     def build_cover(req: CoverRequest) -> FileResponse:
         """Render a cover-letter PDF. 503 if the LaTeX engine isn't installed."""
@@ -1252,6 +1283,141 @@ def _resolve_tailor(*, use_ai: bool) -> Tailor:
     if backend.available() and backend.ready():
         return LLMTailor(backend)
     return base
+
+
+_B = "Behavioural"
+_C = "Culture fit"
+_T = "Technical"
+_R = "Role-specific"
+_FALLBACK_QUESTIONS: list[dict[str, str]] = [
+    {"category": _B, "question": "Tell me about a time you had to learn a new technology quickly."},
+    {"category": _B, "question": "Describe a project where you had to collaborate across teams."},
+    {
+        "category": _B,
+        "question": "How do you handle disagreements with teammates about technical decisions?",
+    },
+    {
+        "category": _B,
+        "question": "Tell me about a time you received critical feedback. How did you respond?",
+    },
+    {
+        "category": _B,
+        "question": "Walk me through a challenging bug you debugged and how you found the root cause.",  # noqa: E501
+    },
+    {"category": _C, "question": "Why are you interested in this role and company specifically?"},
+    {"category": _C, "question": "What does a healthy engineering culture look like to you?"},
+    {"category": _C, "question": "How do you stay current with developments in your field?"},
+    {
+        "category": _T,
+        "question": "How would you design a system that needs to scale to millions of users?",
+    },
+    {"category": _T, "question": "Explain the trade-offs between SQL and NoSQL databases."},
+    {"category": _T, "question": "How do you approach writing testable code?"},
+    {"category": _T, "question": "What's your process for reviewing someone else's code?"},
+    {"category": _R, "question": "What's the most complex project you've shipped end-to-end?"},
+    {
+        "category": _R,
+        "question": "How do you balance shipping fast with maintaining code quality?",
+    },
+    {
+        "category": _R,
+        "question": "Walk me through how you'd approach a brand-new codebase you've never seen.",
+    },
+]
+
+
+def _generate_interview_questions(
+    req: InterviewQuestionsRequest,
+    profile: Any,
+) -> InterviewQuestionsResponse:
+    """
+    Generate interview questions for the given JD + profile.
+
+    LLM path: build a compact profile summary + JD excerpt, ask the model to
+    produce categorised questions as a JSON array, return them.
+    Fallback: slice the curated universal list to the requested count.
+    """
+    from job_sentinel.core.text import strip_html
+
+    jd = strip_html(req.job_description)[:3000] if req.job_description else ""
+    role_hint = req.role or (jd.splitlines()[0][:80] if jd else "Software Engineer")
+
+    # ── Build profile summary for grounding ──────────────────────────────────
+    profile_lines: list[str] = []
+    if not profile.is_empty():
+        if hasattr(profile, "basics") and profile.basics:
+            b = profile.basics
+            profile_lines.append(f"Candidate: {b.name}")
+            if b.headline:
+                profile_lines.append(f"Headline: {b.headline}")
+        if hasattr(profile, "skills") and profile.skills:
+            skill_list = [s for grp in profile.skills for s in grp.skills]
+            profile_lines.append(f"Skills: {', '.join(skill_list[:20])}")
+        if hasattr(profile, "experience") and profile.experience:
+            recent = profile.experience[:2]
+            for exp in recent:
+                profile_lines.append(f"Role: {exp.role} at {exp.company}")
+    profile_summary = "\n".join(profile_lines) if profile_lines else "No profile loaded."
+
+    # ── Try LLM path ─────────────────────────────────────────────────────────
+    if req.ai:
+        try:
+            from job_sentinel.config.settings import LLMSettings
+            from job_sentinel.documents.providers import build_chat_backend
+
+            cfg = LLMSettings()
+            backend = build_chat_backend(cfg)
+            if backend.available() and backend.ready():
+                system = (
+                    "You are an interview-prep assistant. Generate mock interview questions "
+                    "tailored to the candidate's profile and the job description. "
+                    "Return ONLY a JSON array, no prose, no markdown fences. "
+                    "Each element must have exactly two string fields: "
+                    '"category" (one of: Behavioural, Technical, Role-specific, Culture fit) '
+                    f'and "question". Produce exactly {req.count} questions.'
+                )
+                user_parts = [f"Profile:\n{profile_summary}"]
+                if jd:
+                    user_parts.append(f"\nJob description (excerpt):\n{jd[:2000]}")
+                else:
+                    user_parts.append(f"\nRole: {role_hint}")
+                user_parts.append(
+                    f"\nGenerate exactly {req.count} interview questions as a JSON array."
+                )
+                raw = backend.chat(system, [{"role": "user", "content": "\n".join(user_parts)}])
+                # Strip markdown fences if present
+                raw = raw.strip()
+                if raw.startswith("```"):
+                    raw = "\n".join(raw.splitlines()[1:])
+                    if raw.endswith("```"):
+                        raw = raw[: raw.rfind("```")]
+                import json
+
+                items = json.loads(raw)
+                questions = [
+                    InterviewQuestion(
+                        category=str(item.get("category", "General")),
+                        question=str(item.get("question", "")),
+                    )
+                    for item in items
+                    if item.get("question")
+                ]
+                if questions:
+                    return InterviewQuestionsResponse(
+                        questions=questions[: req.count],
+                        source="llm",
+                        role_hint=role_hint,
+                    )
+        except Exception as exc:
+            logger.debug("Interview LLM path failed, using fallback: {}", exc)
+
+    # ── Deterministic fallback ────────────────────────────────────────────────
+    fallback = [InterviewQuestion(**q) for q in _FALLBACK_QUESTIONS]
+    return InterviewQuestionsResponse(
+        questions=fallback[: req.count],
+        source="deterministic",
+        role_hint=role_hint,
+    )
 
 
 def _mask_key(key: str) -> str:

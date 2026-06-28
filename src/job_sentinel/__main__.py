@@ -94,6 +94,7 @@ def run(
     from job_sentinel.config.settings import get_settings
     from job_sentinel.core.scheduler import Scheduler
     from job_sentinel.db.repository import JobRepository
+    from job_sentinel.notifiers.discord import DiscordNotifier
     from job_sentinel.notifiers.email import EmailNotifier
     from job_sentinel.notifiers.telegram import TelegramNotifier
 
@@ -110,16 +111,20 @@ def run(
     repo = JobRepository(settings.db_path)
     notifier = TelegramNotifier(settings.telegram.bot_token, settings.telegram.chat_id)
     email = EmailNotifier(settings.email)
+    discord = DiscordNotifier(settings.discord)
 
     def on_new_jobs(jobs: list[JobPosting]) -> None:
         notifier.send_new_jobs(jobs)
         email.send_new_jobs(jobs)  # no-op unless EMAIL_ENABLED is configured
+        discord.send_new_jobs(jobs)  # no-op unless DISCORD_WEBHOOK_URL is set
 
     scheduler = Scheduler(settings, repo, on_new_jobs)
     bot_app = build_application(settings, repo, scheduler, notifier)
 
     if email.enabled:
         logger.info("Email channel enabled | recipient={}", settings.email.recipient)
+    if discord.enabled:
+        logger.info("Discord channel enabled | webhook configured")
 
     console.print(
         f"[bold green]✓ Job Sentinel running[/]\n"

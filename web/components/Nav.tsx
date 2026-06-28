@@ -23,6 +23,7 @@ const SECONDARY = [
   { href: "/resumes", label: "Documents" },
   { href: "/jobs", label: "Tracked jobs" },
   { href: "/chat", label: "Chat" },
+  { href: "/interview", label: "Interview Prep" },
   { href: "/settings", label: "Settings" },
 ];
 
