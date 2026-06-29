@@ -117,7 +117,7 @@ export default function InterviewPrepPage() {
           />
           <span className="text-sm text-ink">
             Use local LLM{" "}
-            <span className="text-muted">(falls back to curated set if Ollama isn't running)</span>
+            <span className="text-muted">(falls back to curated set if Ollama isn&apos;t running)</span>
           </span>
         </label>
 
