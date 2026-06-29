@@ -16,6 +16,71 @@ import {
 } from "@/lib/api";
 import { cn, externalUrl } from "@/lib/utils";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://127.0.0.1:8000";
+
+function ExportMenu({ count }: { count: number }) {
+  const [open, setOpen] = useState(false);
+
+  function download(fmt: "csv" | "json") {
+    setOpen(false);
+    const a = document.createElement("a");
+    a.href = `${API_BASE}/api/applications/export?fmt=${fmt}`;
+    a.download = `applications.${fmt}`;
+    a.click();
+  }
+
+  if (count === 0) return null;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-9 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-sm text-ink shadow-sm hover:border-ink/30 transition-colors"
+        aria-label="Export applications"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" x2="12" y1="15" y2="3" />
+        </svg>
+        Export
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-1 w-40 rounded-lg border border-line bg-surface shadow-lg overflow-hidden">
+            <button
+              onClick={() => download("csv")}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-ink hover:bg-bg transition-colors"
+            >
+              <span className="text-xs font-mono text-muted">CSV</span>
+              Spreadsheet
+            </button>
+            <button
+              onClick={() => download("json")}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-ink hover:bg-bg transition-colors border-t border-line"
+            >
+              <span className="text-xs font-mono text-muted">JSON</span>
+              Raw data
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 const STAGES: ApplicationStage[] = [
   "saved",
   "applied",
@@ -256,6 +321,7 @@ export default function ApplicationsPage() {
           </button>
         )}
         <span className="ml-auto text-sm text-muted">{visible.length} shown</span>
+        <ExportMenu count={apps.length} />
       </div>
 
       <DataTable
