@@ -14,9 +14,7 @@ if TYPE_CHECKING:
 
 
 def _client(tmp_path: Path) -> TestClient:
-    return TestClient(
-        create_app(profile_path=tmp_path / "profile.yaml", db_path=tmp_path / "j.db")
-    )
+    return TestClient(create_app(profile_path=tmp_path / "profile.yaml", db_path=tmp_path / "j.db"))
 
 
 # ── defaults ──────────────────────────────────────────────────────────────────
@@ -122,9 +120,7 @@ def test_llm_json_with_markdown_fences(tmp_path: Path) -> None:
     mock_backend.available.return_value = True
     mock_backend.ready.return_value = True
     mock_backend.chat.return_value = (
-        "```json\n"
-        '[{"category": "Behavioural", "question": "Tell me about yourself."}]\n'
-        "```"
+        '```json\n[{"category": "Behavioural", "question": "Tell me about yourself."}]\n```'
     )
 
     with patch("job_sentinel.documents.providers.build_chat_backend", return_value=mock_backend):
