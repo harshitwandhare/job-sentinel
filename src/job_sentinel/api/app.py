@@ -16,13 +16,15 @@ never touch the user's real ``data/`` files.
 
 from __future__ import annotations
 
+import csv
+import io
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
 
@@ -511,6 +513,64 @@ def create_app(
         finally:
             repo.close()
         return result.model_dump(mode="json")
+
+    @app.get("/api/applications/export")
+    def export_applications(fmt: str = "csv") -> StreamingResponse:
+        """Export all tracked applications as CSV or JSON.
+
+        Query params
+        ------------
+        fmt : "csv" (default) | "json"
+        """
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            apps = repo.list_applications(limit=10_000)
+        finally:
+            repo.close()
+
+        if fmt == "json":
+            import json
+
+            payload = json.dumps(
+                [a.model_dump(mode="json") for a in apps],
+                indent=2,
+            )
+            return StreamingResponse(
+                io.BytesIO(payload.encode()),
+                media_type="application/json",
+                headers={"Content-Disposition": "attachment; filename=applications.json"},
+            )
+
+        # CSV (default)
+        csv_fields = [
+            "id",
+            "title",
+            "employer",
+            "location",
+            "url",
+            "source",
+            "stage",
+            "salary",
+            "applied_date",
+            "deadline",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=csv_fields, extrasaction="ignore")
+        writer.writeheader()
+        for a in apps:
+            row = a.model_dump(mode="json")
+            row["stage"] = a.stage.value if hasattr(a.stage, "value") else str(a.stage)
+            writer.writerow(row)
+        return StreamingResponse(
+            io.BytesIO(buf.getvalue().encode()),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=applications.csv"},
+        )
 
     @app.get("/api/applications/{app_id}")
     def get_application(app_id: str) -> dict[str, Any]:
