@@ -14,6 +14,11 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-06-29
+
+Three new features shipping today: a third alert channel, an interview-prep
+tool, and one-click data portability for tracked applications.
+
 ### Added
 
 - **Application export** (`GET /api/applications/export`). Download the full
