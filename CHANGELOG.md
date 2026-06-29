@@ -14,6 +14,25 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+### Added
+
+- **Application export** (`GET /api/applications/export`). Download the full
+  tracker as a CSV spreadsheet or JSON file via a new Export button in the
+  Applications toolbar. CSV covers 13 fields (id, title, employer, location,
+  url, source, stage, salary, applied\_date, deadline, notes, created\_at,
+  updated\_at); JSON is the full model serialisation. 11 unit tests.
+
+- **Discord webhook notifier** (`notifiers/discord.py`). Third alert channel
+  alongside Telegram and email; sends rich embeds with company, location,
+  deadline, and urgency colour. Configure via `DISCORD_WEBHOOK_URL` in `.env`.
+  12 unit tests.
+
+- **Interview prep** (`POST /api/interview/questions`, `/interview` page).
+  Generates mock questions tailored to a pasted JD using the local LLM, with a
+  curated 15-question universal fallback when Ollama is not running. Results
+  grouped by category (Behavioural / Technical / Role-specific / Culture fit).
+  11 unit tests.
+
 ## [1.1.0] — 2026-06-22
 
 Five new quality-of-life features across the job-search experience, shipped as

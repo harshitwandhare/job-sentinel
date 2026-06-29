@@ -91,9 +91,10 @@ scripts/           check_licenses.py (CI); diagnose_*.py are untracked one-off d
   - `llm/status`, `llm/config` (GET/PUT), `llm/test`
   - `match` (POST — ATS + semantic + LLM blend)
   - `resume/{tailor,build,cover}`, `chat`
-  - `applications` (CRUD: GET/POST list, GET/PATCH/DELETE `/{id}`, GET `/stats`)
+  - `applications` (CRUD: GET/POST list, GET/PATCH/DELETE `/{id}`, GET `/stats`, GET `/analytics`, GET `/export?fmt=csv|json`)
   - `documents` (GET list, GET `/{id}/file`, DELETE `/{id}`)
   - `sources` (GET status), `sources/config` (PUT), `sources/search` (POST), `sources/company` (POST)
+  - `interview/questions` (POST — local-LLM mock questions, deterministic fallback)
   - `auth/{status,login,users}`, `health`
 - Adapters are plugins: subclass `SiteAdapter` in `adapters/sites/`, register in registry;
   external adapters load via `CUSTOM_ADAPTER_PATH`. ~50 lines per portal (see
