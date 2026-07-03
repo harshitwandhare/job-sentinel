@@ -5,6 +5,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { CustomCursor } from "@/components/CustomCursor";
 import { Nav } from "@/components/Nav";
 import { ScrollProgress } from "@/components/ScrollProgress";
+import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
 
 import "./globals.css";
 
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           Skip to content
         </a>
         <ScrollProgress />
+        <ServiceWorkerRegistration />
         <CustomCursor />
         <CommandPalette />
         {process.env.NEXT_PUBLIC_DEMO === "1" && (
