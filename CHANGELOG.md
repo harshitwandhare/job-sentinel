@@ -14,6 +14,24 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-07-17
+
+### Added
+
+- **Offline app shell** for the web UI via a service worker, so the shell
+  keeps loading on a flaky or dropped connection.
+- Unit test coverage for `core/scheduler.py` (lifecycle, error handling, the
+  closed-posting sweep), bringing it in line with the rest of `core/`.
+
+### Fixed
+
+- `db/repository.py`: the `sentinel_meta` table was missing a real primary
+  key, which could throw `sqlite3.OperationalError: ON CONFLICT clause does
+  not match` on schema migration under stricter SQLite builds. Existing
+  databases are backfilled automatically.
+- `web`: pinned `typescript` back to `6.0.3` — `7.x` conflicts with
+  `eslint-config-next`'s peer range and broke the production build.
+
 ## [1.2.0] — 2026-06-29
 
 Three new features shipping today: a third alert channel, an interview-prep

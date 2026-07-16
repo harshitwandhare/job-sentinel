@@ -234,7 +234,7 @@ def create_app(
 
     app = FastAPI(
         title="Job Sentinel API",
-        version="1.2.0",
+        version="1.3.0",
         summary="Local API over the job-sentinel core (profile, jobs, résumé tailoring).",
     )
     app.add_middleware(
