@@ -83,9 +83,17 @@ class JobRepository:
         """Create tables and run pending migrations."""
         # Meta table stores schema version
         if _META_TABLE not in self._db.table_names():
-            self._table(_META_TABLE).insert({"key": "schema_version", "value": str(SCHEMA_VERSION)})
+            self._table(_META_TABLE).insert(
+                {"key": "schema_version", "value": str(SCHEMA_VERSION)}, pk="key"
+            )
             logger.debug("Schema initialised at version {}", SCHEMA_VERSION)
         else:
+            # DBs created before the meta table had a real primary key: back-fill
+            # it so later upsert(..., pk="key") calls have a unique index to
+            # target instead of raising "ON CONFLICT clause does not match".
+            if self._table(_META_TABLE).pks == ["rowid"]:
+                self._table(_META_TABLE).transform(pk="key")
+                logger.debug("Backfilled primary key on {}", _META_TABLE)
             stored = self._get_meta("schema_version")
             version = int(stored) if stored else 0
             if version < SCHEMA_VERSION:
