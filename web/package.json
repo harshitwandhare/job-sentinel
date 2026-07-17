@@ -25,20 +25,20 @@
     "three": "^0.185.1"
   },
   "overrides": {
-    "postcss": "8.5.16"
+    "postcss": "8.5.19"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.5",
-    "@tailwindcss/postcss": "^4.3.2",
+    "@eslint/eslintrc": "^3.3.6",
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "26.1.1",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
-    "autoprefixer": "10.5.2",
-    "eslint": "^10.6.0",
+    "autoprefixer": "10.5.4",
+    "eslint": "^10.7.0",
     "eslint-config-next": "^16.2.10",
-    "postcss": "8.5.16",
-    "tailwindcss": "4.3.2",
-    "typescript": "6.0.3",
+    "postcss": "8.5.19",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
     "vitest": "^4.1.10"
   }
 }
