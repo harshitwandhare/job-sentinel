@@ -14,6 +14,21 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.3.1] — 2026-07-23
+
+### Changed
+
+- CI dependency automation: the `github-actions` ecosystem is now grouped in
+  Dependabot config so action bumps arrive in a single PR instead of one per
+  sub-action. This fixes the recurring CodeQL failure where `init` and
+  `analyze` could land on different versions (`Loaded a configuration file for
+  version 'x', but running version 'y'`).
+- Bumped CI actions to current: `codeql-action` 4.37.3, `setup-uv` 9.0.0,
+  `actions/checkout` 7.0.1, `actions/setup-node` 7.0.0.
+- Refreshed the Python and web dependency groups to their latest compatible
+  releases. TypeScript stays on 6.x — the 7.x native compiler crashes the Next
+  build worker.
+
 ## [1.3.0] — 2026-07-17
 
 ### Added
