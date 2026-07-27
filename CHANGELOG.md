@@ -14,6 +14,21 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.3.2] — 2026-07-27
+
+### Security
+
+- Overrode the transitively-pulled `markdownify` (via `python-jobspy`) to
+  `1.2.3`, fixing CVE-2025-46656 (unbounded memory from oversized headline
+  prefixes like `<h9999999>`).
+- Bumped the transitively-pulled `pymdown-extensions` (via `mkdocs-material`)
+  to `11.0.1`, fixing CVE-2026-61632 (path traversal in the `b64` extension's
+  image-inlining).
+- Bumped `next` to `16.2.12` and pinned `sharp` to `0.35.3` via npm overrides,
+  fixing the inherited libvips CVEs (CVE-2026-33327/33328/35590/35591).
+- Pinned `brace-expansion` to `5.0.8` via npm overrides, fixing two DoS
+  advisories (CVE-2026-13149, CVE-2026-14257) in the eslint tooling chain.
+
 ## [1.3.1] — 2026-07-23
 
 ### Changed
