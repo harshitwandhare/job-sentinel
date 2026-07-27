@@ -119,6 +119,14 @@ Changelog     = "https://github.com/harshitwandhare/job-sentinel/blob/main/CHANG
 packages = ["src/job_sentinel"]
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Transitive dependency overrides (security fixes not yet picked up by direct deps)
+# ─────────────────────────────────────────────────────────────────────────────
+[tool.uv]
+override-dependencies = [
+    "markdownify>=0.14.1",  # CVE-2025-46656, pulled in transitively by python-jobspy
+]
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Dev dependencies (PEP 735 dependency group — installed by `uv sync` default)
 # ─────────────────────────────────────────────────────────────────────────────
 [dependency-groups]
