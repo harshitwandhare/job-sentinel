@@ -159,10 +159,11 @@ from job_sentinel.adapters.registry import register_adapter
 from job_sentinel.core.models import JobPosting
 from playwright.sync_api import Page
 
+
 class MyPortalAdapter(SiteAdapter):
-    ADAPTER_ID   = "my_portal"      # unique slug — used in .env
+    ADAPTER_ID = "my_portal"  # unique slug — used in .env
     ADAPTER_NAME = "My Portal"
-    BASE_URL     = "https://my-portal.com"
+    BASE_URL = "https://my-portal.com"
 
     def login(self, page: Page) -> None:
         # Navigate and authenticate
@@ -176,6 +177,7 @@ class MyPortalAdapter(SiteAdapter):
         # Return True if navigated to next page, False if done
         ...
 
+
 register_adapter(MyPortalAdapter)
 ```
 
@@ -185,9 +187,9 @@ In `src/job_sentinel/adapters/registry.py`, add your adapter to `_BUILTIN_ADAPTE
 
 ```python
 _BUILTIN_ADAPTERS = {
-    "12twenty":  "job_sentinel.adapters.sites.twelve_twenty",
+    "12twenty": "job_sentinel.adapters.sites.twelve_twenty",
     "handshake": "job_sentinel.adapters.sites.handshake",
-    "my_portal": "job_sentinel.adapters.sites.my_portal",   # ← add here
+    "my_portal": "job_sentinel.adapters.sites.my_portal",  # ← add here
 }
 ```
 

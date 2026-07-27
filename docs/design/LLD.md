@@ -198,10 +198,11 @@ A user "tracks" a result by creating an `Application` from it.
 class ChatBackend(Protocol):
     @property
     def model(self) -> str: ...
-    def available(self) -> bool: ...   # network check; never raises
-    def ready(self) -> bool: ...       # available + model pulled (Ollama) / reachable (cloud)
+    def available(self) -> bool: ...  # network check; never raises
+    def ready(self) -> bool: ...  # available + model pulled (Ollama) / reachable (cloud)
     def chat(self, system: str, messages: list[dict]) -> str: ...
     def chat_json(self, system: str, user: str) -> dict: ...
+
 
 class EmbedBackend(Protocol):
     @property

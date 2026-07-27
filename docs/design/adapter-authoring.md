@@ -40,7 +40,7 @@ from job_sentinel.core.models import JobPosting
 # ── CSS Selectors ─────────────────────────────────────────────────────────────
 # Define all selectors here so they're easy to update when the portal changes.
 SEL_JOB_CARD = ".job-card, [data-job-id]"
-SEL_TITLE    = "h3.title, .job-title"
+SEL_TITLE = "h3.title, .job-title"
 SEL_EMPLOYER = ".company, .employer"
 SEL_LOCATION = ".location"
 SEL_NEXT_BTN = "button[aria-label='Next']"
@@ -49,13 +49,14 @@ SEL_NEXT_BTN = "button[aria-label='Next']"
 class MyPortalAdapter(SiteAdapter):
     """Scraper for My Portal (myportal.com)."""
 
-    ADAPTER_ID   = "my_portal"       # unique slug; used in SITE_ADAPTER env var
+    ADAPTER_ID = "my_portal"  # unique slug; used in SITE_ADAPTER env var
     ADAPTER_NAME = "My Portal"
-    BASE_URL     = "https://myportal.com"
+    BASE_URL = "https://myportal.com"
 
     def login(self, page: Page) -> None:
         """Navigate to the portal and authenticate."""
         from job_sentinel.config.settings import get_settings
+
         s = get_settings()
 
         page.goto(s.portal.jobs_url, wait_until="domcontentloaded")
@@ -90,16 +91,16 @@ class MyPortalAdapter(SiteAdapter):
                     continue
 
                 # Build a JobPosting — only posting_id is strictly required
-                jobs.append(JobPosting(
-                    posting_id=posting_id,
-                    title=self.safe_text(card, SEL_TITLE),
-                    employer=self.safe_text(card, SEL_EMPLOYER),
-                    location=self.safe_text(card, SEL_LOCATION),
-                    portal_url=self.absolute_url(
-                        self.safe_attr(card, "a", "href")
-                    ),
-                    source_adapter=self.ADAPTER_ID,
-                ))
+                jobs.append(
+                    JobPosting(
+                        posting_id=posting_id,
+                        title=self.safe_text(card, SEL_TITLE),
+                        employer=self.safe_text(card, SEL_EMPLOYER),
+                        location=self.safe_text(card, SEL_LOCATION),
+                        portal_url=self.absolute_url(self.safe_attr(card, "a", "href")),
+                        source_adapter=self.ADAPTER_ID,
+                    )
+                )
             except Exception as exc:
                 logger.warning("Card parse error: {}", exc)
 
@@ -125,9 +126,9 @@ In `src/job_sentinel/adapters/registry.py`, add:
 
 ```python
 _BUILTIN_ADAPTERS = {
-    "12twenty":  "job_sentinel.adapters.sites.twelve_twenty",
+    "12twenty": "job_sentinel.adapters.sites.twelve_twenty",
     "handshake": "job_sentinel.adapters.sites.handshake",
-    "my_portal": "job_sentinel.adapters.sites.my_portal",   # ← add this
+    "my_portal": "job_sentinel.adapters.sites.my_portal",  # ← add this
 }
 ```
 
