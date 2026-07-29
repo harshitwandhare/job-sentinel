@@ -14,6 +14,15 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-07-30
+
+### Added
+
+- `apps add` now accepts `--location`, `--salary`, `--applied-date`, `--deadline`,
+  and `--notes`, matching the fields already supported by the `Application` model
+  and the `/api/applications` route.
+- `apps list` gained a `--limit` flag mirroring the API's limit param.
+
 ## [1.3.2] — 2026-07-27
 
 ### Security
@@ -445,7 +454,8 @@ supply-chain, license, web build).
 
 ---
 
-[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/harshitwandhare/job-sentinel/compare/v1.3.2...v1.4.0
 [1.0.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.8.0...v1.0.0
 [0.8.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.6.0...v0.7.0
