@@ -877,6 +877,7 @@ def _open_repo() -> _JobRepository:
 @apps_app.command("list")
 def apps_list(
     stage: str = typer.Option("", "--stage", "-s", help="Filter by stage (saved/applied/…)"),
+    limit: int = typer.Option(200, "--limit", "-n", help="Max rows to show"),
 ) -> None:
     """List tracked applications."""
     from job_sentinel.core.models import ApplicationStage
@@ -891,7 +892,7 @@ def apps_list(
             raise typer.Exit(code=1) from None
 
     repo = JobRepository(_DEFAULT_DB)
-    apps = repo.list_applications(stage=stage_filter)
+    apps = repo.list_applications(stage=stage_filter, limit=limit)
     repo.close()
 
     if not apps:
@@ -920,9 +921,14 @@ def apps_list(
 def apps_add(
     title: str = typer.Option(..., "--title", "-t", help="Job title"),
     employer: str = typer.Option("", "--employer", "-e", help="Company name"),
+    location: str = typer.Option("", "--location", "-l", help="Work location"),
     url: str = typer.Option("", "--url", "-u", help="Posting URL"),
     source: str = typer.Option("", "--source", help="Source (e.g. manual, adzuna)"),
     stage: str = typer.Option("saved", "--stage", "-s", help="Initial stage"),
+    salary: str = typer.Option("", "--salary", help="Salary range / offer"),
+    applied_date: str = typer.Option("", "--applied-date", help="ISO date (YYYY-MM-DD)"),
+    deadline: str = typer.Option("", "--deadline", help="Application deadline"),
+    notes: str = typer.Option("", "--notes", help="Free-form notes"),
 ) -> None:
     """Add a new application manually."""
     from job_sentinel.core.models import Application, ApplicationStage
@@ -937,9 +943,14 @@ def apps_add(
     app_obj = Application(
         title=title,
         employer=employer,
+        location=location,
         url=url,
         source=source,
         stage=stage_enum,
+        salary=salary,
+        applied_date=applied_date,
+        deadline=deadline,
+        notes=notes,
     )
     repo = JobRepository(_DEFAULT_DB)
     repo.create_application(app_obj)
