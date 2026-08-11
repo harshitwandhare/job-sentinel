@@ -10,6 +10,7 @@ the X-Document-Id header and the repository row unconditionally.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -334,14 +335,15 @@ def test_analytics_by_source(tmp_path: Path) -> None:
 
 
 def test_analytics_weekly_volume(tmp_path: Path) -> None:
-    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date="2026-06-15")
-    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date="2026-06-16")
-    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date="2026-06-22")
+    today = datetime.now(UTC).date()
+    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date=str(today - timedelta(days=7)))
+    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date=str(today - timedelta(days=6)))
+    _seed_app(tmp_path, stage=ApplicationStage.APPLIED, applied_date=str(today))
 
     resp = _client(tmp_path).get("/api/applications/analytics")
     body = resp.json()
 
-    # All three dates are within 56 days of test run (2026-06-23), so all appear.
+    # All three dates are well within the 56-day window, so all appear.
     total_vol = sum(w["count"] for w in body["weekly_volume"])
     assert total_vol == 3
 
