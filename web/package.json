@@ -2,7 +2,7 @@
   "name": "job-sentinel-web",
   "version": "1.4.0",
   "private": true,
-  "description": "Local-first web UI for Job Sentinel — profile, jobs, and résumé studio.",
+  "description": "Local-first web UI for Job Sentinel \u00e2\u20ac\u201d profile, jobs, and r\u00c3\u00a9sum\u00c3\u00a9 studio.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -27,7 +27,8 @@
   "overrides": {
     "postcss": "8.5.26",
     "sharp": "0.35.3",
-    "brace-expansion": "5.0.8"
+    "brace-expansion": "5.0.9",
+    "js-yaml": "^4.3.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",

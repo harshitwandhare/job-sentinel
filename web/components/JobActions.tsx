@@ -5,9 +5,8 @@ import { useState } from "react";
 import { setJobStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const STATUSES = ["new", "seen", "applied", "ignored"] as const;
-type Status = (typeof STATUSES)[number];
-
+// Keyed by the status strings the API returns, which include values beyond the
+// ones this row can set (e.g. "closed").
 const STATUS_STYLES: Record<string, string> = {
   new: "bg-emerald-100 text-emerald-700",
   seen: "bg-sky-100 text-sky-700",

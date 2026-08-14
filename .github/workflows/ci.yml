@@ -187,3 +187,9 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      # The Python side has had pip-audit since the start; the web side had no
+      # equivalent, which is how a `brace-expansion` override sat pinned to a
+      # version inside its own advisory range without anything noticing.
+      - name: Audit dependencies for high-severity advisories
+        run: npm audit --audit-level=high
