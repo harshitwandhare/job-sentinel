@@ -261,4 +261,17 @@ All of this is also enforced automatically by pre-commit + CI.
 
 ---
 
+## Licensing of contributions
+
+This project is released under the [MIT License](LICENSE), and contributions are accepted
+on an inbound-equals-outbound basis: by opening a pull request you agree that your
+contribution is licensed under those same MIT terms.
+
+You also grant the maintainer permission to distribute your contribution under a different
+licence in future releases. That clause exists so the project is not permanently locked to
+one licence by its own history — relicensing normally needs every past contributor's
+agreement, which becomes impractical fast. You keep the copyright to what you write.
+
+---
+
 Questions? Open a [Discussion](https://github.com/harshitwandhare/job-sentinel/discussions).
