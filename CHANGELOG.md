@@ -14,6 +14,20 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.4.1] — 2026-08-14
+
+### Security
+
+- Bumped `gitpython`, `h2`, and `pypdf` to patch known vulnerabilities (#114).
+
+### Changed
+
+- Dependency updates across the Python, web, and GitHub Actions groups
+  (#113, #115, #116).
+- Fixed a weekly-volume analytics test that pinned absolute dates and would
+  have started failing as the fixture aged (#114).
+- Synced `uv.lock` with the v1.4.0 version bump.
+
 ## [1.4.0] — 2026-07-30
 
 ### Added
