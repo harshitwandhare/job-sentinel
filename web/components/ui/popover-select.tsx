@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
@@ -82,10 +82,14 @@ export function PopoverSelect({
   }, [open]);
 
   const current = options.find((o) => o.value === value);
+  // A combobox has to name the listbox it controls, or assistive tech cannot
+  // follow the trigger to the options.
+  const panelId = useId();
 
   const panel = (
     <div
       ref={panelRef}
+      id={panelId}
       role="listbox"
       aria-label={ariaLabel}
       style={{ position: "fixed", top: pos.top, left: pos.left, minWidth: pos.minWidth, zIndex: 9999 }}
@@ -121,6 +125,8 @@ export function PopoverSelect({
         type="button"
         role="combobox"
         aria-expanded={open}
+        aria-controls={panelId}
+        aria-haspopup="listbox"
         aria-label={ariaLabel}
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : openPanel())}
