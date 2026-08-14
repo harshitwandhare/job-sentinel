@@ -14,6 +14,25 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.4.2] — 2026-08-14
+
+### Security
+
+- `brace-expansion` was pinned to 5.0.8 to resolve an advisory, but 5.0.8 is
+  itself inside the range of GHSA-rgw5-rvv9-x895 (`4.0.0 - 5.0.8`) — the
+  override was carrying the vulnerability it was meant to fix. Bumped to 5.0.9.
+- `js-yaml` pinned to `^4.3.1`, out of the CVE-2026-59870 range.
+- Added an `npm audit --audit-level=high` gate to the `web` CI job. The Python
+  side has run `pip-audit` since the start; the web side had no equivalent,
+  which is why a stale override went unnoticed.
+
+### Fixed
+
+- `popover-select` declared `role="combobox"` without `aria-controls`, so
+  assistive tech could not follow the trigger to its listbox.
+- Removed a dead `STATUSES`/`Status` union in `JobActions` that omitted
+  `closed`, a value the API does return.
+
 ## [1.4.1] — 2026-08-14
 
 ### Security
