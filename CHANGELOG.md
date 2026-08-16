@@ -14,6 +14,22 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.4.3] — 2026-08-15
+
+### Fixed
+
+- **Every glob containing braces threw `TypeError: expand is not a function`.**
+  The `brace-expansion` override pinned the whole tree to 5.0.9, which is
+  ESM-only and exports `expand` as a named export, but `minimatch@3` — still
+  present under `@eslint/eslintrc`, `eslint-plugin-import`,
+  `eslint-plugin-jsx-a11y` and `eslint-plugin-react` — needs the v1 CommonJS
+  default export. Plain patterns take a different code path, which is why lint
+  stayed green and this went unnoticed. Each vulnerable major is now pinned to
+  its own patched release (1.1.18, 2.1.4), so both API shapes resolve correctly
+  and `npm audit` still reports zero vulnerabilities (#121).
+- Changelog compare links: `[Unreleased]` still pointed at `v1.4.0`, and 1.4.1
+  and 1.4.2 had no link references at all.
+
 ## [1.4.2] — 2026-08-14
 
 ### Security
@@ -487,7 +503,10 @@ supply-chain, license, web build).
 
 ---
 
-[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.3...HEAD
+[1.4.3]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.2...v1.4.3
+[1.4.2]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.1...v1.4.2
+[1.4.1]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/harshitwandhare/job-sentinel/compare/v1.3.2...v1.4.0
 [1.0.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.8.0...v1.0.0
 [0.8.0]: https://github.com/harshitwandhare/job-sentinel/compare/v0.7.0...v0.8.0
