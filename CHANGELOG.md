@@ -14,6 +14,15 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+### Fixed
+
+- **Release workflow left the sdist and wheel unattached.** When a release was
+  cut by hand before the tag was pushed, `gh release create` failed with
+  "a release with the same tag name already exists", which aborted the job
+  before the artifacts were uploaded and before the PyPI step could run. The
+  step now uploads to the existing release when there is one, and only creates
+  a new release otherwise.
+
 ## [1.4.3] — 2026-08-15
 
 ### Fixed
