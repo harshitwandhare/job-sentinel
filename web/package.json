@@ -1,6 +1,6 @@
 {
   "name": "job-sentinel-web",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "private": true,
   "description": "Local-first web UI for Job Sentinel â€” profile, jobs, and rÃ©sumÃ© studio.",
   "scripts": {
