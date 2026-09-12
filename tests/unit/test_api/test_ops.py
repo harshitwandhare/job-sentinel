@@ -233,6 +233,75 @@ def test_check_session_delegates(runner: OpsRunner, monkeypatch) -> None:
     assert result["user"] == "Harshit"
 
 
+# ── Watcher ──────────────────────────────────────────────────────────────────
+
+
+def test_start_watcher_launches_scheduler(runner: OpsRunner, monkeypatch) -> None:
+    fake_settings = SimpleNamespace(
+        db_path="x",
+        telegram=SimpleNamespace(bot_token="t", chat_id="c"),
+        email=SimpleNamespace(enabled=False),
+        scraper=SimpleNamespace(poll_interval_seconds=900),
+    )
+    monkeypatch.setattr(ops_mod, "_load_settings", lambda: fake_settings)
+
+    class FakeScheduler:
+        def __init__(self, *a, **k):
+            self.running = True
+
+        def start(self) -> None:
+            pass
+
+    import job_sentinel.core.scheduler as sched_mod
+    import job_sentinel.db.repository as repo_mod
+    import job_sentinel.notifiers.email as email_mod
+    import job_sentinel.notifiers.telegram as tg_mod
+
+    monkeypatch.setattr(sched_mod, "Scheduler", FakeScheduler)
+    monkeypatch.setattr(
+        repo_mod, "JobRepository", lambda *a, **k: SimpleNamespace(close=lambda: None)
+    )
+    monkeypatch.setattr(
+        tg_mod, "TelegramNotifier", lambda *a, **k: SimpleNamespace(send_new_jobs=lambda jobs: None)
+    )
+    monkeypatch.setattr(
+        email_mod, "EmailNotifier", lambda *a, **k: SimpleNamespace(send_new_jobs=lambda jobs: None)
+    )
+
+    runner.start_watcher()
+    _wait_until(lambda: runner._watcher is not None)
+    assert runner._watcher_interval == 900
+    assert runner._watcher.running is True
+
+
+def test_start_watcher_conflicts_when_already_running(runner: OpsRunner, monkeypatch) -> None:
+    fake_settings = SimpleNamespace(
+        db_path="x",
+        telegram=SimpleNamespace(bot_token="t", chat_id="c"),
+        email=SimpleNamespace(enabled=False),
+        scraper=SimpleNamespace(poll_interval_seconds=900),
+    )
+    monkeypatch.setattr(ops_mod, "_load_settings", lambda: fake_settings)
+    runner._watcher = SimpleNamespace(running=True)
+
+    with pytest.raises(OpsConflictError, match="already running"):
+        runner.start_watcher()
+
+
+def test_stop_watcher_stops_and_closes_repo(runner: OpsRunner) -> None:
+    stopped = []
+    closed = []
+    runner._watcher = SimpleNamespace(stop=lambda: stopped.append(True))
+    runner._watcher_repo = SimpleNamespace(close=lambda: closed.append(True))
+
+    runner.stop_watcher()
+
+    assert stopped == [True]
+    assert closed == [True]
+    assert runner._watcher is None
+    assert runner._watcher_repo is None
+
+
 def test_get_runner_is_singleton() -> None:
     ops_mod._runner = None  # reset module state
     a = ops_mod.get_runner()
