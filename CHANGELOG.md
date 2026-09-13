@@ -14,6 +14,8 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.4.4] — 2026-09-12
+
 ### Fixed
 
 - **Release workflow left the sdist and wheel unattached.** When a release was
@@ -22,6 +24,12 @@ Versions follow [Semantic Versioning](https://semver.org):
   before the artifacts were uploaded and before the PyPI step could run. The
   step now uploads to the existing release when there is one, and only creates
   a new release otherwise.
+- **pip 26.1.2 had PYSEC-2026-3721.** The scheduled security scan started
+  failing when pip-audit picked it up; the lockfile now pins 26.2.1.
+- **Next.js 16.3.2 had a critical unauthenticated RCE on Windows-hosted
+  servers, plus a second RCE in the image optimization API when handling
+  AVIF.** Both are fixed in 16.3.4; bumped Next and refreshed the pinned
+  npm overrides so `npm audit` passes again.
 
 ## [1.4.3] — 2026-08-15
 
@@ -512,7 +520,8 @@ supply-chain, license, web build).
 
 ---
 
-[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.3...HEAD
+[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.4...HEAD
+[1.4.4]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.0...v1.4.1
