@@ -7,11 +7,19 @@ the HTTP surface of OllamaClient.
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 import httpx
 import respx
 
-from job_sentinel.documents.llm import LLMTailor, OllamaClient
+from job_sentinel.documents.llm import (
+    LLMTailor,
+    OllamaClient,
+    _chat_json_compat,
+    build_llm_tailor_if_ready,
+)
 from job_sentinel.profile import Experience, Profile
+from job_sentinel.profile.models import Project
 
 _BASE = "http://localhost:11434"
 
@@ -104,3 +112,57 @@ class TestOllamaClient:
         )
         out = OllamaClient(_BASE, "llama3.1:8b").chat_json("sys", "user")
         assert out == {"bullets": ["a", "b"]}
+
+
+class TestLLMTailorProjects:
+    def test_project_bullets_are_rephrased(self) -> None:
+        client = _FakeClient(up=True, model=True, reply={"bullets": ["Shipped feature X"]})
+        profile = Profile(
+            projects=[Project(name="MyProj", bullets=["built feature x"])],
+        )
+        result = LLMTailor(client).tailor(profile, "software engineer")
+        assert result.profile.projects[0].bullets == ["Shipped feature X"]
+
+    def test_project_without_bullets_is_skipped(self) -> None:
+        client = _FakeClient(up=True, model=True, reply={"bullets": []})
+        profile = Profile(projects=[Project(name="EmptyProj")])
+        result = LLMTailor(client).tailor(profile, "engineer")
+        assert result.profile.projects[0].bullets == []
+
+
+class TestBuildLLMTailorIfReady:
+    def test_returns_tailor_when_backend_ready(self) -> None:
+        mock_backend = MagicMock()
+        mock_backend.available.return_value = True
+        mock_backend.ready.return_value = True
+        with (
+            patch("job_sentinel.config.settings.LLMSettings"),
+            patch(
+                "job_sentinel.documents.providers.build_chat_backend",
+                return_value=mock_backend,
+            ),
+        ):
+            tailor = build_llm_tailor_if_ready()
+        assert tailor is not None
+        assert isinstance(tailor, LLMTailor)
+
+    def test_returns_none_when_backend_unavailable(self) -> None:
+        mock_backend = MagicMock()
+        mock_backend.available.return_value = False
+        mock_backend.ready.return_value = False
+        with (
+            patch("job_sentinel.config.settings.LLMSettings"),
+            patch(
+                "job_sentinel.documents.providers.build_chat_backend",
+                return_value=mock_backend,
+            ),
+        ):
+            tailor = build_llm_tailor_if_ready()
+        assert tailor is None
+
+
+class TestChatJsonCompat:
+    def test_delegates_to_chat_json(self) -> None:
+        client = _FakeClient(up=True, model=True, reply={"key": "val"})
+        result = _chat_json_compat(client, "sys", "user")
+        assert result == {"key": "val"}
