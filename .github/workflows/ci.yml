@@ -191,5 +191,7 @@ jobs:
       # The Python side has had pip-audit since the start; the web side had no
       # equivalent, which is how a `brace-expansion` override sat pinned to a
       # version inside its own advisory range without anything noticing.
+      # --omit=dev: audit only shipped production code; dev-only tools (eslint,
+      # vitest) have their own dep chains that are not exposed to end users.
       - name: Audit dependencies for high-severity advisories
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high --omit=dev
