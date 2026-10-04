@@ -147,6 +147,92 @@ def test_unexpected_error_is_swallowed() -> None:
         assert result is False
 
 
+def test_retry_error_in_post_message_swallowed() -> None:
+    """RetryError raised by _post_message's tenacity wrapper returns False."""
+    from unittest.mock import MagicMock
+
+    from tenacity import RetryError
+
+    future_mock = MagicMock()
+    future_mock.exception.return_value = ConnectionError("network down")
+
+    with patch.object(DiscordNotifier, "_post", side_effect=RetryError(future_mock)):
+        # multi-job path calls _post_message for the summary first
+        jobs = [_JOB, _JOB]
+        result = DiscordNotifier(_settings()).send_new_jobs(jobs)
+        assert result is False
+
+
+# ── embed field coverage ──────────────────────────────────────────────────────
+
+
+def test_embed_includes_job_type_field() -> None:
+    job = JobPosting(
+        posting_id="t1",
+        title="Engineer",
+        employer="Acme",
+        portal_url="https://x.com",
+        job_type="Full-time",
+    )
+    with patch("httpx.Client") as mock_client:
+        ctx = mock_client.return_value.__enter__.return_value
+        ctx.post.return_value = _mock_response(204)
+
+        DiscordNotifier(_settings()).send_new_jobs([job])
+
+        fields = ctx.post.call_args.kwargs["json"]["embeds"][0]["fields"]
+        assert any(f["name"] == "Type" and f["value"] == "Full-time" for f in fields)
+
+
+def test_embed_includes_posted_date_field() -> None:
+    job = JobPosting(
+        posting_id="t2",
+        title="Engineer",
+        employer="Acme",
+        portal_url="https://x.com",
+        posted_date="2026-09-01",
+    )
+    with patch("httpx.Client") as mock_client:
+        ctx = mock_client.return_value.__enter__.return_value
+        ctx.post.return_value = _mock_response(204)
+
+        DiscordNotifier(_settings()).send_new_jobs([job])
+
+        fields = ctx.post.call_args.kwargs["json"]["embeds"][0]["fields"]
+        assert any(f["name"] == "Posted" and f["value"] == "2026-09-01" for f in fields)
+
+
+@pytest.mark.parametrize(
+    ("days_offset", "expected_fragment"),
+    [
+        (0, "today"),
+        (1, "tomorrow"),
+        (5, "in 5d"),
+    ],
+)
+def test_urgent_deadline_label_in_embed(days_offset: int, expected_fragment: str) -> None:
+    """Deadlines within 7 days should include a human-readable urgency label."""
+    import datetime
+
+    deadline = (datetime.date.today() + datetime.timedelta(days=days_offset)).isoformat()
+    job = JobPosting(
+        posting_id="t3",
+        title="Urgent Role",
+        employer="Startup",
+        portal_url="https://x.com",
+        deadline=deadline,
+    )
+    with patch("httpx.Client") as mock_client:
+        ctx = mock_client.return_value.__enter__.return_value
+        ctx.post.return_value = _mock_response(204)
+
+        DiscordNotifier(_settings()).send_new_jobs([job])
+
+        fields = ctx.post.call_args.kwargs["json"]["embeds"][0]["fields"]
+        deadline_field = next(f for f in fields if f["name"] == "Deadline")
+        assert expected_fragment in deadline_field["value"]
+
+
 # ── colour selection ──────────────────────────────────────────────────────────
 
 
