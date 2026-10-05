@@ -62,3 +62,30 @@ def test_himalayas_handles_error() -> None:
     respx.get("https://himalayas.app/jobs/api/search").mock(return_value=httpx.Response(500))
 
     assert HimalayasSource().search(JobQuery()) == []
+
+
+@respx.mock
+def test_himalayas_sends_query_params() -> None:
+    route = respx.get("https://himalayas.app/jobs/api/search").mock(
+        return_value=httpx.Response(200, json={"jobs": []})
+    )
+
+    source = HimalayasSource()
+    source.search(JobQuery(keywords="python", location="US", seniority="senior"))
+
+    assert route.called
+    sent = route.calls[0].request
+    assert b"python" in sent.url.query
+    assert b"US" in sent.url.query
+    assert b"senior" in sent.url.query
+
+
+@respx.mock
+def test_himalayas_limit_respected() -> None:
+    many = [{"id": f"h{i}", "title": f"Role {i}", "company": {"name": "Co"}} for i in range(15)]
+    respx.get("https://himalayas.app/jobs/api/search").mock(
+        return_value=httpx.Response(200, json={"jobs": many})
+    )
+
+    results = HimalayasSource().search(JobQuery(limit=5))
+    assert len(results) == 5
