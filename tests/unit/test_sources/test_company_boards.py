@@ -6,7 +6,12 @@ import httpx
 import pytest
 import respx
 
-from job_sentinel.sources.company_boards import SUPPORTED_ATS, fetch_company_board
+from job_sentinel.sources.base import JobQuery
+from job_sentinel.sources.company_boards import (
+    SUPPORTED_ATS,
+    CompanyBoardSource,
+    fetch_company_board,
+)
 
 _GREENHOUSE_PAYLOAD = {
     "jobs": [
@@ -123,3 +128,39 @@ def test_supported_ats_constants() -> None:
     assert "greenhouse" in SUPPORTED_ATS
     assert "lever" in SUPPORTED_ATS
     assert "ashby" in SUPPORTED_ATS
+
+
+@respx.mock
+def test_source_filters_by_keyword_across_boards() -> None:
+    respx.get("https://boards-api.greenhouse.io/v1/boards/stripe/jobs?content=true").mock(
+        return_value=httpx.Response(200, json=_GREENHOUSE_PAYLOAD)
+    )
+    respx.get("https://api.lever.co/v0/postings/linear?mode=json").mock(
+        return_value=httpx.Response(200, json=_LEVER_PAYLOAD)
+    )
+    source = CompanyBoardSource([("greenhouse", "stripe"), ("lever", "linear")])
+
+    jobs = source.search(JobQuery(keywords="frontend"))
+
+    assert [j.title for j in jobs] == ["Frontend Engineer"]
+
+
+@respx.mock
+def test_source_stops_at_query_limit() -> None:
+    respx.get("https://boards-api.greenhouse.io/v1/boards/stripe/jobs?content=true").mock(
+        return_value=httpx.Response(200, json=_GREENHOUSE_PAYLOAD)
+    )
+    respx.get("https://api.lever.co/v0/postings/linear?mode=json").mock(
+        return_value=httpx.Response(200, json=_LEVER_PAYLOAD)
+    )
+    source = CompanyBoardSource([("greenhouse", "stripe"), ("lever", "linear")])
+
+    jobs = source.search(JobQuery(keywords="", limit=1))
+
+    assert len(jobs) == 1
+
+
+def test_source_skips_unsupported_board() -> None:
+    source = CompanyBoardSource([("unknown", "acme")])
+
+    assert source.search(JobQuery(keywords="")) == []
