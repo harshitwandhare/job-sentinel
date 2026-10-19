@@ -174,3 +174,77 @@ async def test_deadlines_none_soon(settings: Settings, repo: JobRepository) -> N
     update, reply = _update()
     await handlers["deadlines"](update, _context())
     assert "Nothing closing" in reply.await_args.args[0]
+
+
+async def test_jobs_reports_scrape_failure(settings: Settings, repo: JobRepository) -> None:
+    handlers, scheduler, notifier = _handlers(settings, repo)
+    scheduler.trigger_now.side_effect = RuntimeError("portal down")
+    update, reply = _update()
+    await handlers["jobs"](update, _context())
+    assert "Scrape failed" in reply.await_args.args[0]
+    assert "portal down" in reply.await_args.args[0]
+    notifier.send_jobs_list.assert_not_called()
+
+
+async def test_applied_unknown_id(settings: Settings, repo: JobRepository) -> None:
+    handlers, _, _ = _handlers(settings, repo)
+    update, reply = _update()
+    await handlers["applied"](update, _context(["nope"]))
+    assert "not found" in reply.await_args.args[0]
+
+
+async def test_ignore_without_arg_shows_usage(settings: Settings, repo: JobRepository) -> None:
+    handlers, _, _ = _handlers(settings, repo)
+    update, reply = _update()
+    await handlers["ignore"](update, _context())
+    assert "Usage" in reply.await_args.args[0]
+
+
+async def test_ignore_unknown_id(settings: Settings, repo: JobRepository) -> None:
+    handlers, _, _ = _handlers(settings, repo)
+    update, reply = _update()
+    await handlers["ignore"](update, _context(["nope"]))
+    assert "not found" in reply.await_args.args[0]
+
+
+async def test_status_without_arg_shows_usage(settings: Settings, repo: JobRepository) -> None:
+    handlers, _, _ = _handlers(settings, repo)
+    update, reply = _update()
+    await handlers["status"](update, _context())
+    assert "Usage" in reply.await_args.args[0]
+
+
+async def test_filters_empty(
+    settings: Settings, repo: JobRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings.filters, "keyword_filters", [])
+    handlers, _, _ = _handlers(settings, repo)
+    update, reply = _update()
+    await handlers["filters"](update, _context())
+    assert "No filters" in reply.await_args.args[0]
+
+
+async def test_reply_ignores_updates_without_message() -> None:
+    from job_sentinel.bot.handlers import _reply
+
+    await _reply(SimpleNamespace(message=None), "hello")
+
+
+async def test_build_application_registers_every_command(
+    settings: Settings, repo: JobRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from telegram.ext import CommandHandler
+
+    from job_sentinel.bot.handlers import build_application
+
+    app = build_application(settings, repo, MagicMock(), MagicMock())
+    registered = {
+        cmd for h in app.handlers[0] if isinstance(h, CommandHandler) for cmd in h.commands
+    }
+    assert {"start", "jobs", "recent", "applied", "ignore", "status", "stats"} <= registered
+
+    set_commands = AsyncMock()
+    monkeypatch.setattr(type(app.bot), "set_my_commands", set_commands)
+    await app.post_init(app)
+    commands = set_commands.await_args.args[0]
+    assert {c.command for c in commands} >= {"start", "ping", "deadlines"}
