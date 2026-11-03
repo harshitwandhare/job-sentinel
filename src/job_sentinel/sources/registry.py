@@ -36,6 +36,7 @@ _BUILTIN_SOURCES: dict[str, str] = {
     "usajobs": "job_sentinel.sources.usajobs",
     "jobspy": "job_sentinel.sources.jobspy_source",
     "company_board": "job_sentinel.sources.company_boards",
+    "simplify": "job_sentinel.sources.simplify",
 }
 
 # Map source IDs to their class names (for lazy loading)
@@ -49,6 +50,7 @@ _SOURCE_CLASS: dict[str, str] = {
     "usajobs": "USAJobsSource",
     "jobspy": "JobSpySource",
     "company_board": "CompanyBoardSource",
+    "simplify": "SimplifySource",
 }
 
 
