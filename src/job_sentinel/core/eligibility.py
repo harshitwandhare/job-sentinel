@@ -156,7 +156,9 @@ DEFAULT_RULES: tuple[Rule, ...] = (
 
 def _workday(host: str, path: str) -> str:
     parts = [p for p in path.split("/") if p and p != "en-US"]
-    if host.endswith("myworkdaysite.com"):  # /recruiting/<tenant>/<site>/job/...
+    # Same suffix rule as the resolver: a bare endswith would also accept
+    # "notmyworkdaysite.com" and pick the wrong path layout.
+    if _hosted_at(host, "myworkdaysite.com"):  # /recruiting/<tenant>/<site>/job/...
         tenant, site, rest = parts[1], parts[2], "/".join(parts[3:])
     else:
         tenant, site, rest = host.split(".")[0], parts[0], "/".join(parts[1:])
