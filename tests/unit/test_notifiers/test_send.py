@@ -70,3 +70,31 @@ def test_send_jobs_list_empty_sends_placeholder() -> None:
     route = respx.post(_API).mock(return_value=httpx.Response(200, json={"ok": True}))
     _notifier().send_jobs_list([])
     assert route.call_count == 1
+
+
+@respx.mock
+def test_send_jobs_list_with_header_sends_header_then_each_item() -> None:
+    route = respx.post(_API).mock(return_value=httpx.Response(200, json={"ok": True}))
+    jobs = [
+        JobPosting(posting_id="1", title="SWE Intern", employer="Google"),
+        JobPosting(posting_id="2", title="Data Analyst", employer="Meta"),
+    ]
+    _notifier().send_jobs_list(jobs, header="Recent postings")
+    # 1 header + 1 per job
+    assert route.call_count == 3
+    assert b"Recent postings" in route.calls[0].request.content
+
+
+@respx.mock
+def test_send_jobs_list_without_header_sends_only_items() -> None:
+    route = respx.post(_API).mock(return_value=httpx.Response(200, json={"ok": True}))
+    _notifier().send_jobs_list([JobPosting(posting_id="1", title="Solo")])
+    assert route.call_count == 1
+
+
+@respx.mock
+def test_send_returns_false_on_unexpected_error() -> None:
+    # A malformed (non-JSON) body is not a transport error, so it is not retried.
+    route = respx.post(_API).mock(return_value=httpx.Response(200, text="not json"))
+    assert _notifier().send_text("hello") is False
+    assert route.call_count == 1
