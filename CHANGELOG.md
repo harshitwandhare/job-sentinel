@@ -14,6 +14,21 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+### Added
+
+- **Simplify source** (`sources/simplify.py`) — reads the community-maintained
+  internship and new-grad lists published as GitHub READMEs, handling the `↳`
+  company carry-forward and skipping closed rows.
+- **Eligibility screen** (`core/eligibility.py`) — re-reads a posting through
+  the board that actually serves it (Workday CXS, Greenhouse, Lever, Ashby,
+  SmartRecruiters, Oracle Recruiting) and returns a verdict that quotes the
+  sentence it judged on. Covers sponsorship, citizenship, clearance, export
+  control and degree-level exclusions.
+- **Answer bank** (`profile/answers.py`, `answers` CLI, `GET /api/answers`,
+  `POST /api/answers/match`, `GET /api/answers/resume`) — every question an
+  application form asks, answered once, matched on visible label text rather
+  than on CSS selectors. Fields listed as private never hand out a value.
+
 ## [1.4.4] — 2026-09-12
 
 ### Fixed
