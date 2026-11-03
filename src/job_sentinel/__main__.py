@@ -61,6 +61,8 @@ apps_app = typer.Typer(help="Track job applications (Huntr-style).")
 app.add_typer(apps_app, name="apps")
 docs_app = typer.Typer(help="Manage the generated résumé/cover-letter library.")
 app.add_typer(docs_app, name="docs")
+answers_app = typer.Typer(help="The application answer bank used to fill forms.")
+app.add_typer(answers_app, name="answers")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -422,6 +424,81 @@ def resume_init(
     path = save_profile(example_profile(), DEFAULT_PROFILE_PATH)
     console.print(f"[green]✓ Wrote starter profile[/] → [cyan]{path}[/]")
     console.print("Edit it, then run [bold]resume build[/].")
+
+
+@answers_app.command("init")
+def answers_init(
+    force: bool = typer.Option(False, "--force", help="Overwrite an existing answers.yaml"),
+) -> None:
+    """Create a starter answers.yaml: every form question, answered once."""
+    from job_sentinel.profile import DEFAULT_ANSWERS_PATH, example_answers, save_answers
+
+    if DEFAULT_ANSWERS_PATH.exists() and not force:
+        console.print(
+            f"[yellow]Answer bank already exists[/] at [cyan]{DEFAULT_ANSWERS_PATH}[/]. "
+            "Use [bold]--force[/] to overwrite."
+        )
+        return
+    path = save_answers(example_answers(), DEFAULT_ANSWERS_PATH)
+    console.print(f"[green]✓ Wrote starter answer bank[/] → [cyan]{path}[/]")
+    console.print("Fill it in, leaving anything you must answer yourself blank.")
+
+
+@answers_app.command("list")
+def answers_list() -> None:
+    """Show every stored answer, and which ones you answer yourself."""
+    from rich.table import Table
+
+    from job_sentinel.profile import load_answers
+
+    bank = load_answers()
+    if not bank.fields:
+        console.print("[yellow]No answer bank yet.[/] Run [bold]answers init[/].")
+        return
+
+    table = Table(title=f"Answer bank ({len(bank.fields)} fields, updated {bank.updated or '?'})")
+    table.add_column("Field", style="cyan")
+    table.add_column("Kind")
+    table.add_column("Answer")
+    for field in bank.fields:
+        if bank.is_private(field.id):
+            answer = "[magenta]you answer this[/]"
+        elif field.answerable:
+            answer = (field.value or "")[:60]
+        else:
+            answer = "[dim]unset[/]"
+        table.add_row(field.id, field.kind.value, answer)
+    console.print(table)
+
+
+@answers_app.command("match")
+def answers_match(
+    labels: list[str] = typer.Argument(..., help="Form labels to resolve"),  # noqa: B008
+) -> None:
+    """Resolve form labels to stored answers, the way the browser filler does."""
+    from job_sentinel.profile import load_answers
+
+    bank = load_answers()
+    for label in labels:
+        field = bank.find(label)
+        if field is None:
+            console.print(f"[yellow]no match[/]  {label}")
+        elif bank.is_private(field.id):
+            console.print(f"[magenta]you answer[/] {label} → [cyan]{field.id}[/]")
+        else:
+            console.print(f"[green]{field.value}[/]  {label} → [cyan]{field.id}[/]")
+
+
+@answers_app.command("resume")
+def answers_resume(title: str = typer.Argument(..., help="Job title to route")) -> None:
+    """Show which stored resume the routing rules pick for a job title."""
+    from job_sentinel.profile import load_answers
+
+    picked = load_answers().resume_for(title)
+    if picked:
+        console.print(f"[green]{picked}[/]  ← {title}")
+    else:
+        console.print(f"[yellow]No routing rule matches[/] {title!r}. Pick a resume yourself.")
 
 
 @resume_app.command("import")

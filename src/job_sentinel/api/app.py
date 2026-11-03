@@ -41,7 +41,15 @@ from job_sentinel.core.models import (
 )
 from job_sentinel.documents.match import MatchResult, match_profile_to_job
 from job_sentinel.documents.tailor import KeywordTailor, TailorResult
-from job_sentinel.profile import DEFAULT_PROFILE_PATH, Profile, load_profile, save_profile
+from job_sentinel.profile import (
+    DEFAULT_ANSWERS_PATH,
+    DEFAULT_PROFILE_PATH,
+    AnswerBank,
+    Profile,
+    load_answers,
+    load_profile,
+    save_profile,
+)
 
 if TYPE_CHECKING:
     from job_sentinel.documents.llm import OllamaClient
@@ -154,6 +162,29 @@ class _SourceConfigKeys(BaseModel):
     THEMUSE_API_KEY: str | None = None
 
 
+class AnswerMatchRequest(BaseModel):
+    """Form labels scraped from one page, in document order."""
+
+    labels: list[str] = Field(default_factory=list)
+
+
+class AnswerMatch(BaseModel):
+    """One label resolved against the answer bank.
+
+    ``field_id`` is null when nothing matched, and ``value`` is null for a
+    private field, so the caller can tell "we have no answer" apart from "the
+    user must answer this themselves".
+    """
+
+    label: str
+    field_id: str | None = None
+    kind: str | None = None
+    value: str | None = None
+    options: list[str] = Field(default_factory=list)
+    private: bool = False
+    note: str = ""
+
+
 class SourceConfigRequest(BaseModel):
     enabled_sources: list[str] | None = None
     keys: _SourceConfigKeys | None = None
@@ -226,9 +257,11 @@ def create_app(
     profile_path: Path | None = None,
     db_path: Path | None = None,
     auth_dir: Path | None = None,
+    answers_path: Path | None = None,
 ) -> FastAPI:
     """Build the FastAPI app. Paths are injectable so tests stay isolated."""
     profile_path = profile_path or DEFAULT_PROFILE_PATH
+    answers_path = answers_path or DEFAULT_ANSWERS_PATH
     db_path = db_path or (_DATA_DIR / "jobs.db")
     auth_dir = auth_dir or _DATA_DIR
 
@@ -365,6 +398,47 @@ def create_app(
     @app.get("/api/profile/summary", response_model=ProfileSummary)
     def profile_summary() -> ProfileSummary:
         return _summary(load_profile(profile_path))
+
+    @app.get("/api/answers", response_model=AnswerBank)
+    def get_answers() -> AnswerBank:
+        """The stored answer bank, as the browser filler consumes it."""
+        return load_answers(answers_path)
+
+    @app.post("/api/answers/match", response_model=list[AnswerMatch])
+    def match_answers(req: AnswerMatchRequest) -> list[AnswerMatch]:
+        """Resolve form labels to stored answers, in the order they were sent.
+
+        One request per page rather than one per field, so the filler makes a
+        single round trip. A label with no stored answer still comes back, with
+        ``field_id`` null, so the overlay can show the user what it skipped.
+        """
+        bank = load_answers(answers_path)
+        out: list[AnswerMatch] = []
+        for label in req.labels:
+            field = bank.find(label)
+            if field is None:
+                out.append(AnswerMatch(label=label))
+                continue
+            private = bank.is_private(field.id)
+            out.append(
+                AnswerMatch(
+                    label=label,
+                    field_id=field.id,
+                    kind=field.kind,
+                    # A private field is never handed out, even when a value
+                    # somehow reached the file: the user answers it in person.
+                    value=None if private else field.value,
+                    options=field.options,
+                    private=private,
+                    note=field.note,
+                )
+            )
+        return out
+
+    @app.get("/api/answers/resume")
+    def answers_resume(title: str) -> dict[str, str | None]:
+        """Which stored resume the routing rules pick for a job title."""
+        return {"title": title, "file": load_answers(answers_path).resume_for(title)}
 
     @app.get("/api/jobs", response_model=list[JobPosting])
     def list_jobs(limit: int = 20) -> list[JobPosting]:
