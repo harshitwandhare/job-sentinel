@@ -6,7 +6,7 @@ import httpx
 import pytest
 import respx
 
-from job_sentinel.core.eligibility import Status, screen_text, screen_url
+from job_sentinel.core.eligibility import Status, _resolve, screen_text, screen_url
 
 _FILLER = "We build delightful products for millions of customers worldwide. " * 6
 
@@ -125,6 +125,41 @@ def test_unreachable_posting_is_unknown_and_never_raises() -> None:
     verdict = screen_url(page)
     assert verdict.status is Status.UNKNOWN
     assert "ConnectError" in verdict.detail
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://greenhouse.io.attacker.net/acme/jobs/1",
+        "https://notgreenhouse.io/acme/jobs/1",
+        "https://acme.wd1.myworkdayjobs.com.attacker.net/External/job/A/B",
+        "https://ehtl.fa.us6.oraclecloud.com.attacker.net/hcmUI/x/job/19816",
+        "ftp://boards-api.greenhouse.io/acme/jobs/1",
+    ],
+)
+def test_lookalike_host_is_not_treated_as_a_known_board(url: str) -> None:
+    """A host that merely contains a board's domain must not steer the fetch.
+
+    Posting URLs come from a list anyone can open a pull request against, and
+    the Workday and Oracle templates build their request URL from the host.
+    """
+    assert _resolve(url) is None
+
+
+@pytest.mark.parametrize(
+    ("url", "kind"),
+    [
+        ("https://job-boards.greenhouse.io/acme/jobs/1", "greenhouse"),
+        ("https://boards.greenhouse.io/acme/jobs/1", "greenhouse"),
+        ("https://acme.wd1.myworkdayjobs.com/External/job/A/B", "workday"),
+        ("https://ehtl.fa.us6.oraclecloud.com/hcmUI/x/job/19816", "oracle"),
+        ("https://jobs.smartrecruiters.com/Acme/744000159218439", "smartrecruiters"),
+    ],
+)
+def test_real_board_hosts_still_resolve(url: str, kind: str) -> None:
+    resolved = _resolve(url)
+    assert resolved is not None
+    assert resolved[1] == kind
 
 
 @respx.mock

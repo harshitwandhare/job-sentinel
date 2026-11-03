@@ -200,16 +200,33 @@ _BOARDS: tuple[tuple[str, str, str, str], ...] = (
 )
 
 
+def _hosted_at(host: str, domain: str) -> bool:
+    """True when *host* is *domain* itself or a subdomain of it.
+
+    A substring test is unsafe: "greenhouse.io" sits inside
+    "greenhouse.io.example.net" and "notgreenhouse.io" alike. That matters
+    because a posting URL arrives from a community-maintained list anyone can
+    open a pull request against, and the Workday and Oracle templates build
+    their request URL out of the host they were handed. Matching on the
+    registrable suffix keeps a lookalike host from steering a fetch.
+    """
+    return host == domain or host.endswith(f".{domain}")
+
+
 def _resolve(url: str) -> tuple[str, str] | None:
     """Return (api_url, board_kind) for *url*, or None when it is unrecognised."""
     parsed = urlparse(url)
-    host, path = parsed.netloc, parsed.path
+    if parsed.scheme not in ("http", "https"):
+        return None
+    # hostname, not netloc: it is lower-cased and carries no port or userinfo,
+    # so "user@evil.net" and ":8080" cannot smuggle a match past the check.
+    host, path = (parsed.hostname or ""), parsed.path
 
-    if ".myworkdayjobs.com" in host or ".myworkdaysite.com" in host:
+    if _hosted_at(host, "myworkdayjobs.com") or _hosted_at(host, "myworkdaysite.com"):
         return _workday(host, path), "workday"
 
     for marker, pattern, kind, template in _BOARDS:
-        if marker not in host:
+        if not _hosted_at(host, marker):
             continue
         match = re.search(pattern, path)
         if match:
