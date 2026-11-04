@@ -92,7 +92,11 @@ def test_empty_label_list_is_fine(client: TestClient) -> None:
 )
 def test_resume_routing_route(client: TestClient, title: str, expected: str | None) -> None:
     body = client.get("/api/answers/resume", params={"title": title}).json()
-    assert body == {"title": title, "file": expected}
+    assert body["title"] == title
+    assert body["file"] == expected
+    # No resume_root in this bank, so there is nowhere on disk to point at.
+    assert body["path"] is None
+    assert body["exists"] is False
 
 
 def test_missing_answers_file_gives_an_empty_bank(tmp_path: Path) -> None:

@@ -152,3 +152,72 @@ def test_run_find_drops_blocked_postings(
     assert [a.url for a in report.queued] == ["https://x.test/1"]
     assert len(report.blocked) == 1
     assert report.blocked[0].verdict.blockers[0][1] == "we do not sponsor"
+
+
+# ── a run moving on ───────────────────────────────────────────────────────────
+
+
+def test_next_to_fill_returns_something_unfilled(repo: JobRepository) -> None:
+    from job_sentinel.core.pipeline import is_filled, next_to_fill
+
+    items = [
+        Screened(posting("1", "https://x.test/1"), Verdict(Status.ELIGIBLE)),
+        Screened(posting("2", "https://x.test/2"), Verdict(Status.ELIGIBLE)),
+    ]
+    queue_jobs(items, repo)
+    first = next_to_fill(repo)
+    assert first is not None
+    assert not is_filled(first)
+
+
+def test_marking_filled_moves_the_run_on_without_claiming_an_application(
+    repo: JobRepository,
+) -> None:
+    """The stage must stay saved: nothing has been submitted, and recording an
+    application the user never sent is worse than useless."""
+    from job_sentinel.core.pipeline import is_filled, mark_filled, next_to_fill
+
+    queue_jobs(
+        [
+            Screened(posting("1", "https://x.test/1"), Verdict(Status.ELIGIBLE)),
+            Screened(posting("2", "https://x.test/2"), Verdict(Status.ELIGIBLE)),
+        ],
+        repo,
+    )
+    first = next_to_fill(repo)
+    assert first is not None
+
+    updated = mark_filled(first.id, repo)
+    assert updated is not None
+    assert updated.stage is ApplicationStage.SAVED
+    assert is_filled(updated)
+
+    second = next_to_fill(repo)
+    assert second is not None
+    assert second.id != first.id
+
+
+def test_marking_filled_keeps_the_eligibility_record(repo: JobRepository) -> None:
+    from job_sentinel.core.pipeline import mark_filled
+
+    verdict = Verdict(Status.ELIGIBLE, cautions=[("export control", "quote")])
+    queued, _ = queue_jobs([Screened(posting("1", "https://x.test/1"), verdict)], repo)
+    updated = mark_filled(queued[0].id, repo)
+    assert updated is not None
+    assert updated.raw_data["eligibility"]["cautions"] == ["export control"]
+
+
+def test_marking_an_unknown_application_returns_none(repo: JobRepository) -> None:
+    from job_sentinel.core.pipeline import mark_filled
+
+    assert mark_filled("nope", repo) is None
+
+
+def test_next_to_fill_is_none_when_everything_is_filled(repo: JobRepository) -> None:
+    from job_sentinel.core.pipeline import mark_filled, next_to_fill
+
+    queued, _ = queue_jobs(
+        [Screened(posting("1", "https://x.test/1"), Verdict(Status.ELIGIBLE))], repo
+    )
+    mark_filled(queued[0].id, repo)
+    assert next_to_fill(repo) is None

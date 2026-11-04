@@ -117,6 +117,51 @@
     return false;
   }
 
+  /**
+   * Every file input on the page, with something clickable to aim at.
+   *
+   * A resume field is almost never a visible `input[type=file]`: forms hide
+   * the input and style a label or button over it, so the usual visibility
+   * test would report no upload fields on a page that plainly has one. The
+   * input is found regardless of its own visibility, and the target is
+   * whatever the user would actually click.
+   *
+   * Nothing here uploads anything. A file can only be attached by real user
+   * input, which is the point: the caller decides what to attach.
+   */
+  function findUploads() {
+    const out = [];
+    for (const input of document.querySelectorAll("input[type='file']")) {
+      if (input.disabled) continue;
+
+      let label = "";
+      if (input.id) {
+        label = visibleText(document.querySelector(`label[for="${CSS.escape(input.id)}"]`));
+      }
+      if (!label) label = cleanLabel(input.getAttribute("aria-label") || "");
+      if (!label) {
+        const wrapper = input.closest("[data-automation-id], .application-question, fieldset, div");
+        label = visibleText(wrapper?.querySelector("label, legend, h2, h3"));
+      }
+      if (!label) label = cleanLabel(input.name || input.id || "attachment");
+
+      const clickable = [
+        input.id ? document.querySelector(`label[for="${CSS.escape(input.id)}"]`) : null,
+        input.closest("label"),
+        input.parentElement,
+      ].find((el) => el && isVisible(el));
+
+      out.push({
+        label,
+        accept: input.getAttribute("accept") || "",
+        multiple: input.multiple,
+        input,
+        target: clickable || input,
+      });
+    }
+    return out;
+  }
+
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   /** Poll until `fn()` returns something truthy, or give up. */
@@ -139,6 +184,7 @@
     setControlValue,
     selectOption,
     chooseRadio,
+    findUploads,
     sleep,
     waitFor,
   });

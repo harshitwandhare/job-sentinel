@@ -65,6 +65,21 @@ Versions follow [Semantic Versioning](https://semver.org):
   stripping comment lines. Greenhouse ships a Content-Security-Policy that
   blocks both a script tag and a fetch to localhost, so there the bundle is
   evaluated directly instead.
+- **Resume routing to a real file** (`resume_root` in the answer bank,
+  `GET /api/answers/resume`, `GET /api/apply/next`, `apply next`) — the routed
+  resume now comes back as a path on disk with an existence check, so a
+  session knows exactly which PDF to attach.
+- **Upload-field discovery** (`findUploads` in `dom.js`, `__jsFill.uploads()`)
+  — reports every file input with something clickable to aim at. A resume
+  field is almost never a visible `input[type=file]`, so visibility is tested
+  on the label the user would click, not the input. Nothing uploads by itself:
+  a file can only be attached by real user input.
+- **A run moves on** (`POST /api/apply/{id}/filled`, `apply filled`) — an
+  application that has been prefilled is stamped so `apply next` hands back
+  the following one. The stage stays `saved`, because nothing was submitted.
+- **`GET /fill/bundle.js?only=<adapter>`** — most boards block loading the
+  filler by URL, so the bundle gets pasted into one evaluation instead. Asking
+  for the one adapter the page needs is 9KB rather than 24KB.
 - **`/apply-run` and `/fill-application`** Claude Code commands covering the
   whole loop, including the parts that stay manual: the account, email and SMS
   verification, CAPTCHAs, and submit.
