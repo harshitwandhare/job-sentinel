@@ -58,6 +58,11 @@ if TYPE_CHECKING:
 # data/ lives at the repo root (src/job_sentinel/api/app.py -> parents[3]).
 _DATA_DIR = Path(__file__).resolve().parents[3] / "data"
 
+# The filler scripts, served so a Claude session can inject them into a
+# page by URL instead of pasting them. Absent from a wheel install, which
+# ships src/ only, so the route degrades to a 404 with an explanation.
+_FILL_DIR = Path(__file__).resolve().parents[3] / "extension" / "fill"
+
 # The local Next.js dev server (and a future packaged UI) call this API.
 # Next picks the next free port when 3000 is taken, so accept any localhost
 # port rather than a fixed list — the API still only binds to 127.0.0.1.
@@ -398,6 +403,29 @@ def create_app(
     @app.get("/api/profile/summary", response_model=ProfileSummary)
     def profile_summary() -> ProfileSummary:
         return _summary(load_profile(profile_path))
+
+    @app.get("/fill/{name:path}", response_class=FileResponse)
+    def fill_script(name: str) -> FileResponse:
+        """Serve one of the browser-filler scripts to an injecting session.
+
+        A page on an employer's domain cannot read the answer bank: CORS only
+        allows local origins. It can load these scripts, because a script tag
+        is not a cross-origin read. The values still come from Claude, which
+        calls the API itself.
+        """
+        media = {".js": "text/javascript", ".html": "text/html"}.get(Path(name).suffix)
+        if media is None:
+            raise HTTPException(status_code=404, detail="not a filler script")
+        target = (_FILL_DIR / name).resolve()
+        if not target.is_relative_to(_FILL_DIR.resolve()) or not target.is_file():
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    f"{name} is not in extension/fill. The filler scripts ship with the "
+                    "repository, not with the installed package."
+                ),
+            )
+        return FileResponse(target, media_type=media)
 
     @app.get("/api/answers", response_model=AnswerBank)
     def get_answers() -> AnswerBank:

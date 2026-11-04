@@ -42,6 +42,9 @@ const btnTrack    = $("btn-track");
 const trackError  = $("track-error");
 const linkApp     = $("link-app");
 
+const btnFill   = $("btn-fill");
+const fillError = $("fill-error");
+
 const btnSettingsToggle = $("btn-settings-toggle");
 const settingsPanel     = $("settings-panel");
 const fApiBase          = $("f-api-base");
@@ -319,6 +322,47 @@ btnTrack.addEventListener("click", async () => {
       trackError.textContent = `Error: ${err.message}`;
     }
     show(trackError);
+  }
+});
+
+
+/* ── Application filler ──────────────────────────────────── */
+
+/**
+ * The filler scripts are injected on demand rather than declared as content
+ * scripts, so the extension holds no standing permission on any ATS: clicking
+ * this button is the grant. Order matters — helpers, then the registry, then
+ * the adapters (generic registers last so a real adapter wins), then the
+ * orchestrator, which opens the overlay as soon as it runs.
+ */
+const FILLER_FILES = [
+  "fill/dom.js",
+  "fill/registry.js",
+  "fill/adapters/workday.js",
+  "fill/adapters/generic.js",
+  "fill/overlay.js",
+  "fill/content.js",
+];
+
+btnFill.addEventListener("click", async () => {
+  hide(fillError);
+  btnFill.disabled = true;
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || !tab.id) {
+    btnFill.disabled = false;
+    fillError.textContent = "No page to fill.";
+    show(fillError);
+    return;
+  }
+
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: FILLER_FILES });
+    window.close(); // the overlay takes over from here
+  } catch (err) {
+    btnFill.disabled = false;
+    fillError.textContent = `Cannot run here: ${err.message}`;
+    show(fillError);
   }
 });
 

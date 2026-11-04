@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Job Sentinel filler test form</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 2rem; max-width: 40rem; }
+    fieldset { margin: 1rem 0; }
+    label { display: inline-block; min-width: 12rem; }
+    input, select, textarea { margin: 2px 0; }
+  </style>
+</head>
+<body>
+<h1>Filler test form</h1>
+<p>
+  A stand-in for a real application form, so an adapter can be developed without
+  touching an employer's live one. Serve this directory over HTTP, open the page,
+  and drive the adapters from the console:
+</p>
+<pre>python -m http.server 8731
+# then, in the page console:
+const gen = __jsFill.adapters.find(a => a.id === "generic");
+gen.scan().map(f => f.label + " [" + f.kind + "]");
+await gen.fill(gen.scan()[0], "Harshit");</pre>
+
+<h2>Workday-shaped fields</h2>
+
+<div data-automation-id="formField-firstName">
+  <label for="wd-first">First Name *</label>
+  <input id="wd-first" type="text" />
+</div>
+
+<div data-automation-id="formField-country">
+  <label for="wd-country">Country</label>
+  <button id="wd-country" aria-haspopup="listbox">Select One</button>
+</div>
+
+<div data-automation-id="formField-sponsorship">
+  <fieldset>
+    <legend>Will you now or in the future require sponsorship?</legend>
+    <input id="sp-yes" type="radio" name="sp" /><label for="sp-yes">Yes</label>
+    <input id="sp-no" type="radio" name="sp" /><label for="sp-no">No</label>
+  </fieldset>
+</div>
+
+<div data-automation-id="formField-hidden" hidden>
+  <label for="wd-hidden">Hidden Field</label>
+  <input id="wd-hidden" type="text" />
+</div>
+
+<h2>Plain HTML fields</h2>
+
+<form id="plain">
+  <div><label for="g-email">Email Address</label><input id="g-email" type="email" /></div>
+  <div>
+    <label for="g-degree">Degree</label>
+    <select id="g-degree">
+      <option value="">Pick</option>
+      <option>Bachelor</option>
+      <option>Master</option>
+    </select>
+  </div>
+  <div><label for="g-why">Why this company?</label><textarea id="g-why"></textarea></div>
+  <input type="hidden" name="csrf" value="x" />
+</form>
+
+<h2>A group with nothing naming it</h2>
+<p>The adapter must label this "veteran" and leave it unanswered, never borrow the
+   sponsorship legend above and tick the wrong box.</p>
+<div id="nolegend">
+  <input id="nl-y" type="radio" name="veteran" /><label for="nl-y">Yes</label>
+  <input id="nl-n" type="radio" name="veteran" /><label for="nl-n">No</label>
+</div>
+
+<div id="listbox-host"></div>
+
+<script>
+  // A Workday-style dropdown: the button opens a listbox somewhere else in the
+  // document, after a delay, which is why the adapter waits for it.
+  document.getElementById("wd-country").addEventListener("click", () => {
+    if (document.querySelector("[role=listbox]")) return;
+    const ul = document.createElement("ul");
+    ul.setAttribute("role", "listbox");
+    for (const name of ["Canada", "India", "United States of America"]) {
+      const li = document.createElement("li");
+      li.setAttribute("role", "option");
+      li.textContent = name;
+      li.addEventListener("click", () => {
+        document.getElementById("wd-country").textContent = name;
+        ul.remove();
+      });
+      ul.appendChild(li);
+    }
+    setTimeout(() => document.getElementById("listbox-host").appendChild(ul), 150);
+  });
+</script>
+
+<script src="dom.js"></script>
+<script src="registry.js"></script>
+<script src="adapters/workday.js"></script>
+<script src="adapters/generic.js"></script>
+<script src="overlay.js"></script>
+</body>
+</html>

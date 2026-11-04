@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Job Sentinel — Clip to Track",
-  "version": "0.1.0",
-  "description": "One-click job clip: extract a posting's details and save it straight to your local Job Sentinel tracker.",
+  "name": "Job Sentinel",
+  "version": "0.2.0",
+  "description": "Clip a job posting into your local Job Sentinel tracker, and fill an application form from your stored answers. Nothing leaves your machine.",
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -16,7 +16,11 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
   "host_permissions": [
     "http://127.0.0.1:8000/*",
     "http://localhost:8000/*"
