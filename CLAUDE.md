@@ -21,7 +21,8 @@ CLI commands: `run` (scheduler+bot), `scrape` (one cycle, default --dry-run), `l
 (FastAPI), `web` (API + Next.js together), `adapters`, `db stats|list`,
 `resume init|import <pdf>|show|build|cover|doctor`,
 `apps list|add|stage|note|rm`, `docs list|rm`,
-`sources list|search|company`, `users add|list|remove`.
+`sources list|search|company`, `users add|list|remove`,
+`answers init|list|match|resume|learn|learned|forget`, `apply find|queue`.
 
 ## Layout
 
@@ -39,7 +40,9 @@ src/job_sentinel/
   core/            browser.py (Playwright), scheduler.py (APScheduler), models.py
                    (JobPosting, Application, GeneratedDocument, ApplicationStage,
                    DocumentKind…), deadlines.py, session.py (storage-state checks),
-                   text.py (strip_html cleaner — shared by sources + résumé engine)
+                   text.py (strip_html cleaner — shared by sources + résumé engine),
+                   eligibility.py (re-read a posting through its own board),
+                   pipeline.py (one apply pass: find, screen, queue)
   db/repository.py sqlite-utils wrapper; schema v2 with job_postings + applications +
                    generated_documents tables; (only module allowed untyped calls)
   documents/       latex.py + renderer.py (LaTeX→PDF), tailor.py, llm.py (Ollama),
@@ -48,7 +51,9 @@ src/job_sentinel/
                    OpenAICompatClient + build_chat_backend/build_embed_backend factories),
                    match.py (MatchResult, match_profile_to_job — ATS + semantic + LLM blend)
   notifiers/       telegram.py (httpx), email.py (optional SMTP)
-  profile/         models.py + store.py (data/profile.yaml universal profile)
+  profile/         models.py + store.py (data/profile.yaml universal profile),
+                   answers.py (data/answers.yaml answer bank),
+                   fieldmap.py (data/fieldmap.yaml learned form wordings)
   sources/         base.py (JobSource ABC, JobQuery, SourceError), registry.py + search.py
                    (aggregate_search, build_enabled_sources); no-key sources: remoteok.py,
                    themuse.py, arbeitnow.py, himalayas.py; keyed: adzuna.py, usajobs.py;
@@ -95,6 +100,10 @@ scripts/           check_licenses.py (CI); diagnose_*.py are untracked one-off d
   - `documents` (GET list, GET `/{id}/file`, DELETE `/{id}`)
   - `sources` (GET status), `sources/config` (PUT), `sources/search` (POST), `sources/company` (POST)
   - `interview/questions` (POST — local-LLM mock questions, deterministic fallback)
+  - `answers`, `answers/match`, `answers/resume`
+  - `fieldmap` (GET), `fieldmap/learn` (POST), `fieldmap/{label}` (DELETE)
+  - `apply/find` (POST), `apply/queue` (GET)
+  - `fill/bundle.js` and `fill/{name}` (the browser filler's own scripts)
   - `auth/{status,login,users}`, `health`
 - Adapters are plugins: subclass `SiteAdapter` in `adapters/sites/`, register in registry;
   external adapters load via `CUSTOM_ADAPTER_PATH`. ~50 lines per portal (see
@@ -112,3 +121,35 @@ scripts/           check_licenses.py (CI); diagnose_*.py are untracked one-off d
 - Windows: CLI reconfigures stdout/stderr to UTF-8 (cp1252 breaks ✓/emoji output).
 - `.env` holds real credentials — never read or print it; use .env.example as reference.
 - data/, logs/, htmlcov/ contain runtime artifacts; gitignored — don't read them for context.
+
+## The apply loop (browser filler)
+
+`extension/fill/` holds the form filler: `dom.js` (React-safe value setting,
+visibility, word-boundary option matching), `registry.js` (the adapter
+contract), `adapters/` (workday, greenhouse, lever, ashby, generic — generic
+registers last so a real adapter always wins), `overlay.js`, `content.js`
+(extension entry) and `claude.js` (session entry). `test-form.html` is a
+stand-in form for developing an adapter without touching a live one.
+
+Rules that cost real time to discover, all verified against live forms:
+
+- **Discovery is on visible label text, never a selector.** Selectors rot on
+  every ATS redeploy; the words the applicant reads do not.
+- **`input.value = x` does not fire React's listeners**, so a React form
+  reverts the field on blur. Go through the native setter on the element
+  prototype.
+- **A radio group's container holds one `<label>` per choice.** Taking the
+  first one names the field "Yes" and the bank answers the wrong question.
+- **Fill a group through its explicit members.** Re-querying a container that
+  turns out to be the document answers a different question entirely.
+- **Greenhouse and Ashby dropdowns ignore synthetic input.** They only open on
+  a trusted gesture, so the adapters verify and report
+  `needs a real click` rather than claiming a fill that did not happen. A
+  session driving a real browser finishes those with the `computer` tool.
+- **The page must never read the answer bank.** API CORS allows local origins
+  only; the session resolves labels from the shell and sends values in.
+  `/fill/*` is the one exception, and it serves only the repo's own code.
+
+`/apply-run` and `/fill-application` in `.claude/commands/` document the loop.
+Creating accounts, email and SMS verification, CAPTCHAs and the submit click
+stay with the user, by design.

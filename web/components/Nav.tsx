@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 const PRIMARY = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/search", label: "Search" },
+  { href: "/apply", label: "Apply" },
   { href: "/applications", label: "Applications" },
   { href: "/studio", label: "Studio" },
 ];

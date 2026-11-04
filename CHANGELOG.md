@@ -44,6 +44,42 @@ Versions follow [Semantic Versioning](https://semver.org):
   resolves them against `POST /api/answers/match` from the shell, and fills
   with `__jsFill.apply()`. The page never reads the answer bank: CORS allows
   local origins only, so the data stays outside the employer's domain.
+- **Apply pipeline** (`core/pipeline.py`, `apply find|queue` CLI,
+  `POST /api/apply/find`, `GET /api/apply/queue`, `/apply` web page) — one pass
+  that searches every enabled source, re-reads each posting through the board
+  that serves it, drops what the posting itself rules out, skips anything
+  already tracked in any stage, and saves the rest as queued applications. The
+  blocked ones are reported with the sentence they were blocked on, so a wrong
+  screen is visible rather than silent.
+- **Learned field map** (`profile/fieldmap.py`, `answers learn|learned|forget`,
+  `GET /api/fieldmap`, `POST /api/fieldmap/learn`, `DELETE /api/fieldmap/{label}`)
+  — a wording the answer bank does not recognise can be paired with the stored
+  answer it means, and the next form phrased that way is answered without
+  asking. Mappings point at a field id, never at a value, and are scoped to the
+  board that asked, because boards word different questions the same way.
+- **Greenhouse, Lever and Ashby adapters** for the browser filler, each built
+  against a live form rather than from guesswork. Lever labels nothing: its
+  core fields are bare inputs identified only by `name`, so the labelled
+  `.application-question` wrapper is the unit of discovery there.
+- **`GET /fill/bundle.js`** — every filler script concatenated, with `?min=1`
+  stripping comment lines. Greenhouse ships a Content-Security-Policy that
+  blocks both a script tag and a fetch to localhost, so there the bundle is
+  evaluated directly instead.
+- **`/apply-run` and `/fill-application`** Claude Code commands covering the
+  whole loop, including the parts that stay manual: the account, email and SMS
+  verification, CAPTCHAs, and submit.
+
+### Fixed
+
+- **A tracker database with duplicate `sentinel_meta` rows could not be opened
+  at all.** An older code path inserted `schema_version` without a primary key,
+  so a real database ended up with the row twice; the back-fill that adds the
+  unique index then failed on every single open. Duplicates are collapsed
+  first, keeping the most recent row.
+- **Naming a source that was not in `enabled_sources` searched nothing.**
+  `apply find --sources simplify` filtered the enabled list rather than
+  instantiating what was asked for, and reported zero results without saying
+  why.
 
 ## [1.4.4] — 2026-09-12
 

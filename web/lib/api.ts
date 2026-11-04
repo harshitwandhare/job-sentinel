@@ -995,3 +995,109 @@ export async function getInterviewQuestions(
     return null;
   }
 }
+
+/* ── Apply loop ─────────────────────────────────────────────────────────── */
+
+export interface ApplyFindRequest {
+  keywords?: string;
+  location?: string;
+  date_posted_days?: number;
+  limit?: number;
+  screen?: boolean;
+  sources?: string[];
+}
+
+export interface BlockedPosting {
+  title: string;
+  employer: string;
+  url: string;
+  why: string;
+  quotes: string[];
+}
+
+export interface ApplyFindResponse {
+  summary: string;
+  found: number;
+  screened: number;
+  duplicates: number;
+  counts: Record<string, number>;
+  errors: string[];
+  queued: Application[];
+  blocked: BlockedPosting[];
+}
+
+const EMPTY_FIND: ApplyFindResponse = {
+  summary: "0 found, 0 screened, 0 blocked, 0 already tracked, 0 queued",
+  found: 0,
+  screened: 0,
+  duplicates: 0,
+  counts: {},
+  errors: [],
+  queued: [],
+  blocked: [],
+};
+
+export async function applyFind(req: ApplyFindRequest): Promise<ApplyFindResponse> {
+  if (demo.DEMO) return EMPTY_FIND;
+  try {
+    const res = await fetch(`${API_BASE}/api/apply/find`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) return EMPTY_FIND;
+    return (await res.json()) as ApplyFindResponse;
+  } catch {
+    return EMPTY_FIND;
+  }
+}
+
+export async function getApplyQueue(limit = 50): Promise<Application[]> {
+  if (demo.DEMO) return [];
+  try {
+    const res = await fetch(`${API_BASE}/api/apply/queue?limit=${limit}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return [];
+    return (await res.json()) as Application[];
+  } catch {
+    return [];
+  }
+}
+
+/* ── Learned form wordings ──────────────────────────────────────────────── */
+
+export interface LearnedLabel {
+  label: string;
+  field_id: string;
+  ats: string;
+  uses: number;
+  learned: string;
+}
+
+export async function getFieldMap(): Promise<LearnedLabel[]> {
+  if (demo.DEMO) return [];
+  try {
+    const res = await fetch(`${API_BASE}/api/fieldmap`, { headers: authHeaders() });
+    if (!res.ok) return [];
+    const body = (await res.json()) as { labels?: LearnedLabel[] };
+    return body.labels ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function forgetLabel(label: string, ats = "any"): Promise<boolean> {
+  if (demo.DEMO) return false;
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/fieldmap/${encodeURIComponent(label)}?ats=${encodeURIComponent(ats)}`,
+      { method: "DELETE", headers: authHeaders() },
+    );
+    if (!res.ok) return false;
+    const body = (await res.json()) as { removed: boolean };
+    return body.removed;
+  } catch {
+    return false;
+  }
+}

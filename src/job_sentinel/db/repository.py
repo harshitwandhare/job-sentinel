@@ -92,6 +92,7 @@ class JobRepository:
             # it so later upsert(..., pk="key") calls have a unique index to
             # target instead of raising "ON CONFLICT clause does not match".
             if self._table(_META_TABLE).pks == ["rowid"]:
+                self._dedupe_meta()
                 self._table(_META_TABLE).transform(pk="key")
                 logger.debug("Backfilled primary key on {}", _META_TABLE)
             stored = self._get_meta("schema_version")
@@ -130,6 +131,25 @@ class JobRepository:
 
         self._ensure_applications_table()
         self._ensure_documents_table()
+
+    def _dedupe_meta(self) -> None:
+        """Collapse repeated meta keys, keeping the most recent row.
+
+        An older code path inserted ``schema_version`` without a primary key,
+        so a database could end up with the same key twice. The back-fill that
+        follows adds a unique index on ``key`` and fails outright on the
+        duplicate, which made the whole database unopenable rather than
+        degrading. Clearing the duplicates first keeps the fix idempotent.
+        """
+        rows = list(self._db.execute("SELECT key, COUNT(*) FROM sentinel_meta GROUP BY key"))
+        if not any(count > 1 for _, count in rows):
+            return
+        logger.warning("Collapsing duplicate rows in {}", _META_TABLE)
+        self._db.execute(
+            "DELETE FROM sentinel_meta WHERE rowid NOT IN "
+            "(SELECT MAX(rowid) FROM sentinel_meta GROUP BY key)"
+        )
+        self._db.conn.commit()
 
     def _ensure_applications_table(self) -> None:
         if _APP_TABLE not in self._db.table_names():

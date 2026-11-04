@@ -57,3 +57,40 @@ def test_the_test_form_is_served_as_html(client: TestClient) -> None:
     resp = client.get("/fill/test-form.html")
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("text/html")
+
+
+def test_bundle_concatenates_every_adapter(client: TestClient) -> None:
+    body = client.get("/fill/bundle.js").text
+    for marker in ('id: "workday"', 'id: "greenhouse"', 'id: "lever"', 'id: "ashby"'):
+        assert marker in body
+    assert body.index('id: "generic"') > body.index('id: "workday"'), (
+        "generic must register last so a real adapter always wins"
+    )
+
+
+def test_bundle_is_readable_from_any_origin(client: TestClient) -> None:
+    """Greenhouse's CSP blocks a script tag at localhost, so the page fetches
+    the bundle instead. It is the repository's own code, never user data."""
+    assert client.get("/fill/bundle.js").headers["access-control-allow-origin"] == "*"
+
+
+def test_minified_bundle_is_smaller_and_still_parses(client: TestClient) -> None:
+    import shutil
+    import subprocess
+    import tempfile
+    from pathlib import Path as _Path
+
+    full = client.get("/fill/bundle.js").text
+    small = client.get("/fill/bundle.js", params={"min": True}).text
+    assert len(small) < len(full)
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = _Path(tmp) / "bundle.js"
+        path.write_text(small, encoding="utf-8")
+        result = subprocess.run(
+            [node, "--check", str(path)], capture_output=True, text=True, check=False
+        )
+    assert result.returncode == 0, result.stderr

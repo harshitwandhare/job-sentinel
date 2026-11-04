@@ -63,6 +63,8 @@ docs_app = typer.Typer(help="Manage the generated résumé/cover-letter library.
 app.add_typer(docs_app, name="docs")
 answers_app = typer.Typer(help="The application answer bank used to fill forms.")
 app.add_typer(answers_app, name="answers")
+apply_app = typer.Typer(help="Find, screen and queue postings worth applying to.")
+app.add_typer(apply_app, name="apply")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -499,6 +501,130 @@ def answers_resume(title: str = typer.Argument(..., help="Job title to route")) 
         console.print(f"[green]{picked}[/]  ← {title}")
     else:
         console.print(f"[yellow]No routing rule matches[/] {title!r}. Pick a resume yourself.")
+
+
+@answers_app.command("learn")
+def answers_learn(
+    label: str = typer.Argument(..., help="The form wording, as the form writes it"),
+    field_id: str = typer.Argument(..., help="The answer-bank field it means"),
+    ats: str = typer.Option("any", "--ats", help="Scope it to one board, e.g. workday"),
+) -> None:
+    """Teach the filler that a wording means a stored answer."""
+    from job_sentinel.profile import load_answers, load_fieldmap, save_fieldmap
+
+    if not any(f.id == field_id for f in load_answers().fields):
+        console.print(f"[red]No field {field_id!r} in the answer bank.[/] Add it there first.")
+        raise typer.Exit(1)
+
+    learned = load_fieldmap()
+    learned.learn(label, field_id, ats)
+    save_fieldmap(learned)
+    console.print(f"[green]Learned[/] {label!r} → [cyan]{field_id}[/] on [cyan]{ats}[/]")
+
+
+@answers_app.command("learned")
+def answers_learned() -> None:
+    """Every form wording the filler has been taught."""
+    from job_sentinel.profile import load_fieldmap
+
+    entries = load_fieldmap().labels
+    if not entries:
+        console.print("[yellow]Nothing learned yet.[/] Teach one with: answers learn")
+        return
+    for entry in sorted(entries, key=lambda e: (e.ats, e.label.lower())):
+        console.print(
+            f"[cyan]{entry.ats}[/]  {entry.label} → [green]{entry.field_id}[/]  "
+            f"[dim]used {entry.uses}x since {entry.learned or 'unknown'}[/]"
+        )
+
+
+@answers_app.command("forget")
+def answers_forget(
+    label: str = typer.Argument(..., help="The wording to drop"),
+    ats: str = typer.Option("any", "--ats", help="Which scope it was learned in"),
+) -> None:
+    """Drop a wording the filler learned wrongly."""
+    from job_sentinel.profile import load_fieldmap, save_fieldmap
+
+    learned = load_fieldmap()
+    if not learned.forget(label, ats):
+        console.print(f"[yellow]Nothing learned for[/] {label!r} on {ats}.")
+        return
+    save_fieldmap(learned)
+    console.print(f"[green]Forgot[/] {label!r} on [cyan]{ats}[/]")
+
+
+@apply_app.command("find")
+def apply_find(
+    keywords: str = typer.Option("", "--keywords", "-k", help="What to search for"),
+    location: str = typer.Option("", "--location", "-l", help="Where"),
+    days: int = typer.Option(7, "--days", help="Only postings this fresh"),
+    limit: int = typer.Option(50, "--limit", help="Cap per source"),
+    screen: bool = typer.Option(
+        True, "--screen/--no-screen", help="Re-read each posting through its own board"
+    ),
+    sources: str = typer.Option("", "--sources", help="Comma-separated source IDs"),
+) -> None:
+    """Find the latest postings, screen them, and queue what you can apply to."""
+    from job_sentinel.config.settings import get_settings
+    from job_sentinel.core.pipeline import run_find
+    from job_sentinel.db.repository import JobRepository
+    from job_sentinel.sources.base import JobQuery
+    from job_sentinel.sources.registry import _instantiate_source, build_enabled_sources
+
+    settings = get_settings()
+    picked = [s.strip() for s in sources.split(",") if s.strip()]
+    if picked:
+        # Naming a source explicitly is the request, whether or not it happens
+        # to be in enabled_sources. Filtering the enabled list instead would
+        # silently search nothing.
+        active = []
+        for sid in picked:
+            try:
+                active.append(_instantiate_source(sid, settings))
+            except Exception as exc:
+                console.print(f"[yellow]Could not load source[/] {sid}: {exc}")
+        if not active:
+            console.print("[red]No usable sources.[/] Check the IDs with: sources list")
+            raise typer.Exit(1)
+    else:
+        active = build_enabled_sources(settings)
+
+    query = JobQuery(keywords=keywords, location=location, date_posted_days=days, limit=limit)
+    repo = JobRepository(settings.db_path)
+    try:
+        report = run_find(query, settings, repo, sources=active, screen=screen)
+    finally:
+        repo.close()
+
+    console.print(f"[bold]{report.summary}[/]")
+    for err in report.errors:
+        console.print(f"  [yellow]source error[/] {err}")
+    for item in report.blocked:
+        console.print(f"  [red]blocked[/] {item.posting.employer} — {item.verdict.summary}")
+    for queued in report.queued:
+        console.print(f"  [green]queued[/]  {queued.employer} — {queued.title}")
+
+
+@apply_app.command("queue")
+def apply_queue(limit: int = typer.Option(25, "--limit", help="How many to show")) -> None:
+    """Applications waiting to be filled."""
+    from job_sentinel.config.settings import get_settings
+    from job_sentinel.core.models import ApplicationStage
+    from job_sentinel.db.repository import JobRepository
+
+    repo = JobRepository(get_settings().db_path)
+    try:
+        saved = repo.list_applications(stage=ApplicationStage.SAVED, limit=limit)
+    finally:
+        repo.close()
+
+    if not saved:
+        console.print("[yellow]Nothing queued.[/] Fill it with: apply find")
+        return
+    for item in saved:
+        console.print(f"[cyan]{item.employer}[/] — {item.title}")
+        console.print(f"  [dim]{item.url}[/]")
 
 
 @resume_app.command("import")
