@@ -171,3 +171,55 @@ def test_unrecognised_host_falls_back_to_raw_html() -> None:
     verdict = screen_url(page)
     assert verdict.source == "raw"
     assert verdict.status is Status.ELIGIBLE
+
+
+# ── visa class, which is a different question from sponsorship ────────────────
+
+_EXCLUSION = "programme excludes F-1 students outright"
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # The clause that cost a real application: the employer sponsors, but
+        # the programme excludes the visa class regardless.
+        "Individuals on temporary visa classifications, including E, F-1 (CPT or OPT), "
+        "H-1, H-2, L, B, J, or TN, are not eligible for the Program.",
+        "Applicants on an F-1 visa are not eligible for this internship.",
+        "Students are not eligible for this programme if they hold F-1 status.",
+        "We do not accept CPT candidates for this role.",
+    ],
+)
+def test_visa_class_exclusion_blocks(sentence: str) -> None:
+    verdict = screen_text(_body(sentence))
+    assert verdict.status is Status.BLOCKED
+    assert _EXCLUSION in verdict.summary
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        # F-1 named welcomingly is the opposite of an exclusion, and treating
+        # it as one would hide exactly the roles worth applying to.
+        "We welcome all work authorization types, including F-1 students using OPT or STEM OPT.",
+        "Work authorization including F-1 OPT is accepted; we review all candidates.",
+        "We hire interns from many backgrounds and sponsor where required.",
+        # "not eligible" about something else entirely.
+        "The optional essay is not eligible for extra credit.",
+    ],
+)
+def test_visa_class_rule_does_not_fire_on_welcoming_or_unrelated_text(sentence: str) -> None:
+    verdict = screen_text(_body(sentence))
+    assert _EXCLUSION not in verdict.summary
+
+
+def test_a_posting_can_sponsor_and_still_exclude_the_visa_class() -> None:
+    """The two rules answer different questions, so neither substitutes for the
+    other. This posting sponsors and is still a hard stop."""
+    sentence = (
+        "We are happy to sponsor visas for full-time roles. Individuals on temporary visa "
+        "classifications are not eligible for the internship Program."
+    )
+    verdict = screen_text(_body(sentence))
+    assert verdict.status is Status.BLOCKED
+    assert _EXCLUSION in verdict.summary
