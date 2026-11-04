@@ -37,6 +37,13 @@ Versions follow [Semantic Versioning](https://semver.org):
   with a generic adapter reading plain HTML form semantics as the fallback.
   The scripts are injected on your click rather than declared as content
   scripts, so the extension holds no standing permission on any job site.
+- **Claude-driven filling** (`extension/fill/claude.js`, `GET /fill/{name}`,
+  `/fill-application`) — the same adapters run from a Claude Code session, for
+  prefilling several applications in a row. The session loads the scripts into
+  the page from the local API, reads the questions with `__jsFill.labels()`,
+  resolves them against `POST /api/answers/match` from the shell, and fills
+  with `__jsFill.apply()`. The page never reads the answer bank: CORS allows
+  local origins only, so the data stays outside the employer's domain.
 
 ## [1.4.4] — 2026-09-12
 

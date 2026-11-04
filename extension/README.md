@@ -47,6 +47,26 @@ What it will not do:
   you click the button, under `activeTab`. The extension declares no content
   scripts and no host permissions beyond your local API.
 
+## Filling without the extension
+
+The same adapters run from a Claude Code session, which is the route when you
+want several applications opened and prefilled in a row rather than one form at
+a time. Run `/fill-application <url>` in a session with this repository open.
+
+Under the hood the session loads `extension/fill/*.js` from the running local
+API (`GET /fill/<name>`) into the page, calls `__jsFill.labels()` to read the
+questions, resolves them against `POST /api/answers/match` **from the shell**,
+and calls `__jsFill.apply()` with the values.
+
+The network hop stays outside the page on purpose. A page on an employer's
+domain cannot read the answer bank: CORS allows local origins only, and
+widening that would let any site you visit read your personal data. Loading a
+script by URL is not a cross-origin read, so the page gets the code and Claude
+keeps the data.
+
+What still cannot be automated, by anyone: creating the account, email or SMS
+verification, CAPTCHAs, and the submit click. Claude will not do those.
+
 ### Why values are set the way they are
 
 Assigning `input.value = x` does not fire React's listeners, so a React-rendered
