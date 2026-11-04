@@ -28,6 +28,15 @@ Versions follow [Semantic Versioning](https://semver.org):
   `POST /api/answers/match`, `GET /api/answers/resume`) — every question an
   application form asks, answered once, matched on visible label text rather
   than on CSS selectors. Fields listed as private never hand out a value.
+- **Application filler** (`extension/fill/`) — the browser extension can now
+  fill an application form from the answer bank. It scans the visible labels,
+  resolves them against `POST /api/answers/match` in one request, shows a plan
+  of what would go where, and types nothing until you click again. It halts on
+  the review step, never clicks submit, and never receives a private value.
+  Per-ATS adapters live in `extension/fill/adapters/`; Workday ships first,
+  with a generic adapter reading plain HTML form semantics as the fallback.
+  The scripts are injected on your click rather than declared as content
+  scripts, so the extension holds no standing permission on any job site.
 
 ## [1.4.4] — 2026-09-12
 
