@@ -150,6 +150,11 @@ Rules that cost real time to discover, all verified against live forms:
   only; the session resolves labels from the shell and sends values in.
   `/fill/*` is the one exception, and it serves only the repo's own code.
 
-`/apply-run` and `/fill-application` in `.claude/commands/` document the loop.
+`/apply-run` and `/fill-application` in `.claude/commands/` document the loop,
+and a plain-English request to find or apply to jobs should reach it too rather
+than being answered from scratch.
+
 Creating accounts, email and SMS verification, CAPTCHAs and the submit click
-stay with the user, by design.
+stay with the user, by design. Applications go one at a time: each needs a real
+browser tab, and some dropdowns only respond to real clicks, so a run of five is
+five sequential passes rather than five at once.
