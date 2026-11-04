@@ -8,7 +8,7 @@ summer 2027"). If no search was given, work from what is already queued.
 ## 1. Find and queue
 
 Start the API if it is not up (`curl -s -o /dev/null -w "%{http_code}"
-http://127.0.0.1:8000/api/health`; start with `job-sentinel serve` in the
+http://127.0.0.1:8000/health`; start with `job-sentinel serve` in the
 background).
 
 ```bash
