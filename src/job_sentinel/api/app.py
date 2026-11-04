@@ -18,13 +18,14 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi import FastAPI, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from loguru import logger
 from pydantic import BaseModel, Field
 
@@ -43,11 +44,16 @@ from job_sentinel.documents.match import MatchResult, match_profile_to_job
 from job_sentinel.documents.tailor import KeywordTailor, TailorResult
 from job_sentinel.profile import (
     DEFAULT_ANSWERS_PATH,
+    DEFAULT_FIELDMAP_PATH,
     DEFAULT_PROFILE_PATH,
     AnswerBank,
+    FieldMap,
+    LearnedLabel,
     Profile,
     load_answers,
+    load_fieldmap,
     load_profile,
+    save_fieldmap,
     save_profile,
 )
 
@@ -62,6 +68,27 @@ _DATA_DIR = Path(__file__).resolve().parents[3] / "data"
 # page by URL instead of pasting them. Absent from a wheel install, which
 # ships src/ only, so the route degrades to a 404 with an explanation.
 _FILL_DIR = Path(__file__).resolve().parents[3] / "extension" / "fill"
+
+#: The filler scripts are the repository's own code and carry no user data,
+#: so they are readable from any origin. That matters because a board with a
+#: strict script-src (Greenhouse has one) blocks a script tag pointing at
+#: localhost, leaving fetch-and-evaluate as the only way in. Nothing under
+#: /api is opened up by this.
+_PUBLIC_SCRIPT_HEADERS = {"Access-Control-Allow-Origin": "*"}
+
+#: Lines that are nothing but a comment. Line-based on purpose: a real
+#: minifier would have to parse regex literals and template strings to
+#: avoid corrupting them, and the filler scripts are read by users.
+_COMMENT_LINE = re.compile(r"^\s*(//|/\*|\*/|\*(?!/))")
+
+
+def _strip_comment_lines(text: str) -> str:
+    """Drop comment-only lines and indentation from a filler script."""
+    kept = [
+        line.strip() for line in text.splitlines() if line.strip() and not _COMMENT_LINE.match(line)
+    ]
+    return "\n".join(kept)
+
 
 # The local Next.js dev server (and a future packaged UI) call this API.
 # Next picks the next free port when 3000 is taken, so accept any localhost
@@ -168,9 +195,14 @@ class _SourceConfigKeys(BaseModel):
 
 
 class AnswerMatchRequest(BaseModel):
-    """Form labels scraped from one page, in document order."""
+    """Form labels scraped from one page, in document order.
+
+    ``ats`` scopes the learned field map: a wording taught for Workday
+    should not answer a differently-meant question on Greenhouse.
+    """
 
     labels: list[str] = Field(default_factory=list)
+    ats: str = "any"
 
 
 class AnswerMatch(BaseModel):
@@ -188,6 +220,15 @@ class AnswerMatch(BaseModel):
     options: list[str] = Field(default_factory=list)
     private: bool = False
     note: str = ""
+    learned: bool = False
+
+
+class LearnLabelRequest(BaseModel):
+    """Teach the filler that a form wording means a stored answer."""
+
+    label: str
+    field_id: str
+    ats: str = "any"
 
 
 class SourceConfigRequest(BaseModel):
@@ -207,6 +248,17 @@ class SourceSearchRequest(BaseModel):
     company: str = ""
     limit: int = Field(default=50, ge=1)
     sources: list[str] | None = None  # restrict to specific source IDs
+
+
+class ApplyFindRequest(SourceSearchRequest):
+    """A search, plus what to do with what it finds.
+
+    ``screen`` re-reads each posting through its own board, which is the slow
+    part of a run and the part that keeps blocked roles out of the queue.
+    """
+
+    screen: bool = True
+    timeout: float = Field(default=30.0, gt=0)
 
 
 class CompanyBoardRequest(BaseModel):
@@ -263,10 +315,12 @@ def create_app(
     db_path: Path | None = None,
     auth_dir: Path | None = None,
     answers_path: Path | None = None,
+    fieldmap_path: Path | None = None,
 ) -> FastAPI:
     """Build the FastAPI app. Paths are injectable so tests stay isolated."""
     profile_path = profile_path or DEFAULT_PROFILE_PATH
     answers_path = answers_path or DEFAULT_ANSWERS_PATH
+    fieldmap_path = fieldmap_path or DEFAULT_FIELDMAP_PATH
     db_path = db_path or (_DATA_DIR / "jobs.db")
     auth_dir = auth_dir or _DATA_DIR
 
@@ -404,6 +458,46 @@ def create_app(
     def profile_summary() -> ProfileSummary:
         return _summary(load_profile(profile_path))
 
+    @app.get("/fill/bundle.js", response_class=PlainTextResponse)
+    def fill_bundle(response: Response, min: bool = False) -> str:
+        """Every filler script concatenated, for pages a script tag cannot reach.
+
+        Most boards load ``/fill/<file>`` by script tag happily. Greenhouse and
+        a few others ship a Content-Security-Policy that blocks any script src
+        they did not list, so there the session pastes this bundle into one
+        evaluation instead, which CSP does not govern.
+
+        ``min=1`` strips comment lines and indentation, which roughly thirds
+        the size. It is deliberately line-based rather than a real minifier:
+        nothing is renamed, so what runs is still the code in the repository.
+        """
+        parts = [
+            "dom.js",
+            "registry.js",
+            "adapters/workday.js",
+            "adapters/greenhouse.js",
+            "adapters/lever.js",
+            "adapters/ashby.js",
+            "adapters/generic.js",
+            "claude.js",
+        ]
+        response.headers.update(_PUBLIC_SCRIPT_HEADERS)
+        chunks: list[str] = []
+        for part in parts:
+            path = _FILL_DIR / part
+            if not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8")
+            if min:
+                text = _strip_comment_lines(text)
+            chunks.append(text)
+        if not chunks:
+            raise HTTPException(
+                status_code=404,
+                detail="extension/fill is missing; the scripts ship with the repository",
+            )
+        return "\n".join(chunks)
+
     @app.get("/fill/{name:path}", response_class=FileResponse)
     def fill_script(name: str) -> FileResponse:
         """Serve one of the browser-filler scripts to an injecting session.
@@ -425,7 +519,7 @@ def create_app(
                     "repository, not with the installed package."
                 ),
             )
-        return FileResponse(target, media_type=media)
+        return FileResponse(target, media_type=media, headers=_PUBLIC_SCRIPT_HEADERS)
 
     @app.get("/api/answers", response_model=AnswerBank)
     def get_answers() -> AnswerBank:
@@ -441,9 +535,23 @@ def create_app(
         ``field_id`` null, so the overlay can show the user what it skipped.
         """
         bank = load_answers(answers_path)
+        learned_map = load_fieldmap(fieldmap_path)
+        by_id = {f.id: f for f in bank.fields}
         out: list[AnswerMatch] = []
+        touched = False
+
         for label in req.labels:
             field = bank.find(label)
+            learned = False
+            if field is None:
+                # Nothing in the bank words it this way. Fall back to whatever
+                # the user taught the filler the last time a form asked.
+                field_id = learned_map.resolve(label, req.ats)
+                field = by_id.get(field_id or "")
+                if field is not None:
+                    learned = True
+                    learned_map.record_use(label, req.ats)
+                    touched = True
             if field is None:
                 out.append(AnswerMatch(label=label))
                 continue
@@ -459,14 +567,131 @@ def create_app(
                     options=field.options,
                     private=private,
                     note=field.note,
+                    learned=learned,
                 )
             )
+
+        if touched:
+            save_fieldmap(learned_map, fieldmap_path)
         return out
 
     @app.get("/api/answers/resume")
     def answers_resume(title: str) -> dict[str, str | None]:
         """Which stored resume the routing rules pick for a job title."""
         return {"title": title, "file": load_answers(answers_path).resume_for(title)}
+
+    @app.post("/api/apply/find")
+    def apply_find(req: ApplyFindRequest) -> dict[str, Any]:
+        """Find, screen and queue in one pass.
+
+        Unlike ``/api/sources/search``, which is ephemeral, anything eligible
+        here is written to the tracker as a saved application, deduplicated on
+        the posting URL against every application already tracked.
+        """
+        from job_sentinel.config.settings import get_settings
+        from job_sentinel.core.pipeline import run_find
+        from job_sentinel.db.repository import JobRepository
+        from job_sentinel.sources.base import JobQuery
+
+        settings = get_settings()
+        query = JobQuery(
+            keywords=req.keywords,
+            location=req.location,
+            remote=req.remote,
+            job_type=req.job_type,
+            salary_min=req.salary_min,
+            date_posted_days=req.date_posted_days,
+            radius_km=req.radius_km,
+            seniority=req.seniority,
+            company=req.company,
+            limit=min(req.limit, 100),
+        )
+
+        sources = None
+        if req.sources:
+            sources = []
+            for sid in req.sources:
+                try:
+                    sources.append(_instantiate_source_for_api(sid, settings))
+                except Exception as exc:
+                    logger.debug("Could not instantiate source '{}': {}", sid, exc)
+
+        repo = JobRepository(db_path)
+        try:
+            report = run_find(
+                query,
+                settings,
+                repo,
+                sources=sources,
+                screen=req.screen,
+                timeout=req.timeout,
+            )
+        finally:
+            repo.close()
+
+        return {
+            "summary": report.summary,
+            "found": report.found,
+            "screened": report.screened,
+            "duplicates": report.duplicates,
+            "counts": report.counts,
+            "errors": report.errors,
+            "queued": [a.model_dump(mode="json") for a in report.queued],
+            "blocked": [
+                {
+                    "title": b.posting.title,
+                    "employer": b.posting.employer,
+                    "url": b.posting.portal_url,
+                    "why": b.verdict.summary,
+                    "quotes": [quote for _, quote in b.verdict.blockers],
+                }
+                for b in report.blocked
+            ],
+        }
+
+    @app.get("/api/apply/queue")
+    def apply_queue(limit: int = 50) -> list[dict[str, Any]]:
+        """Applications waiting to be filled, newest first."""
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            saved = repo.list_applications(stage=ApplicationStage.SAVED, limit=limit)
+        finally:
+            repo.close()
+        return [a.model_dump(mode="json") for a in saved]
+
+    @app.get("/api/fieldmap", response_model=FieldMap)
+    def get_fieldmap() -> FieldMap:
+        """Every form wording the filler has been taught."""
+        return load_fieldmap(fieldmap_path)
+
+    @app.post("/api/fieldmap/learn", response_model=LearnedLabel)
+    def learn_label(req: LearnLabelRequest) -> LearnedLabel:
+        """Teach the filler that a wording means a stored answer.
+
+        Rejects an unknown field id rather than writing a mapping that would
+        silently resolve to nothing on the next form.
+        """
+        bank = load_answers(answers_path)
+        if not any(f.id == req.field_id for f in bank.fields):
+            raise HTTPException(
+                status_code=404,
+                detail=f"no field {req.field_id!r} in the answer bank",
+            )
+        learned_map = load_fieldmap(fieldmap_path)
+        entry = learned_map.learn(req.label, req.field_id, req.ats)
+        save_fieldmap(learned_map, fieldmap_path)
+        return entry
+
+    @app.delete("/api/fieldmap/{label:path}")
+    def forget_label(label: str, ats: str = "any") -> dict[str, bool]:
+        """Drop a wording the filler learned wrongly."""
+        learned_map = load_fieldmap(fieldmap_path)
+        removed = learned_map.forget(label, ats)
+        if removed:
+            save_fieldmap(learned_map, fieldmap_path)
+        return {"removed": removed}
 
     @app.get("/api/jobs", response_model=list[JobPosting])
     def list_jobs(limit: int = 20) -> list[JobPosting]:

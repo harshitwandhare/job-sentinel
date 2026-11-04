@@ -80,5 +80,45 @@
     return { review: false, results };
   }
 
-  Object.assign(ns, { labels, apply });
+  /**
+   * Where a field sits on screen, so a real click can land on it.
+   *
+   * Some dropdowns only open on a trusted gesture: a dispatched click is
+   * marked untrusted and ignored. ``apply`` reports those rather than
+   * pretending, and a session driving a real browser finishes them by
+   * clicking these coordinates and typing for real.
+   */
+  function locate(i) {
+    const field = scanned[i];
+    if (!field) return null;
+    field.el.scrollIntoView({ block: "center", behavior: "instant" });
+    const box = field.el.getBoundingClientRect();
+    return {
+      i,
+      label: field.label,
+      kind: field.kind,
+      x: Math.round(box.left + box.width / 2),
+      y: Math.round(box.top + box.height / 2),
+      width: Math.round(box.width),
+      height: Math.round(box.height),
+    };
+  }
+
+  /** The options visible right now, with coordinates, after a menu is open. */
+  function openOptions() {
+    const nodes = document.querySelectorAll("[role='option'], .select__option");
+    return Array.from(nodes)
+      .filter((o) => ns.isVisible(o))
+      .slice(0, 40)
+      .map((o) => {
+        const box = o.getBoundingClientRect();
+        return {
+          text: ns.visibleText(o),
+          x: Math.round(box.left + box.width / 2),
+          y: Math.round(box.top + box.height / 2),
+        };
+      });
+  }
+
+  Object.assign(ns, { labels, apply, locate, openOptions });
 })();

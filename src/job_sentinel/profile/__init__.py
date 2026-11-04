@@ -9,6 +9,13 @@ from job_sentinel.profile.answers import (
     load_answers,
     save_answers,
 )
+from job_sentinel.profile.fieldmap import (
+    DEFAULT_FIELDMAP_PATH,
+    FieldMap,
+    LearnedLabel,
+    load_fieldmap,
+    save_fieldmap,
+)
 from job_sentinel.profile.models import (
     Award,
     Basics,
@@ -29,6 +36,7 @@ from job_sentinel.profile.store import (
 
 __all__ = [
     "DEFAULT_ANSWERS_PATH",
+    "DEFAULT_FIELDMAP_PATH",
     "DEFAULT_PROFILE_PATH",
     "AnswerBank",
     "AnswerField",
@@ -38,6 +46,8 @@ __all__ = [
     "Education",
     "Experience",
     "FieldKind",
+    "FieldMap",
+    "LearnedLabel",
     "Profile",
     "Project",
     "Publication",
@@ -45,7 +55,9 @@ __all__ = [
     "example_answers",
     "example_profile",
     "load_answers",
+    "load_fieldmap",
     "load_profile",
     "save_answers",
+    "save_fieldmap",
     "save_profile",
 ]
