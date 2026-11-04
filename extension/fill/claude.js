@@ -120,5 +120,26 @@
       });
   }
 
-  Object.assign(ns, { labels, apply, locate, openOptions });
+  /**
+   * The upload fields on this page, with somewhere to click.
+   *
+   * A file can only be attached by real user input, so this reports rather
+   * than acts: the session clicks the coordinates and hands the file over
+   * through the browser's own upload path.
+   */
+  function uploads() {
+    return ns.findUploads().map((found) => {
+      const box = found.target.getBoundingClientRect();
+      return {
+        label: found.label,
+        accept: found.accept,
+        multiple: found.multiple,
+        attached: found.input.files?.length > 0,
+        x: Math.round(box.left + box.width / 2),
+        y: Math.round(box.top + box.height / 2),
+      };
+    });
+  }
+
+  Object.assign(ns, { labels, apply, locate, openOptions, uploads });
 })();

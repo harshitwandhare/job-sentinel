@@ -627,6 +627,63 @@ def apply_queue(limit: int = typer.Option(25, "--limit", help="How many to show"
         console.print(f"  [dim]{item.url}[/]")
 
 
+@apply_app.command("next")
+def apply_next() -> None:
+    """The next queued application, with the resume routed for it."""
+    from job_sentinel.config.settings import get_settings
+    from job_sentinel.core.pipeline import next_to_fill
+    from job_sentinel.db.repository import JobRepository
+    from job_sentinel.profile import load_answers
+
+    repo = JobRepository(get_settings().db_path)
+    try:
+        item = next_to_fill(repo)
+    finally:
+        repo.close()
+
+    if item is None:
+        console.print("[yellow]Nothing left to fill.[/] Add more with: apply find")
+        return
+
+    console.print(f"[cyan]{item.employer}[/] — {item.title}")
+    console.print(f"  [dim]{item.url}[/]")
+    if item.notes:
+        console.print(f"  {item.notes}")
+
+    bank = load_answers()
+    resolved = bank.resume_path_for(item.title)
+    if resolved and resolved.is_file():
+        console.print(f"  [green]resume[/] {resolved}")
+    elif resolved:
+        console.print(f"  [red]resume missing[/] {resolved}")
+    else:
+        console.print("  [yellow]No routing rule matches this title.[/] Pick a resume yourself.")
+
+
+@apply_app.command("filled")
+def apply_filled(app_id: str = typer.Argument(..., help="Application id")) -> None:
+    """Record that a form has been prefilled, so the run moves on.
+
+    The stage stays saved. Nothing has been submitted.
+    """
+    from job_sentinel.config.settings import get_settings
+    from job_sentinel.core.pipeline import mark_filled
+    from job_sentinel.db.repository import JobRepository
+
+    repo = JobRepository(get_settings().db_path)
+    try:
+        updated = mark_filled(app_id, repo)
+    finally:
+        repo.close()
+
+    if updated is None:
+        console.print(f"[red]No application[/] {app_id}")
+        raise typer.Exit(1)
+    console.print(f"[green]Prefilled[/] {updated.employer} — {updated.title}")
+    console.print("  [dim]Stage is still saved. Move it on after you submit:[/]")
+    console.print(f"  [dim]job-sentinel apps stage {updated.id} applied[/]")
+
+
 @resume_app.command("import")
 def resume_import(
     pdf: Path = typer.Argument(..., exists=True, readable=True, help="Resume PDF to import"),  # noqa: B008

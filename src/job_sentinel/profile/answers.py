@@ -128,6 +128,10 @@ class AnswerBank(BaseModel):
 
     version: int = 1
     updated: str = ""
+    #: Where ``resume_routing`` paths are relative to. Kept here rather than in
+    #: settings because it only means anything alongside the routing it serves,
+    #: and a resume library usually lives outside this repository.
+    resume_root: str = ""
     fields: list[AnswerField] = Field(default_factory=list)
     private: list[str] = Field(default_factory=list)
     resume_routing: list[dict[str, Any]] = Field(default_factory=list)
@@ -166,6 +170,17 @@ class AnswerBank(BaseModel):
             if any(contains_phrase(text, normalise(str(t))) for t in triggers):
                 return str(rule.get("file", "")) or None
         return None
+
+    def resume_path_for(self, job_title: str) -> Path | None:
+        """The routed resume as a path on disk, when ``resume_root`` is set.
+
+        Returns None when nothing routes or no root is configured, so the
+        caller can say "pick one yourself" instead of inventing a location.
+        """
+        picked = self.resume_for(job_title)
+        if not picked or not self.resume_root:
+            return None
+        return Path(self.resume_root).expanduser() / picked
 
 
 # ── Persistence ───────────────────────────────────────────────────────────────

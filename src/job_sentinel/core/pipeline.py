@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from loguru import logger
@@ -40,7 +41,24 @@ if TYPE_CHECKING:
     from job_sentinel.db.repository import JobRepository
     from job_sentinel.sources.base import JobQuery, JobSource
 
-__all__ = ["RunReport", "Screened", "find_jobs", "queue_jobs", "run_find", "screen_jobs"]
+__all__ = [
+    "FILLED_AT",
+    "RunReport",
+    "Screened",
+    "find_jobs",
+    "is_filled",
+    "mark_filled",
+    "next_to_fill",
+    "queue_jobs",
+    "run_find",
+    "screen_jobs",
+]
+
+#: Stamped on an application once a form has been prefilled for it.
+#: Not a stage: the application has not been submitted, and only the user
+#: can do that. It exists so a run of several postings moves on instead of
+#: handing back the same one.
+FILLED_AT = "filled_at"
 
 #: Screening is almost entirely network wait, so run a few at once. Kept low
 #: on purpose: boards rate-limit, and NVIDIA's Workday starts returning 403
@@ -194,3 +212,30 @@ def run_find(
         errors=errors,
         counts=counts,
     )
+
+
+def is_filled(app: Application) -> bool:
+    """True when a form has already been prefilled for this application."""
+    return bool(app.raw_data.get(FILLED_AT))
+
+
+def mark_filled(app_id: str, repo: JobRepository) -> Application | None:
+    """Stamp an application as prefilled, leaving its stage alone.
+
+    The stage stays ``saved`` because nothing has been submitted. Moving it to
+    ``applied`` here would record an application the user never sent.
+    """
+    app = repo.get_application(app_id)
+    if app is None:
+        return None
+    raw = dict(app.raw_data)
+    raw[FILLED_AT] = datetime.now(tz=UTC).isoformat()
+    repo.update_application(app_id, raw_data=raw)
+    return repo.get_application(app_id)
+
+
+def next_to_fill(repo: JobRepository) -> Application | None:
+    """The oldest queued application that has not been prefilled yet."""
+    saved = repo.list_applications(stage=ApplicationStage.SAVED, limit=500)
+    pending = [a for a in saved if not is_filled(a)]
+    return pending[-1] if pending else None

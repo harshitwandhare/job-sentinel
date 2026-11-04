@@ -459,7 +459,7 @@ def create_app(
         return _summary(load_profile(profile_path))
 
     @app.get("/fill/bundle.js", response_class=PlainTextResponse)
-    def fill_bundle(response: Response, min: bool = False) -> str:
+    def fill_bundle(response: Response, min: bool = False, only: str = "") -> str:
         """Every filler script concatenated, for pages a script tag cannot reach.
 
         Most boards load ``/fill/<file>`` by script tag happily. Greenhouse and
@@ -471,13 +471,19 @@ def create_app(
         the size. It is deliberately line-based rather than a real minifier:
         nothing is renamed, so what runs is still the code in the repository.
         """
+        adapters = ["workday", "greenhouse", "lever", "ashby"]
+        wanted = [a.strip() for a in only.split(",") if a.strip()]
+        if wanted:
+            # The session knows the host before it loads anything, and most
+            # boards block loading by URL, so the bundle gets pasted. Sending
+            # one adapter instead of five is the difference between 8KB and
+            # 22KB of paste. Unknown names are ignored rather than refused:
+            # the generic adapter still answers.
+            adapters = [a for a in adapters if a in wanted]
         parts = [
             "dom.js",
             "registry.js",
-            "adapters/workday.js",
-            "adapters/greenhouse.js",
-            "adapters/lever.js",
-            "adapters/ashby.js",
+            *[f"adapters/{a}.js" for a in adapters],
             "adapters/generic.js",
             "claude.js",
         ]
@@ -576,9 +582,21 @@ def create_app(
         return out
 
     @app.get("/api/answers/resume")
-    def answers_resume(title: str) -> dict[str, str | None]:
-        """Which stored resume the routing rules pick for a job title."""
-        return {"title": title, "file": load_answers(answers_path).resume_for(title)}
+    def answers_resume(title: str) -> dict[str, Any]:
+        """Which stored resume the routing rules pick for a job title.
+
+        ``path`` and ``exists`` are filled in when the bank sets a
+        ``resume_root``; without one the caller is told to pick a file itself
+        rather than being handed a guessed location.
+        """
+        bank = load_answers(answers_path)
+        resolved = bank.resume_path_for(title)
+        return {
+            "title": title,
+            "file": bank.resume_for(title),
+            "path": str(resolved) if resolved else None,
+            "exists": bool(resolved and resolved.is_file()),
+        }
 
     @app.post("/api/apply/find")
     def apply_find(req: ApplyFindRequest) -> dict[str, Any]:
@@ -652,6 +670,7 @@ def create_app(
     @app.get("/api/apply/queue")
     def apply_queue(limit: int = 50) -> list[dict[str, Any]]:
         """Applications waiting to be filled, newest first."""
+        from job_sentinel.core.pipeline import is_filled
         from job_sentinel.db.repository import JobRepository
 
         repo = JobRepository(db_path)
@@ -659,7 +678,56 @@ def create_app(
             saved = repo.list_applications(stage=ApplicationStage.SAVED, limit=limit)
         finally:
             repo.close()
-        return [a.model_dump(mode="json") for a in saved]
+        return [{**a.model_dump(mode="json"), "filled": is_filled(a)} for a in saved]
+
+    @app.get("/api/apply/next")
+    def apply_next() -> dict[str, Any]:
+        """The next queued application, with everything needed to fill it.
+
+        One call rather than three, so a session opening a run of postings is
+        not stitching the posting, the routed resume and the screen notes back
+        together itself.
+        """
+        from job_sentinel.core.pipeline import next_to_fill
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            app_row = next_to_fill(repo)
+        finally:
+            repo.close()
+        if app_row is None:
+            return {"application": None, "resume": None}
+        bank = load_answers(answers_path)
+        resolved = bank.resume_path_for(app_row.title)
+        return {
+            "application": app_row.model_dump(mode="json"),
+            "resume": {
+                "file": bank.resume_for(app_row.title),
+                "path": str(resolved) if resolved else None,
+                "exists": bool(resolved and resolved.is_file()),
+            },
+        }
+
+    @app.post("/api/apply/{app_id}/filled")
+    def apply_mark_filled(app_id: str) -> dict[str, Any]:
+        """Record that a form has been prefilled for this application.
+
+        The stage stays ``saved``: nothing has been submitted, and recording an
+        application the user never sent would be worse than useless. This only
+        stops a run handing back the same posting over and over.
+        """
+        from job_sentinel.core.pipeline import mark_filled
+        from job_sentinel.db.repository import JobRepository
+
+        repo = JobRepository(db_path)
+        try:
+            updated = mark_filled(app_id, repo)
+        finally:
+            repo.close()
+        if updated is None:
+            raise HTTPException(status_code=404, detail=f"no application {app_id!r}")
+        return updated.model_dump(mode="json")
 
     @app.get("/api/fieldmap", response_model=FieldMap)
     def get_fieldmap() -> FieldMap:
