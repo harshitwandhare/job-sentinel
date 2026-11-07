@@ -86,6 +86,10 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ### Fixed
 
+- **The Simplify source dropped about a quarter of the open rows.** The link
+  pattern expected `?utm_source=` right after the path, so any apply link that
+  already had a query string (`?gh_jid=`, `?embed=true`, most iCIMS links) never
+  matched and the row vanished without a warning.
 - **A tracker database with duplicate `sentinel_meta` rows could not be opened
   at all.** An older code path inserted `schema_version` without a primary key,
   so a real database ended up with the row twice; the back-fill that adds the

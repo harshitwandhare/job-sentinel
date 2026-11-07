@@ -57,6 +57,22 @@ def test_parses_rows_and_carries_company_forward() -> None:
 
 
 @respx.mock
+def test_keeps_rows_whose_link_already_has_a_query_string() -> None:
+    readme = """
+    <tr>
+    <td><strong>Waymo</strong></td>
+    <td>Software Engineering Intern</td>
+    <td>Mountain View, CA</td>
+    <td><a href="https://careers.withwaymo.com/jobs?gh_jid=835&utm_source=Simplify&ref=Simplify">Apply</a></td>
+    <td>1d</td>
+    </tr>
+    """
+    respx.get(LISTS["summer2027"]).mock(return_value=httpx.Response(200, text=readme))
+    out = SimplifySource().search(JobQuery())
+    assert [p.raw_data["apply_url"] for p in out] == ["https://careers.withwaymo.com/jobs?gh_jid=835"]
+
+
+@respx.mock
 def test_skips_closed_rows() -> None:
     _mock()
     employers = {p.employer for p in SimplifySource().search(JobQuery())}
