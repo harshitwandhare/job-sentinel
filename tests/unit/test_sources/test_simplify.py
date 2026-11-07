@@ -69,7 +69,7 @@ def test_keeps_rows_whose_link_already_has_a_query_string() -> None:
     """
     respx.get(LISTS["summer2027"]).mock(return_value=httpx.Response(200, text=readme))
     out = SimplifySource().search(JobQuery())
-    assert [p.raw_data["apply_url"] for p in out] == ["https://careers.withwaymo.com/jobs?gh_jid=835"]
+    assert [p.portal_url for p in out] == ["https://careers.withwaymo.com/jobs?gh_jid=835"]
 
 
 @respx.mock
