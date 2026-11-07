@@ -55,7 +55,7 @@ DEFAULT_LISTS: tuple[str, ...] = ("summer2027",)
 
 _ROW = re.compile(r"<tr>\s*(.*?)\s*</tr>", re.S)
 _CELL = re.compile(r"<td[^>]*>(.*?)</td>", re.S)
-_APPLY = re.compile(r'href="([^"]+?)\?utm_source=Simplify')
+_APPLY = re.compile(r'href="([^"]+?)[?&]utm_source=Simplify')
 _AGE = re.compile(r"(\d+)\s*(d|mo)\b")
 _CARRY = "↳"
 _CLOSED = ("🔒", "Closed")
