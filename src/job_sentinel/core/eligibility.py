@@ -14,6 +14,11 @@ Rendered career pages are JavaScript, so each board is read through its JSON
 API instead: Workday CXS, Greenhouse, Lever, Ashby, Workable, SmartRecruiters
 and Oracle Recruiting.  Anything unrecognised falls back to stripped HTML.
 
+Sponsorship policy and visa-class eligibility are different questions, and a
+posting can be open on one while closed on the other.  An employer that
+sponsors happily can still run a programme that excludes F-1 students outright,
+which is why ``visa_class_excluded`` exists alongside ``no_sponsorship``.
+
 A verdict is evidence, not a decision.  ``Verdict.blockers`` is what the user
 reads before spending twenty minutes on a form; nothing here auto-rejects a
 posting on the user's behalf.
@@ -110,6 +115,15 @@ DEFAULT_RULES: tuple[Rule, ...] = (
         r"|now and in the future"
         r"|authorized to work[^.]{0,60}(independently|without sponsorship)",
         "employer states it will not sponsor a visa",
+    ),
+    _rule(
+        "visa_class_excluded",
+        r"(individuals?|candidates?|applicants?|students?|employees?)[^.]{0,80}"
+        r"(temporary )?visa (classification|status|categor)[^.]{0,160}not eligible"
+        r"|\bF-?1\b[^.]{0,120}not eligible"
+        r"|not eligible[^.]{0,120}\bF-?1\b"
+        r"|(will not|do(es)? not) (hire|accept)[^.]{0,60}\b(cpt|opt)\b",
+        "programme excludes F-1 students outright, whatever its sponsorship policy",
     ),
     _rule(
         "citizenship",

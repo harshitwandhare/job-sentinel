@@ -86,6 +86,15 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ### Fixed
 
+- **The eligibility screen missed programmes that exclude F-1 students
+  outright.** Sponsorship policy and visa-class eligibility are different
+  questions: an employer that sponsors happily can still run an internship
+  programme that excludes the visa class regardless, usually over export
+  control. The clause that goes with it, "individuals on temporary visa
+  classifications ... are not eligible for the Program", read as clean.
+  A `visa_class_excluded` rule now catches it, with tests covering the
+  welcoming phrasings it must not fire on.
+
 - **A tracker database with duplicate `sentinel_meta` rows could not be opened
   at all.** An older code path inserted `schema_version` without a primary key,
   so a real database ended up with the row twice; the back-fill that adds the
