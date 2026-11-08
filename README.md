@@ -299,6 +299,92 @@ See [`.env.example`](.env.example) for the full reference.
 
 ---
 
+## 🎯 The Apply Loop
+
+Find the latest postings across every source, screen out the ones that rule you
+out, queue the rest, then fill each form. **You read it and click submit.**
+
+```bash
+uv run job-sentinel apply find --keywords "software engineer intern" --days 7
+```
+
+That searches every enabled source, re-reads each posting through the board that
+actually serves it (Workday, Greenhouse, Lever, Ashby, SmartRecruiters, Oracle),
+drops anything the posting itself rules out, skips whatever is already in your
+tracker in any stage, and saves the rest.
+
+```
+8 found, 8 screened, 3 blocked, 0 already tracked, 5 queued
+  blocked Zebra Technologies, employer states it will not sponsor a visa
+  queued  Microsoft, Software Engineer Intern
+```
+
+A blocked posting is reported with the sentence it was blocked on, so a wrong
+screen is visible rather than silent.
+
+```bash
+uv run job-sentinel apply queue          # everything waiting
+uv run job-sentinel apply next           # the next one, with the resume routed for it
+uv run job-sentinel apply filled <id>    # prefilled, move the run on
+```
+
+### Answering the forms once
+
+The answer bank holds every question an application asks, answered once, matched
+on **visible label text** rather than CSS selectors, because Workday tenants ship
+wildly different DOM for identical questions.
+
+```bash
+uv run job-sentinel answers init                      # scaffold data/answers.yaml
+uv run job-sentinel answers match "Are you legally authorized to work?"
+uv run job-sentinel answers learn "<a form's wording>" <field_id> --ats greenhouse
+uv run job-sentinel answers learned                   # what it has been taught
+```
+
+Fields listed as `private` (GPA, address, "why this company") never hand out a
+value, to the API or to the browser. Those you answer in person.
+
+### Filling a form
+
+Two ways, same adapters.
+
+**Browser extension.** Load `extension/` unpacked, open a form, click the
+extension, then **Fill this application**. It shows a plan of what it would type
+before typing anything, and halts on the review step. See
+[`extension/README.md`](extension/README.md).
+
+**From a Claude Code session.** Open this repository in Claude Code and run:
+
+```
+/apply-run software engineer intern summer 2027
+```
+
+for the whole loop, or
+
+```
+/fill-application https://example.wd1.myworkdayjobs.com/...
+```
+
+for one form already open. Both live in [`.claude/commands/`](.claude/commands)
+and are plain Markdown: read them to see exactly what the session will do.
+
+The page never reads your answer bank. The API only allows local origins, so the
+session resolves the form's labels from the shell and sends values in. Your
+personal data never reaches the employer's domain before you submit it.
+
+### What stays yours, by design
+
+Creating accounts, email and SMS verification, CAPTCHAs, and **the submit
+click**. The last page of most application flows carries the work authorisation
+question and a truthfulness certification. A script picking the wrong radio and
+submitting makes a false statement on an employment application, and that is not
+fixable afterwards.
+
+Roadmap and the browser quirks worth not rediscovering:
+[#192](https://github.com/harshitwandhare/job-sentinel/issues/192).
+
+---
+
 ## 📄 Résumé Generator
 
 Job Sentinel keeps a **universal profile**: your master CV data in one
@@ -542,6 +628,8 @@ job-sentinel/
 - [x] Document library: persisted generated résumés and cover letters with ATS scores
 - [x] Dashboard: funnel stats, recent activity, quick actions
 - [x] ⌘K command palette
+- [x] Apply loop: source search → eligibility screen → queue → browser form filler,
+      with per-ATS adapters and a learned field map (see [#192](https://github.com/harshitwandhare/job-sentinel/issues/192))
 - [ ] Deeper ATS scoring: parser-style simulation of the big enterprise ATSes,
       beyond keyword coverage
 - [ ] Ghost-job signals: flag stale/repost patterns before you sink hours in
