@@ -6,7 +6,7 @@ import httpx
 import pytest
 import respx
 
-from job_sentinel.core.eligibility import Status, _resolve, screen_text, screen_url
+from job_sentinel.core.eligibility import Status, _resolve, _unpack, screen_text, screen_url
 
 _FILLER = "We build delightful products for millions of customers worldwide. " * 6
 
@@ -223,3 +223,60 @@ def test_a_posting_can_sponsor_and_still_exclude_the_visa_class() -> None:
     verdict = screen_text(_body(sentence))
     assert verdict.status is Status.BLOCKED
     assert _EXCLUSION in verdict.summary
+
+
+@pytest.mark.parametrize(
+    ("kind", "payload", "title", "needle"),
+    [
+        (
+            "lever",
+            {
+                "text": "Data Intern",
+                "descriptionPlain": "Join the data team.",
+                "lists": [{"text": "Requirements", "content": "<li>Must be a US citizen</li>"}],
+            },
+            "Data Intern",
+            "Must be a US citizen",
+        ),
+        (
+            "smartrecruiters",
+            {
+                "name": "Analyst Intern",
+                "jobAd": {"sections": {"qualifications": {"text": "<p>Python</p>"}, "bad": 3}},
+            },
+            "Analyst Intern",
+            "Python",
+        ),
+        (
+            "oracle",
+            {"items": [{"Title": "ML Intern", "ExternalDescriptionStr": "<p>Train models</p>"}]},
+            "ML Intern",
+            "Train models",
+        ),
+        (
+            "ashby",
+            {"jobs": [{"title": "SWE Intern", "descriptionHtml": "<p>Build things</p>"}]},
+            "SWE Intern",
+            "Build things",
+        ),
+    ],
+)
+def test_board_payloads_are_flattened_to_title_and_text(
+    kind: str, payload: dict, title: str, needle: str
+) -> None:
+    import json
+
+    got_title, text = _unpack(kind, json.dumps(payload))
+    assert got_title == title
+    assert needle in text
+    assert "<" not in text
+
+
+@pytest.mark.parametrize(
+    ("kind", "payload"),
+    [("oracle", {"items": []}), ("oracle", {}), ("ashby", {"jobs": []})],
+)
+def test_empty_board_responses_unpack_to_blank_text(kind: str, payload: dict) -> None:
+    import json
+
+    assert _unpack(kind, json.dumps(payload)) == ("", "")
