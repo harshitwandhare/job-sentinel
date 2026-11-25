@@ -14,6 +14,12 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+### Fixed
+
+- The eligibility screen now reads degree-level exclusions from the posting
+  title as well as the body, so an undergraduate-only or PhD-only internship
+  that never repeats it in the description is no longer queued (#190).
+
 ### Added
 
 - **Simplify source** (`sources/simplify.py`) — reads the community-maintained

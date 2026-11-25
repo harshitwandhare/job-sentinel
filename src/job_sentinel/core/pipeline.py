@@ -129,7 +129,8 @@ def screen_jobs(postings: list[JobPosting], *, timeout: float = 30.0) -> list[Sc
     def one(posting: JobPosting) -> Screened:
         if not posting.portal_url:
             return Screened(posting, Verdict(Status.UNKNOWN, detail="no URL on the posting"))
-        return Screened(posting, screen_url(posting.portal_url, timeout=timeout))
+        verdict = screen_url(posting.portal_url, title=posting.title, timeout=timeout)
+        return Screened(posting, verdict)
 
     with ThreadPoolExecutor(max_workers=_SCREEN_WORKERS) as pool:
         return list(pool.map(one, postings))
