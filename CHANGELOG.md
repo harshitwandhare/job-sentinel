@@ -19,6 +19,11 @@ Versions follow [Semantic Versioning](https://semver.org):
 - The eligibility screen now reads degree-level exclusions from the posting
   title as well as the body, so an undergraduate-only or PhD-only internship
   that never repeats it in the description is no longer queued (#190).
+- Saving or testing the LLM settings always failed with a 422, and
+  `/openapi.json` returned a 500. The three request models were local to
+  `create_app`, so FastAPI read the request body as a query parameter.
+- Settings values containing a line break are now rejected before they are
+  written to `.env`, where they could have added settings of their own.
 
 ### Added
 
