@@ -280,3 +280,81 @@ def test_empty_board_responses_unpack_to_blank_text(kind: str, payload: dict) ->
     import json
 
     assert _unpack(kind, json.dumps(payload)) == ("", "")
+
+
+# -- degree level stated in the title -----------------------------------------
+
+_UNDERGRAD = "undergraduate-only programme"
+_PHD = "doctoral candidates only"
+
+
+def _screen_listed(title: str) -> str:
+    """Screen a clean posting body listed under *title* on an unknown host."""
+    page = "https://careers.example.com/jobs/7"
+    respx.get(page).mock(return_value=httpx.Response(200, text=f"<p>{_body('')}</p>"))
+    return screen_url(page, title=title).summary
+
+
+@respx.mock
+@pytest.mark.parametrize(
+    ("title", "reason"),
+    [
+        ("Campus Undergraduate Summer Internship Program - Software Engineer 2027", _UNDERGRAD),
+        ("Software Engineering Intern (Undergraduate)", _UNDERGRAD),
+        ("Under-graduate Co-op, Platform", _UNDERGRAD),
+        ("PhD Research Intern, Machine Learning", _PHD),
+        ("Doctoral Internship - Optimisation", _PHD),
+    ],
+)
+def test_title_alone_can_block(title: str, reason: str) -> None:
+    assert _screen_listed(title) == reason
+
+
+@respx.mock
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Software Intern (Undergraduate or Graduate)",
+        "Undergraduate/Master's Software Engineering Intern",
+        "Undergraduate and MS Internship",
+        "Undergraduate & Postgraduate Summer Program",
+        "MS/PhD Research Intern",
+        "PhD or Master's Intern, Applied Science",
+        "Software Engineer, Undergraduate Admissions Systems",
+        "Research Engineer, PhD",
+        "Junior Software Engineer Intern",
+        "Graduate Software Engineering Program",
+    ],
+)
+def test_title_rules_leave_other_titles_alone(title: str) -> None:
+    assert _screen_listed(title) == "no blockers found"
+
+
+@respx.mock
+def test_board_title_is_screened_and_quoted() -> None:
+    page = "https://job-boards.greenhouse.io/acme/jobs/2"
+    respx.get("https://boards-api.greenhouse.io/v1/boards/acme/jobs/2").mock(
+        return_value=httpx.Response(
+            200, json={"title": "Undergraduate Intern", "content": _body("")}
+        )
+    )
+    verdict = screen_url(page)
+    assert verdict.status is Status.BLOCKED
+    assert verdict.blockers == [(_UNDERGRAD, "Undergraduate Intern")]
+
+
+@respx.mock
+def test_title_does_not_repeat_a_blocker_the_body_already_gave() -> None:
+    page = "https://careers.example.com/jobs/8"
+    body = _body("You must be an undergraduate to apply.")
+    respx.get(page).mock(return_value=httpx.Response(200, text=f"<p>{body}</p>"))
+    verdict = screen_url(page, title="Undergraduate Intern")
+    assert [explain for explain, _ in verdict.blockers] == [_UNDERGRAD]
+
+
+@respx.mock
+def test_title_still_blocks_when_the_posting_cannot_be_read() -> None:
+    page = "https://careers.example.com/jobs/9"
+    respx.get(page).mock(side_effect=httpx.ConnectError("refused"))
+    verdict = screen_url(page, title="Undergraduate Summer Internship")
+    assert verdict.status is Status.BLOCKED

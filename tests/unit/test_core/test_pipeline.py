@@ -140,7 +140,7 @@ def test_run_find_drops_blocked_postings(
     from job_sentinel.core import pipeline
     from job_sentinel.sources.base import JobQuery
 
-    def fake_screen(url: str, *, timeout: float = 30.0) -> Verdict:
+    def fake_screen(url: str, *, title: str = "", timeout: float = 30.0) -> Verdict:
         if url.endswith("/2"):
             return Verdict(Status.BLOCKED, blockers=[("no sponsorship", "we do not sponsor")])
         return Verdict(Status.ELIGIBLE)

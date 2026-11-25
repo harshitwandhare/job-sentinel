@@ -164,6 +164,28 @@ DEFAULT_RULES: tuple[Rule, ...] = (
     ),
 )
 
+#: Degree-level exclusions that a title states on its own, for postings whose
+#: body never repeats it. Deliberately not :data:`DEFAULT_RULES`: a title is a
+#: few words with no context, and a false positive hides a role the user never
+#: sees. Each rule needs an intern, co-op, programme or student role, and stands
+#: down when the title also names another degree level.
+TITLE_RULES: tuple[Rule, ...] = (
+    _rule(
+        "undergrad_only",
+        r"^(?!.*(?<!under-)\b(?:(?:post-?)?grad(?:uate)?s?|master'?s?|m\.?s\b|mba|ph\.?d|doctoral)\b)"
+        r"(?=.*\b(?:intern(?:ship)?s?|co-?op|program(?:me)?|students?)\b)"
+        r".*\bunder-?grad(?:uate)?s?\b",
+        "undergraduate-only programme",
+    ),
+    _rule(
+        "phd_only",
+        r"^(?!.*\b(?:bachelor'?s?|master'?s?|b\.?s\b|m\.?s\b|mba|(?:under-?)?grad(?:uate)?s?)\b)"
+        r"(?=.*\b(?:intern(?:ship)?s?|co-?op)\b)"
+        r".*\b(?:ph\.?d|doctoral)",
+        "doctoral candidates only",
+    ),
+)
+
 
 # ── Board resolution ──────────────────────────────────────────────────────────
 
@@ -334,11 +356,29 @@ def screen_text(text: str, rules: tuple[Rule, ...] = DEFAULT_RULES) -> Verdict:
     return verdict
 
 
-def screen_url(url: str, *, timeout: float = 30.0) -> Verdict:
+def _screen_title(verdict: Verdict, *titles: str) -> None:
+    """Add to *verdict* any blocker that the posting's titles state themselves.
+
+    The titles are judged together, so another degree level named in either one
+    is enough to hold a rule back.
+    """
+    combined = " | ".join(dict.fromkeys(t.strip() for t in titles if t.strip()))
+    reported = {explain for explain, _ in verdict.blockers}
+    for rule in TITLE_RULES:
+        if rule.explain not in reported and rule.pattern.search(combined):
+            verdict.blockers.append((rule.explain, combined[:300]))
+            verdict.status = Status.BLOCKED
+
+
+def screen_url(url: str, *, title: str = "", timeout: float = 30.0) -> Verdict:
     """Fetch *url* through its own board API and screen the result.
 
+    *title* is the one the posting was listed under. It is screened along with
+    the board's own title, which unrecognised hosts do not provide.
+
     Never raises: a transport error or an unreadable board becomes an
-    ``UNKNOWN`` verdict carrying the reason in ``detail``.
+    ``UNKNOWN`` verdict carrying the reason in ``detail``, unless a title
+    already rules the user out.
     """
     resolved = _resolve(url)
     api_url, kind = resolved if resolved else (url, "raw")
@@ -349,11 +389,13 @@ def screen_url(url: str, *, timeout: float = 30.0) -> Verdict:
     try:
         with httpx.Client(timeout=timeout, follow_redirects=True, headers=headers) as client:
             body = client.get(api_url).raise_for_status().text
-        title, text = _unpack(kind, body)
+        board_title, text = _unpack(kind, body)
     except (httpx.HTTPError, json.JSONDecodeError, KeyError, IndexError) as exc:
         logger.debug("eligibility: {} unreadable via {}: {}", url, kind, exc)
-        return Verdict(Status.UNKNOWN, source=kind, detail=f"{type(exc).__name__}: {exc}")
+        verdict = Verdict(Status.UNKNOWN, source=kind, detail=f"{type(exc).__name__}: {exc}")
+    else:
+        verdict = screen_text(text)
+        verdict.title, verdict.source = board_title, kind
 
-    verdict = screen_text(text)
-    verdict.title, verdict.source = title, kind
+    _screen_title(verdict, verdict.title, title)
     return verdict
