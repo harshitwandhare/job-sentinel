@@ -14,6 +14,76 @@ Versions follow [Semantic Versioning](https://semver.org):
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-24
+
+### Added
+
+- **Simplify source** (`sources/simplify.py`): reads the community-maintained
+  internship and new-grad lists published as GitHub READMEs, handling the `↳`
+  company carry-forward and skipping closed rows.
+- **Eligibility screen** (`core/eligibility.py`): re-reads a posting through
+  the board that actually serves it (Workday CXS, Greenhouse, Lever, Ashby,
+  SmartRecruiters, Oracle Recruiting) and returns a verdict that quotes the
+  sentence it judged on. Covers sponsorship, citizenship, clearance, export
+  control and degree-level exclusions.
+- **Answer bank** (`profile/answers.py`, `answers` CLI, `GET /api/answers`,
+  `POST /api/answers/match`, `GET /api/answers/resume`): every question an
+  application form asks, answered once, matched on visible label text rather
+  than on CSS selectors. Fields listed as private never hand out a value.
+- **Application filler** (`extension/fill/`): the browser extension can now
+  fill an application form from the answer bank. It scans the visible labels,
+  resolves them against `POST /api/answers/match` in one request, shows a plan
+  of what would go where, and types nothing until you click again. It halts on
+  the review step, never clicks submit, and never receives a private value.
+  Per-ATS adapters live in `extension/fill/adapters/`; Workday ships first,
+  with a generic adapter reading plain HTML form semantics as the fallback.
+  The scripts are injected on your click rather than declared as content
+  scripts, so the extension holds no standing permission on any job site.
+- **Claude-driven filling** (`extension/fill/claude.js`, `GET /fill/{name}`,
+  `/fill-application`): the same adapters run from a Claude Code session, for
+  prefilling several applications in a row. The session loads the scripts into
+  the page from the local API, reads the questions with `__jsFill.labels()`,
+  resolves them against `POST /api/answers/match` from the shell, and fills
+  with `__jsFill.apply()`. The page never reads the answer bank: CORS allows
+  local origins only, so the data stays outside the employer's domain.
+- **Apply pipeline** (`core/pipeline.py`, `apply find|queue` CLI,
+  `POST /api/apply/find`, `GET /api/apply/queue`, `/apply` web page): one pass
+  that searches every enabled source, re-reads each posting through the board
+  that serves it, drops what the posting itself rules out, skips anything
+  already tracked in any stage, and saves the rest as queued applications. The
+  blocked ones are reported with the sentence they were blocked on, so a wrong
+  screen is visible rather than silent.
+- **Learned field map** (`profile/fieldmap.py`, `answers learn|learned|forget`,
+  `GET /api/fieldmap`, `POST /api/fieldmap/learn`, `DELETE /api/fieldmap/{label}`): a wording the answer bank does not recognise can be paired with the stored
+  answer it means, and the next form phrased that way is answered without
+  asking. Mappings point at a field id, never at a value, and are scoped to the
+  board that asked, because boards word different questions the same way.
+- **Greenhouse, Lever and Ashby adapters** for the browser filler, each built
+  against a live form rather than from guesswork. Lever labels nothing: its
+  core fields are bare inputs identified only by `name`, so the labelled
+  `.application-question` wrapper is the unit of discovery there.
+- **`GET /fill/bundle.js`**: every filler script concatenated, with `?min=1`
+  stripping comment lines. Greenhouse ships a Content-Security-Policy that
+  blocks both a script tag and a fetch to localhost, so there the bundle is
+  evaluated directly instead.
+- **Resume routing to a real file** (`resume_root` in the answer bank,
+  `GET /api/answers/resume`, `GET /api/apply/next`, `apply next`): the routed
+  resume now comes back as a path on disk with an existence check, so a
+  session knows exactly which PDF to attach.
+- **Upload-field discovery** (`findUploads` in `dom.js`, `__jsFill.uploads()`): reports every file input with something clickable to aim at. A resume
+  field is almost never a visible `input[type=file]`, so visibility is tested
+  on the label the user would click, not the input. Nothing uploads by itself:
+  a file can only be attached by real user input.
+- **A run moves on** (`POST /api/apply/{id}/filled`, `apply filled`): an
+  application that has been prefilled is stamped so `apply next` hands back
+  the following one. The stage stays `saved`, because nothing was submitted.
+- **`GET /fill/bundle.js?only=<adapter>`**: most boards block loading the
+  filler by URL, so the bundle gets pasted into one evaluation instead. Asking
+  for the one adapter the page needs is 9KB rather than 24KB.
+- **`/apply-run` and `/fill-application`** Claude Code commands covering the
+  whole loop, including the parts that stay manual: the account, email and SMS
+  verification, CAPTCHAs, and submit.
+
 ### Fixed
 
 - The eligibility screen now reads degree-level exclusions from the posting
@@ -24,79 +94,6 @@ Versions follow [Semantic Versioning](https://semver.org):
   `create_app`, so FastAPI read the request body as a query parameter.
 - Settings values containing a line break are now rejected before they are
   written to `.env`, where they could have added settings of their own.
-
-### Added
-
-- **Simplify source** (`sources/simplify.py`) — reads the community-maintained
-  internship and new-grad lists published as GitHub READMEs, handling the `↳`
-  company carry-forward and skipping closed rows.
-- **Eligibility screen** (`core/eligibility.py`) — re-reads a posting through
-  the board that actually serves it (Workday CXS, Greenhouse, Lever, Ashby,
-  SmartRecruiters, Oracle Recruiting) and returns a verdict that quotes the
-  sentence it judged on. Covers sponsorship, citizenship, clearance, export
-  control and degree-level exclusions.
-- **Answer bank** (`profile/answers.py`, `answers` CLI, `GET /api/answers`,
-  `POST /api/answers/match`, `GET /api/answers/resume`) — every question an
-  application form asks, answered once, matched on visible label text rather
-  than on CSS selectors. Fields listed as private never hand out a value.
-- **Application filler** (`extension/fill/`) — the browser extension can now
-  fill an application form from the answer bank. It scans the visible labels,
-  resolves them against `POST /api/answers/match` in one request, shows a plan
-  of what would go where, and types nothing until you click again. It halts on
-  the review step, never clicks submit, and never receives a private value.
-  Per-ATS adapters live in `extension/fill/adapters/`; Workday ships first,
-  with a generic adapter reading plain HTML form semantics as the fallback.
-  The scripts are injected on your click rather than declared as content
-  scripts, so the extension holds no standing permission on any job site.
-- **Claude-driven filling** (`extension/fill/claude.js`, `GET /fill/{name}`,
-  `/fill-application`) — the same adapters run from a Claude Code session, for
-  prefilling several applications in a row. The session loads the scripts into
-  the page from the local API, reads the questions with `__jsFill.labels()`,
-  resolves them against `POST /api/answers/match` from the shell, and fills
-  with `__jsFill.apply()`. The page never reads the answer bank: CORS allows
-  local origins only, so the data stays outside the employer's domain.
-- **Apply pipeline** (`core/pipeline.py`, `apply find|queue` CLI,
-  `POST /api/apply/find`, `GET /api/apply/queue`, `/apply` web page) — one pass
-  that searches every enabled source, re-reads each posting through the board
-  that serves it, drops what the posting itself rules out, skips anything
-  already tracked in any stage, and saves the rest as queued applications. The
-  blocked ones are reported with the sentence they were blocked on, so a wrong
-  screen is visible rather than silent.
-- **Learned field map** (`profile/fieldmap.py`, `answers learn|learned|forget`,
-  `GET /api/fieldmap`, `POST /api/fieldmap/learn`, `DELETE /api/fieldmap/{label}`)
-  — a wording the answer bank does not recognise can be paired with the stored
-  answer it means, and the next form phrased that way is answered without
-  asking. Mappings point at a field id, never at a value, and are scoped to the
-  board that asked, because boards word different questions the same way.
-- **Greenhouse, Lever and Ashby adapters** for the browser filler, each built
-  against a live form rather than from guesswork. Lever labels nothing: its
-  core fields are bare inputs identified only by `name`, so the labelled
-  `.application-question` wrapper is the unit of discovery there.
-- **`GET /fill/bundle.js`** — every filler script concatenated, with `?min=1`
-  stripping comment lines. Greenhouse ships a Content-Security-Policy that
-  blocks both a script tag and a fetch to localhost, so there the bundle is
-  evaluated directly instead.
-- **Resume routing to a real file** (`resume_root` in the answer bank,
-  `GET /api/answers/resume`, `GET /api/apply/next`, `apply next`) — the routed
-  resume now comes back as a path on disk with an existence check, so a
-  session knows exactly which PDF to attach.
-- **Upload-field discovery** (`findUploads` in `dom.js`, `__jsFill.uploads()`)
-  — reports every file input with something clickable to aim at. A resume
-  field is almost never a visible `input[type=file]`, so visibility is tested
-  on the label the user would click, not the input. Nothing uploads by itself:
-  a file can only be attached by real user input.
-- **A run moves on** (`POST /api/apply/{id}/filled`, `apply filled`) — an
-  application that has been prefilled is stamped so `apply next` hands back
-  the following one. The stage stays `saved`, because nothing was submitted.
-- **`GET /fill/bundle.js?only=<adapter>`** — most boards block loading the
-  filler by URL, so the bundle gets pasted into one evaluation instead. Asking
-  for the one adapter the page needs is 9KB rather than 24KB.
-- **`/apply-run` and `/fill-application`** Claude Code commands covering the
-  whole loop, including the parts that stay manual: the account, email and SMS
-  verification, CAPTCHAs, and submit.
-
-### Fixed
-
 - **The Simplify source dropped about a quarter of the open rows.** The link
   pattern expected `?utm_source=` right after the path, so any apply link that
   already had a query string (`?gh_jid=`, `?embed=true`, most iCIMS links) never
@@ -118,6 +115,14 @@ Versions follow [Semantic Versioning](https://semver.org):
   `apply find --sources simplify` filtered the enabled list rather than
   instantiating what was asked for, and reported zero results without saying
   why.
+- The API reported version 1.3.0 in its OpenAPI schema. It now reads the
+  installed package version.
+
+### Security
+
+- Refreshed the Python and web lockfiles past the advisories published
+  since 1.4.4, including the critical Next.js ones fixed in 16.4.3 and the
+  sharp, zod, brace-expansion and source-map-js findings.
 
 ## [1.4.4] — 2026-09-12
 
@@ -625,7 +630,8 @@ supply-chain, license, web build).
 
 ---
 
-[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.4...HEAD
+[Unreleased]: https://github.com/harshitwandhare/job-sentinel/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.4...v1.5.0
 [1.4.4]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/harshitwandhare/job-sentinel/compare/v1.4.1...v1.4.2

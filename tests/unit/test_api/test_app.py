@@ -7,6 +7,7 @@ Every test injects temp profile/DB paths into ``create_app`` so the user's real
 
 from __future__ import annotations
 
+from importlib.metadata import version
 from typing import TYPE_CHECKING
 
 from fastapi.testclient import TestClient
@@ -124,3 +125,8 @@ def test_build_with_profile_returns_pdf_or_503(tmp_path: Path) -> None:
     assert resp.status_code in (200, 503)
     if resp.status_code == 200:
         assert resp.headers["content-type"] == "application/pdf"
+
+
+def test_openapi_schema_reports_the_installed_version(tmp_path: Path) -> None:
+    schema = _client(tmp_path).get("/openapi.json").json()
+    assert schema["info"]["version"] == version("job-sentinel")
