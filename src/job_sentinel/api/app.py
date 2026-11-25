@@ -20,6 +20,7 @@ import csv
 import io
 import re
 import uuid
+from importlib.metadata import version as package_version
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -345,7 +346,7 @@ def create_app(
 
     app = FastAPI(
         title="Job Sentinel API",
-        version="1.3.0",
+        version=package_version("job-sentinel"),
         summary="Local API over the job-sentinel core (profile, jobs, résumé tailoring).",
     )
     app.add_middleware(
