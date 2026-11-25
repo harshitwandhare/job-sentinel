@@ -297,6 +297,25 @@ class ApplicationPatchRequest(BaseModel):
     source: str | None = Field(default=None)
 
 
+# Request models stay at module level. With postponed annotations FastAPI cannot
+# resolve a class local to create_app, and silently reads the body as a query
+# parameter instead.
+class _LLMSideInput(BaseModel):
+    provider: str = ""
+    model: str = ""
+    base_url: str | None = None  # None = leave unchanged; "" = clear
+    api_key: str | None = None  # None = leave unchanged; "" = clear
+
+
+class LLMConfigPutRequest(BaseModel):
+    chat: _LLMSideInput = _LLMSideInput()
+    embed: _LLMSideInput = _LLMSideInput()
+
+
+class LLMTestRequest(BaseModel):
+    target: str  # "chat" | "embed"
+
+
 def _summary(p: Profile) -> ProfileSummary:
     return ProfileSummary(
         name=p.basics.name,
@@ -1249,19 +1268,6 @@ def create_app(
             ],
         }
 
-    class _LLMSideInput(BaseModel):
-        provider: str = ""
-        model: str = ""
-        base_url: str = ""
-        api_key: str | None = None  # None = leave unchanged; "" = clear
-
-    class LLMConfigPutRequest(BaseModel):
-        chat: _LLMSideInput = _LLMSideInput()
-        embed: _LLMSideInput = _LLMSideInput()
-
-    class LLMTestRequest(BaseModel):
-        target: str  # "chat" | "embed"
-
     @app.put("/api/llm/config")
     def llm_config_put(req: LLMConfigPutRequest, request: Request) -> dict[str, Any]:
         """
@@ -1896,6 +1902,10 @@ def _update_env_file(updates: dict[str, str]) -> None:
     import tempfile
 
     from job_sentinel.config.settings import _ENV_FILE
+
+    # One value is one line. A line break would let it add settings of its own.
+    if any(len(f"{value}x".splitlines()) > 1 for value in updates.values()):
+        raise HTTPException(status_code=422, detail="Settings values cannot contain line breaks.")
 
     env_path = Path(_ENV_FILE)
     existing_lines: list[str] = []
